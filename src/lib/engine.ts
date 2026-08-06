@@ -84,10 +84,17 @@ function formatBidAction(bid: string): string {
 
 function bidHeadline(seat: Seat, bid: string): string {
   const action = formatBidAction(bid);
-  if (action === "Pass") return `${seatName(seat)} passes`;
-  if (action === "Double") return `${seatName(seat)} doubles`;
-  if (action === "Redouble") return `${seatName(seat)} redoubles`;
-  return `${seatName(seat)} bids ${action}`;
+  const who = seatName(seat);
+  if (action === "Pass") {
+    return seat === "S" ? "You pass" : `${who} passes`;
+  }
+  if (action === "Double") {
+    return seat === "S" ? "You double" : `${who} doubles`;
+  }
+  if (action === "Redouble") {
+    return seat === "S" ? "You redouble" : `${who} redoubles`;
+  }
+  return seat === "S" ? `You bid ${action}` : `${who} bids ${action}`;
 }
 
 function combineNotes(
