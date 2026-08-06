@@ -1,5 +1,6 @@
 import {
   bidDisplay,
+  cardLabel,
   cardSuit,
   contractTrump,
   legalCards,
@@ -18,12 +19,25 @@ export interface Feedback {
   actual?: string;
 }
 
+/** One line in the running coach log (bids, plays, system notes). */
+export interface CommentaryEntry {
+  id: string;
+  kind: "info" | "ok" | "mistake";
+  phase: "bidding" | "play" | "system";
+  seat?: Seat;
+  /** e.g. "Pass", "1S", "HK" */
+  action?: string;
+  text: string;
+}
+
 export interface EngineState {
   phase: Phase;
   bidIndex: number;
   playIndex: number;
   hands: Record<Seat, Card[]>;
   auctionLog: { seat: Seat; bid: string }[];
+  /** Scrollable running commentary for the whole hand. */
+  commentary: CommentaryEntry[];
   tricks: { lead: Seat; cards: Card[]; winner: Seat }[];
   currentTrick: Card[];
   currentLead: Seat | null;
@@ -41,6 +55,70 @@ export interface EngineState {
   pendingNextLead: Seat | null;
   /** Winner of the trick currently displayed (while awaiting advance). */
   lastTrickWinner: Seat | null;
+}
+
+let commentarySeq = 0;
+
+function pushCommentary(
+  list: CommentaryEntry[],
+  entry: Omit<CommentaryEntry, "id">,
+): CommentaryEntry[] {
+  commentarySeq += 1;
+  return [...list, { ...entry, id: `c-${commentarySeq}` }];
+}
+
+function seatName(seat: Seat): string {
+  if (seat === "S") return "You";
+  if (seat === "N") return "Partner (North)";
+  if (seat === "W") return "West";
+  return "East";
+}
+
+function formatBidAction(bid: string): string {
+  const n = normalizeBid(bid);
+  if (n === "Pass") return "Pass";
+  if (n === "X") return "Double";
+  if (n === "XX") return "Redouble";
+  return bidDisplay(n);
+}
+
+function bidHeadline(seat: Seat, bid: string): string {
+  const action = formatBidAction(bid);
+  if (action === "Pass") return `${seatName(seat)} passes`;
+  if (action === "Double") return `${seatName(seat)} doubles`;
+  if (action === "Redouble") return `${seatName(seat)} redoubles`;
+  return `${seatName(seat)} bids ${action}`;
+}
+
+function combineNotes(
+  annotation?: string,
+  teaching?: string,
+): string {
+  const parts = [annotation, teaching]
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean)
+    .filter(
+      (p) =>
+        !/click the word declarer/i.test(p) &&
+        !/click next when ready/i.test(p),
+    );
+
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+
+  // Prefer the longer note when one contains the other; otherwise join both.
+  const [a, b] = parts;
+  const al = a.toLowerCase();
+  const bl = b.toLowerCase();
+  if (al.includes(bl)) return a;
+  if (bl.includes(al)) return b;
+  return `${a} ${b}`;
+}
+
+function playHeadline(seat: Seat, card: Card): string {
+  const who =
+    seat === "S" ? "You" : seat === "N" ? "Dummy" : seatName(seat);
+  return `${who} play${seat === "S" ? "" : "s"} ${cardLabel(card)}`;
 }
 
 function cloneHands(hands: Record<Seat, Card[]>): Record<Seat, Card[]> {
@@ -61,12 +139,14 @@ function ownerOf(hands: Record<Seat, Card[]>, card: Card): Seat | null {
 }
 
 export function initialEngine(lesson: Lesson): EngineState {
+  commentarySeq = 0;
   return {
     phase: "intro",
     bidIndex: 0,
     playIndex: 0,
     hands: cloneHands(lesson.hands),
     auctionLog: [],
+    commentary: [],
     tricks: [],
     currentTrick: [],
     currentLead: null,
@@ -88,9 +168,15 @@ export function initialEngine(lesson: Lesson): EngineState {
 }
 
 export function startBidding(state: EngineState): EngineState {
+  const commentary = pushCommentary(state.commentary, {
+    kind: "info",
+    phase: "system",
+    text: "Auction begins. Choose your bids when it is your turn (South).",
+  });
   return {
     ...state,
     phase: "bidding",
+    commentary,
     feedback: {
       kind: "info",
       title: "Bidding",
@@ -99,20 +185,51 @@ export function startBidding(state: EngineState): EngineState {
   };
 }
 
+function logBidEvent(
+  commentary: CommentaryEntry[],
+  seat: Seat,
+  bid: string,
+  annotation?: string,
+  teaching?: string,
+  kind: CommentaryEntry["kind"] = "info",
+): CommentaryEntry[] {
+  const notes = combineNotes(annotation, teaching);
+  const headline = bidHeadline(seat, bid);
+  return pushCommentary(commentary, {
+    kind,
+    phase: "bidding",
+    seat,
+    action: normalizeBid(bid),
+    text: notes ? `${headline} — ${notes}` : headline,
+  });
+}
+
 export function advanceAutoBids(lesson: Lesson, state: EngineState): EngineState {
-  let s: EngineState = { ...state, auctionLog: [...state.auctionLog] };
+  let s: EngineState = {
+    ...state,
+    auctionLog: [...state.auctionLog],
+    commentary: [...state.commentary],
+  };
+  let lastBody = "";
   while (s.phase === "bidding" && s.bidIndex < lesson.auction.length) {
     const ev = lesson.auction[s.bidIndex];
     if (ev.seat === "S") break;
     s.auctionLog.push({ seat: ev.seat, bid: ev.bid });
+    s.commentary = logBidEvent(
+      s.commentary,
+      ev.seat,
+      ev.bid,
+      ev.annotation,
+      ev.teaching,
+    );
     s.bidIndex += 1;
-    if (ev.teaching || ev.annotation) {
-      s.feedback = {
-        kind: "info",
-        title: `${ev.seat} bids ${ev.bid}`,
-        body: ev.teaching || ev.annotation || "",
-      };
-    }
+    const notes = combineNotes(ev.annotation, ev.teaching);
+    lastBody = notes || bidHeadline(ev.seat, ev.bid);
+    s.feedback = {
+      kind: "info",
+      title: bidHeadline(ev.seat, ev.bid),
+      body: lastBody,
+    };
   }
   if (s.phase === "bidding" && s.bidIndex >= lesson.auction.length) {
     s = beginPlay(lesson, s);
@@ -141,6 +258,13 @@ export function submitBid(
       // Not a lesson mistake — just an illegal call
       awaitingCorrection: false,
       lastExpected: null,
+      commentary: pushCommentary(state.commentary, {
+        kind: "mistake",
+        phase: "bidding",
+        seat: "S",
+        action: chosen,
+        text: `Illegal bid (${formatBidAction(chosen)}): ${legality.reason}`,
+      }),
       feedback: {
         kind: "mistake",
         title: "Illegal bid",
@@ -152,34 +276,52 @@ export function submitBid(
 
   const expected = normalizeBid(ev.bid);
   if (chosen !== expected) {
+    const tip =
+      combineNotes(ev.annotation, ev.teaching) ||
+      `The recommended bid is ${formatBidAction(expected)}.`;
     return {
       ...state,
       mistakesThisRun: state.mistakesThisRun + 1,
       awaitingCorrection: true,
       lastExpected: expected,
+      commentary: pushCommentary(state.commentary, {
+        kind: "mistake",
+        phase: "bidding",
+        seat: "S",
+        action: chosen,
+        text: `Not ${formatBidAction(chosen)} — ${tip}`,
+      }),
       feedback: {
         kind: "mistake",
         title: "Bidding mistake",
-        body:
-          ev.teaching ||
-          ev.annotation ||
-          `The recommended bid is ${expected}.`,
+        body: tip,
         expected,
         actual: chosen,
       },
     };
   }
 
+  const notes = combineNotes(ev.annotation, ev.teaching) || "Correct.";
+  const commentary = logBidEvent(
+    state.commentary,
+    "S",
+    expected,
+    ev.annotation,
+    ev.teaching,
+    "ok",
+  );
+
   let s: EngineState = {
     ...state,
     auctionLog: [...state.auctionLog, { seat: "S", bid: expected }],
+    commentary,
     bidIndex: state.bidIndex + 1,
     awaitingCorrection: false,
     lastExpected: null,
     feedback: {
       kind: "ok",
-      title: `You bid ${expected}`,
-      body: ev.teaching || ev.annotation || "Correct.",
+      title: bidHeadline("S", expected),
+      body: notes,
       expected,
       actual: chosen,
     },
@@ -194,16 +336,25 @@ function beginPlay(lesson: Lesson, state: EngineState): EngineState {
   const lead =
     (firstCard && ownerOf(hands, firstCard)) || lesson.leadSeat;
 
+  const body =
+    "You play South and Dummy (North). Click a card when it is your turn. Match the lesson line for an optimal result.";
+  const commentary = pushCommentary(state.commentary, {
+    kind: "info",
+    phase: "system",
+    text: `Contract: ${lesson.contract ?? "?"} by ${lesson.declarer ?? "?"}. ${body}`,
+  });
+
   return {
     ...state,
     phase: "play",
+    commentary,
     currentLead: lead,
     nextToPlay: lead,
     currentTrick: [],
     feedback: {
       kind: "info",
       title: `Contract: ${lesson.contract ?? "?"} by ${lesson.declarer ?? "?"}`,
-      body: "You play South and Dummy (North). Click a card when it is your turn. Match the lesson line for an optimal result.",
+      body,
     },
   };
 }
@@ -315,20 +466,33 @@ function applyScriptedCard(
   const playIndex = state.playIndex + 1;
   const ev = lesson.play[state.playIndex];
 
+  const notes = combineNotes(ev?.annotation, ev?.teaching);
+  const headline = playHeadline(seat, card);
+  const kind: CommentaryEntry["kind"] = isAuto ? "info" : "ok";
+  let commentary = pushCommentary(state.commentary, {
+    kind,
+    phase: "play",
+    seat,
+    action: card,
+    text: notes ? `${headline} — ${notes}` : headline,
+  });
+
   let feedback = state.feedback;
-  if (!isAuto && (ev?.teaching || ev?.annotation)) {
+  if (notes) {
     feedback = {
-      kind: "ok",
-      title: `You played ${card}`,
-      body: ev.teaching || ev.annotation || "Correct.",
+      kind: isAuto ? "info" : "ok",
+      title: headline,
+      body: notes,
       expected: card,
       actual: card,
     };
-  } else if (isAuto && (ev?.teaching || ev?.annotation)) {
+  } else if (!isAuto) {
     feedback = {
-      kind: "info",
-      title: `${seat} plays ${card}`,
-      body: ev.teaching || ev.annotation || "",
+      kind: "ok",
+      title: headline,
+      body: "Correct.",
+      expected: card,
+      actual: card,
     };
   }
 
@@ -356,9 +520,17 @@ function applyScriptedCard(
             ? "West"
             : "East";
 
+    commentary = pushCommentary(commentary, {
+      kind: "info",
+      phase: "play",
+      seat: winner,
+      text: `${winnerLabel} won the trick. Review the cards, then click Next trick.`,
+    });
+
     return {
       ...state,
       hands,
+      commentary,
       currentTrick,
       currentLead: lead,
       nextToPlay: null,
@@ -387,6 +559,7 @@ function applyScriptedCard(
   return {
     ...state,
     hands,
+    commentary,
     currentTrick,
     currentLead: lead,
     nextToPlay,
@@ -452,19 +625,26 @@ export function submitCard(
 
   const ev = lesson.play[state.playIndex];
   if (card !== expected) {
+    const tip =
+      combineNotes(ev.teaching, ev.annotation) ||
+      `The recommended card is ${cardLabel(expected)}. Try again — keep going until the line is optimal.`;
     return {
       ...state,
       nextToPlay: seat,
       mistakesThisRun: state.mistakesThisRun + 1,
       awaitingCorrection: true,
       lastExpected: expected,
+      commentary: pushCommentary(state.commentary, {
+        kind: "mistake",
+        phase: "play",
+        seat,
+        action: card,
+        text: `Not ${cardLabel(card)} — ${tip}`,
+      }),
       feedback: {
         kind: "mistake",
         title: "Card-play mistake",
-        body:
-          ev.teaching ||
-          ev.annotation ||
-          `The recommended card is ${expected}. Try again — keep going until the line is optimal.`,
+        body: tip,
         expected,
         actual: card,
       },
@@ -479,17 +659,24 @@ export function submitCard(
 function completeHand(lesson: Lesson, state: EngineState): EngineState {
   const needed = lesson.contract ? Number(lesson.contract[0]) + 6 : 7;
   const made = state.nsTricks >= needed;
+  const body =
+    state.mistakesThisRun === 0
+      ? `You matched the lesson line with no mistakes. NS tricks: ${state.nsTricks}. Contract ${lesson.contract} ${made ? "made" : "—"}.`
+      : `Finished with ${state.mistakesThisRun} mistake(s). Replay until you can do it with zero mistakes for an optimal mark.`;
+  const title = state.mistakesThisRun === 0 ? "Optimal!" : "Hand complete";
   return {
     ...state,
     phase: "complete",
     nextToPlay: null,
+    commentary: pushCommentary(state.commentary, {
+      kind: state.mistakesThisRun === 0 ? "ok" : "info",
+      phase: "system",
+      text: `${title} ${body}`,
+    }),
     feedback: {
       kind: "complete",
-      title: state.mistakesThisRun === 0 ? "Optimal!" : "Hand complete",
-      body:
-        state.mistakesThisRun === 0
-          ? `You matched the lesson line with no mistakes. NS tricks: ${state.nsTricks}. Contract ${lesson.contract} ${made ? "made" : "—"}.`
-          : `Finished with ${state.mistakesThisRun} mistake(s). Replay until you can do it with zero mistakes for an optimal mark.`,
+      title,
+      body,
     },
   };
 }

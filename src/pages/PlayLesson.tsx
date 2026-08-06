@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import curriculum from "../data/curriculum.json";
 import { BiddingBox } from "../components/BiddingBox";
 import { CardView } from "../components/CardView";
+import { CommentaryLog } from "../components/CommentaryLog";
 import { HandRow } from "../components/HandRow";
 import {
   bidDisplay,
@@ -389,23 +390,27 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
             )}
           </section>
 
-          {engine.feedback && (
+          <section className="panel commentary-panel">
+            <h2>Commentary</h2>
+            <CommentaryLog entries={engine.commentary} />
+          </section>
+
+          {engine.feedback && engine.feedback.kind === "mistake" && (
             <section
               className={`panel feedback feedback--${engine.feedback.kind}`}
             >
               <h2>{engine.feedback.title}</h2>
               <p>{engine.feedback.body}</p>
-              {engine.feedback.kind === "mistake" &&
-                engine.feedback.expected && (
-                  <p className="hint">
-                    Try:{" "}
-                    <strong>
-                      {engine.phase === "play"
-                        ? cardLabel(engine.feedback.expected)
-                        : bidDisplay(engine.feedback.expected)}
-                    </strong>
-                  </p>
-                )}
+              {engine.feedback.expected && (
+                <p className="hint">
+                  Try:{" "}
+                  <strong>
+                    {engine.phase === "play"
+                      ? cardLabel(engine.feedback.expected)
+                      : bidDisplay(engine.feedback.expected)}
+                  </strong>
+                </p>
+              )}
             </section>
           )}
 
