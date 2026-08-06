@@ -1,4 +1,5 @@
 import {
+  bidDisplay,
   cardSuit,
   contractTrump,
   legalCards,
@@ -130,8 +131,27 @@ export function submitBid(
   const ev = lesson.auction[state.bidIndex];
   if (ev.seat !== "S") return state;
 
-  const expected = ev.bid;
-  if (normalizeBid(bid) !== normalizeBid(expected)) {
+  const chosen = normalizeBid(bid);
+
+  // Law-of-bridge check first — don't serve coaching for illegal calls
+  const legality = validateCall(state.auctionLog, chosen, "S");
+  if (!legality.ok) {
+    return {
+      ...state,
+      // Not a lesson mistake — just an illegal call
+      awaitingCorrection: false,
+      lastExpected: null,
+      feedback: {
+        kind: "mistake",
+        title: "Illegal bid",
+        body: legality.reason,
+        actual: chosen,
+      },
+    };
+  }
+
+  const expected = normalizeBid(ev.bid);
+  if (chosen !== expected) {
     return {
       ...state,
       mistakesThisRun: state.mistakesThisRun + 1,
@@ -145,7 +165,7 @@ export function submitBid(
           ev.annotation ||
           `The recommended bid is ${expected}.`,
         expected,
-        actual: bid,
+        actual: chosen,
       },
     };
   }
@@ -161,7 +181,7 @@ export function submitBid(
       title: `You bid ${expected}`,
       body: ev.teaching || ev.annotation || "Correct.",
       expected,
-      actual: bid,
+      actual: chosen,
     },
   };
   s = advanceAutoBids(lesson, s);
@@ -482,6 +502,156 @@ function normalizeBid(b: string): string {
   if (/^[1-7]N$/.test(u)) return u[0] + "NT";
   if (/^[1-7]NT$/.test(u)) return u;
   return u;
+}
+
+const STRAIN_RANK: Record<string, number> = {
+  C: 0,
+  D: 1,
+  H: 2,
+  S: 3,
+  NT: 4,
+};
+
+function bidRank(bid: string): number | null {
+  const n = normalizeBid(bid);
+  const m = n.match(/^([1-7])(C|D|H|S|NT)$/);
+  if (!m) return null;
+  return (Number(m[1]) - 1) * 5 + STRAIN_RANK[m[2]];
+}
+
+function sameSide(a: Seat, b: Seat): boolean {
+  const ns = (s: Seat) => s === "N" || s === "S";
+  return ns(a) === ns(b);
+}
+
+interface ContractState {
+  contract: string | null;
+  contractSeat: Seat | null;
+  doubled: boolean;
+  redoubled: boolean;
+}
+
+function contractState(
+  log: { seat: Seat; bid: string }[],
+): ContractState {
+  let contract: string | null = null;
+  let contractSeat: Seat | null = null;
+  let doubled = false;
+  let redoubled = false;
+  for (const { seat, bid } of log) {
+    const n = normalizeBid(bid);
+    if (n === "Pass") continue;
+    if (n === "X") {
+      doubled = true;
+      redoubled = false;
+      continue;
+    }
+    if (n === "XX") {
+      redoubled = true;
+      continue;
+    }
+    if (bidRank(n) != null) {
+      contract = n;
+      contractSeat = seat;
+      doubled = false;
+      redoubled = false;
+    }
+  }
+  return { contract, contractSeat, doubled, redoubled };
+}
+
+function lastNonPass(
+  log: { seat: Seat; bid: string }[],
+): { seat: Seat; bid: string } | null {
+  for (let i = log.length - 1; i >= 0; i--) {
+    if (normalizeBid(log[i].bid) !== "Pass") return log[i];
+  }
+  return null;
+}
+
+/**
+ * Whether a call is legal under the Laws of Duplicate Bridge
+ * (sufficient bid / double / redouble rules).
+ */
+export function validateCall(
+  log: { seat: Seat; bid: string }[],
+  bid: string,
+  seat: Seat,
+): { ok: true } | { ok: false; reason: string } {
+  const n = normalizeBid(bid);
+  const state = contractState(log);
+  const last = lastNonPass(log);
+
+  if (n === "Pass") return { ok: true };
+
+  if (n === "X") {
+    if (!state.contract) {
+      return { ok: false, reason: "Nothing to double — no bid has been made yet." };
+    }
+    if (state.doubled || state.redoubled) {
+      return {
+        ok: false,
+        reason: state.redoubled
+          ? "The contract is already redoubled."
+          : "The contract is already doubled.",
+      };
+    }
+    if (state.contractSeat && sameSide(state.contractSeat, seat)) {
+      return {
+        ok: false,
+        reason: "You cannot double your own side's bid.",
+      };
+    }
+    // Last non-pass must be by the other side (their bid, possibly followed by passes)
+    if (last && sameSide(last.seat, seat) && bidRank(last.bid) != null) {
+      return {
+        ok: false,
+        reason: "You cannot double your own side's bid.",
+      };
+    }
+    return { ok: true };
+  }
+
+  if (n === "XX") {
+    if (!state.contract || !state.doubled || state.redoubled) {
+      return {
+        ok: false,
+        reason: "Redouble is only allowed after the opponents double your side's bid.",
+      };
+    }
+    if (!state.contractSeat || !sameSide(state.contractSeat, seat)) {
+      return {
+        ok: false,
+        reason: "Only the side that was doubled may redouble.",
+      };
+    }
+    return { ok: true };
+  }
+
+  const rank = bidRank(n);
+  if (rank == null) {
+    return { ok: false, reason: "That is not a recognised bid." };
+  }
+
+  if (state.contract) {
+    const current = bidRank(state.contract);
+    if (current != null && rank <= current) {
+      return {
+        ok: false,
+        reason: `Insufficient bid: the auction is already at ${bidDisplay(state.contract)}. You must bid something higher, or Pass${state.doubled || state.redoubled ? "" : " (or Double if allowed)"}.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+export function isLegalCall(
+  log: { seat: Seat; bid: string }[],
+  bid: string,
+  seat: Seat = "S",
+): boolean {
+  return validateCall(log, bid, seat).ok;
 }
 
 /** Level rows for the bidding box: 1♣…1NT through 7 (1 at top). */

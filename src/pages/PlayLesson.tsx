@@ -378,6 +378,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
               <BiddingBox
                 enabled
                 onBid={onBid}
+                auctionLog={engine.auctionLog}
                 highlight={
                   engine.awaitingCorrection ? engine.lastExpected : null
                 }

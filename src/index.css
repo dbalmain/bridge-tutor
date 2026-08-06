@@ -589,6 +589,10 @@ input {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
+.bid-btn--illegal {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
 .trick-cards--complete {
   outline: 2px solid rgba(232, 197, 71, 0.55);
   outline-offset: 4px;
