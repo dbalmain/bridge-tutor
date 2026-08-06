@@ -2,6 +2,7 @@ import curriculum from "../src/data/curriculum.json";
 import {
   advanceAutoBids,
   advanceAutoPlays,
+  advanceTrick,
   initialEngine,
   startBidding,
   submitBid,
@@ -20,7 +21,11 @@ function playOptimal(lesson: Lesson) {
   }
   if (s.phase === "play") s = advanceAutoPlays(lesson, s);
   let guard = 0;
-  while (s.phase === "play" && guard++ < 80) {
+  while (s.phase === "play" && guard++ < 200) {
+    if (s.awaitingTrickAdvance) {
+      s = advanceTrick(lesson, s);
+      continue;
+    }
     const exp = lesson.play[s.playIndex].card;
     s = submitCard(lesson, s, exp);
     if (s.awaitingCorrection) throw new Error(`card rejected: ${exp}`);

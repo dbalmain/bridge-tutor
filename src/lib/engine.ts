@@ -34,6 +34,12 @@ export interface EngineState {
   feedback: Feedback | null;
   awaitingCorrection: boolean;
   lastExpected: string | null;
+  /** True when 4 cards are on the table; wait for user to click Next. */
+  awaitingTrickAdvance: boolean;
+  /** Lead seat for the next trick once the current one is cleared. */
+  pendingNextLead: Seat | null;
+  /** Winner of the trick currently displayed (while awaiting advance). */
+  lastTrickWinner: Seat | null;
 }
 
 function cloneHands(hands: Record<Seat, Card[]>): Record<Seat, Card[]> {
@@ -74,6 +80,9 @@ export function initialEngine(lesson: Lesson): EngineState {
     },
     awaitingCorrection: false,
     lastExpected: null,
+    awaitingTrickAdvance: false,
+    pendingNextLead: null,
+    lastTrickWinner: null,
   };
 }
 
@@ -185,9 +194,13 @@ export function advanceAutoPlays(
 ): EngineState {
   let s = { ...state };
 
+  if (s.awaitingTrickAdvance) return s;
+
   // Safety cap against infinite loops
   let guard = 0;
   while (s.phase === "play" && s.playIndex < lesson.play.length && guard++ < 60) {
+    if (s.awaitingTrickAdvance) break;
+
     const expected = lesson.play[s.playIndex].card;
     const seat = ownerOf(s.hands, expected);
     if (!seat) {
@@ -208,9 +221,47 @@ export function advanceAutoPlays(
     s = applyScriptedCard(lesson, s, seat, expected, true);
   }
 
-  if (s.phase === "play" && s.playIndex >= lesson.play.length) {
+  // Only complete when the last trick has been reviewed (or no pending pause)
+  if (
+    s.phase === "play" &&
+    s.playIndex >= lesson.play.length &&
+    !s.awaitingTrickAdvance
+  ) {
     s = completeHand(lesson, s);
   }
+  return s;
+}
+
+/** Clear the completed trick from the table and continue. */
+export function advanceTrick(
+  lesson: Lesson,
+  state: EngineState,
+): EngineState {
+  if (!state.awaitingTrickAdvance) return state;
+
+  const nextLead = state.pendingNextLead;
+  let s: EngineState = {
+    ...state,
+    currentTrick: [],
+    currentLead: nextLead,
+    nextToPlay: nextLead,
+    awaitingTrickAdvance: false,
+    pendingNextLead: null,
+    lastTrickWinner: null,
+    feedback: {
+      kind: "info",
+      title: "Next trick",
+      body: nextLead
+        ? `${nextLead === "N" ? "Dummy" : nextLead === "S" ? "You" : nextLead} leads.`
+        : "Continue.",
+    },
+  };
+
+  if (s.playIndex >= lesson.play.length) {
+    return completeHand(lesson, s);
+  }
+
+  s = advanceAutoPlays(lesson, s);
   return s;
 }
 
@@ -240,7 +291,6 @@ function applyScriptedCard(
   let tricks = state.tricks;
   let nsTricks = state.nsTricks;
   let ewTricks = state.ewTricks;
-  let currentLead: Seat | null = lead;
   let nextToPlay: Seat | null = nextSeat(seat);
   const playIndex = state.playIndex + 1;
   const ev = lesson.play[state.playIndex];
@@ -272,25 +322,40 @@ function applyScriptedCard(
     if (winner === "N" || winner === "S") nsTricks += 1;
     else ewTricks += 1;
 
-    // Next lead seat is inferred from next scripted card owner if available
+    // Keep all four cards visible until the user clicks Next
     const nextCard = lesson.play[playIndex]?.card;
     const nextOwner = nextCard ? ownerOf(hands, nextCard) : null;
-    nextToPlay = nextOwner ?? winner;
-    currentLead = nextToPlay;
+    const pendingNextLead = nextOwner ?? winner;
+
+    const winnerLabel =
+      winner === "S"
+        ? "You"
+        : winner === "N"
+          ? "Dummy"
+          : winner === "W"
+            ? "West"
+            : "East";
 
     return {
       ...state,
       hands,
-      currentTrick: [],
-      currentLead,
-      nextToPlay,
+      currentTrick,
+      currentLead: lead,
+      nextToPlay: null,
       tricks,
       nsTricks,
       ewTricks,
       playIndex,
-      feedback,
+      feedback: {
+        kind: "info",
+        title: `${winnerLabel} won the trick`,
+        body: "Review the four cards, then click Next trick.",
+      },
       awaitingCorrection: false,
       lastExpected: null,
+      awaitingTrickAdvance: true,
+      pendingNextLead,
+      lastTrickWinner: winner,
     };
   }
 
@@ -312,6 +377,9 @@ function applyScriptedCard(
     feedback,
     awaitingCorrection: false,
     lastExpected: null,
+    awaitingTrickAdvance: false,
+    pendingNextLead: null,
+    lastTrickWinner: null,
   };
 }
 
@@ -321,6 +389,7 @@ export function submitCard(
   card: Card,
 ): EngineState {
   if (state.phase !== "play") return state;
+  if (state.awaitingTrickAdvance) return state;
   if (state.playIndex >= lesson.play.length) return state;
 
   const expected = lesson.play[state.playIndex].card;
@@ -415,33 +484,19 @@ function normalizeBid(b: string): string {
   return u;
 }
 
-export function beginnerBidOptions(): string[] {
-  return [
-    "Pass",
-    "X",
-    "1C",
-    "1D",
-    "1H",
-    "1S",
-    "1NT",
-    "2C",
-    "2D",
-    "2H",
-    "2S",
-    "2NT",
-    "3C",
-    "3D",
-    "3H",
-    "3S",
-    "3NT",
-    "4H",
-    "4S",
-    "4NT",
-    "5C",
-    "5D",
-    "6NT",
-    "7NT",
-  ];
+/** Level rows for the bidding box: 1♣…1NT through 7 (1 at top). */
+export function bidLevelRows(): string[][] {
+  const strains = ["C", "D", "H", "S", "NT"] as const;
+  const rows: string[][] = [];
+  for (let level = 1; level <= 7; level++) {
+    rows.push(strains.map((s) => `${level}${s}`));
+  }
+  return rows;
+}
+
+/** Non-level calls shown under the level grid. */
+export function specialBids(): string[] {
+  return ["Pass", "X", "XX"];
 }
 
 export type { Bid };

@@ -540,19 +540,46 @@ input {
   color: var(--muted);
   margin-bottom: 0.4rem;
 }
-.bidding-box__grid {
+.bidding-box__levels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.bidding-box__row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1.25rem repeat(5, 1fr);
+  gap: 0.3rem;
+  align-items: stretch;
+}
+.bidding-box__level-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.bidding-box__specials {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.35rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #2a3a30;
 }
 .bid-btn {
-  min-height: 44px;
+  min-height: 40px;
   border-radius: 8px;
   border: 1px solid #3a4d40;
   background: #1e2a22;
   color: var(--ink);
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.15rem;
+}
+.bid-btn--special {
+  min-height: 44px;
 }
 .bid-btn:hover:not(:disabled) {
   border-color: var(--accent);
@@ -561,6 +588,22 @@ input {
 .bid-btn--hint {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
+}
+.trick-cards--complete {
+  outline: 2px solid rgba(232, 197, 71, 0.55);
+  outline-offset: 4px;
+  border-radius: 10px;
+  padding: 0.35rem;
+}
+.trick-winner-label {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  color: #f0e6b0;
+  font-size: 0.95rem;
+}
+.trick-next-btn {
+  margin-top: 0.55rem;
+  width: 100%;
 }
 
 .auction__head,

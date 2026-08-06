@@ -16,6 +16,7 @@ import {
 import {
   advanceAutoBids,
   advanceAutoPlays,
+  advanceTrick,
   initialEngine,
   startBidding,
   submitBid,
@@ -125,6 +126,10 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
     setEngine(s);
   };
 
+  const onNextTrick = () => {
+    setEngine(advanceTrick(lesson, engine));
+  };
+
   useEffect(() => {
     if (engine.phase !== "complete") return;
     const p = recordLessonComplete(
@@ -141,9 +146,13 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
 
   const yourTurnPlay =
     engine.phase === "play" &&
+    !engine.awaitingTrickAdvance &&
     (engine.nextToPlay === "S" || engine.nextToPlay === "N");
 
-  const activeSeat = engine.phase === "play" ? engine.nextToPlay : null;
+  const activeSeat =
+    engine.phase === "play" && !engine.awaitingTrickAdvance
+      ? engine.nextToPlay
+      : null;
   const ledSuit =
     engine.currentTrick.length > 0
       ? cardSuit(engine.currentTrick[0])
@@ -292,14 +301,33 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
               />
             </div>
             <div className="trick-area">
-              {engine.currentTrick.length === 0 && engine.phase === "play" && (
-                <p className="muted small">
-                  {activeSeat
-                    ? `${SEAT_LABEL[activeSeat] ?? activeSeat} to play`
-                    : "—"}
+              {engine.phase === "play" &&
+                engine.currentTrick.length === 0 &&
+                !engine.awaitingTrickAdvance && (
+                  <p className="muted small">
+                    {activeSeat
+                      ? `${SEAT_LABEL[activeSeat] ?? activeSeat} to play`
+                      : "—"}
+                  </p>
+                )}
+              {engine.awaitingTrickAdvance && engine.lastTrickWinner && (
+                <p className="trick-winner-label">
+                  {engine.lastTrickWinner === "S"
+                    ? "You"
+                    : engine.lastTrickWinner === "N"
+                      ? "Dummy"
+                      : engine.lastTrickWinner === "W"
+                        ? "West"
+                        : "East"}{" "}
+                  wins
                 </p>
               )}
-              <div className="trick-cards">
+              <div
+                className={
+                  "trick-cards" +
+                  (engine.awaitingTrickAdvance ? " trick-cards--complete" : "")
+                }
+              >
                 {engine.currentTrick.map((c, i) => (
                   <CardView key={`${c}-${i}`} card={c} size="md" />
                 ))}
@@ -307,6 +335,15 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
               <div className="trick-score">
                 NS {engine.nsTricks} · EW {engine.ewTricks}
               </div>
+              {engine.awaitingTrickAdvance && (
+                <button
+                  type="button"
+                  className="btn btn--primary btn--small trick-next-btn"
+                  onClick={onNextTrick}
+                >
+                  Next trick
+                </button>
+              )}
             </div>
             <div className="seat seat--e">
               <HandRow
