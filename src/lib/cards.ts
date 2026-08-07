@@ -152,6 +152,76 @@ export function legalCards(hand: Card[], ledSuit: Suit | null): Card[] {
   return following.length > 0 ? following : hand;
 }
 
+/**
+ * Two cards in the same hand are "equals" when no remaining card in any
+ * *other* hand ranks strictly between them in that suit. Playing either
+ * then has the same effect for pure cashing / low-spot choice (e.g. 8♠ vs 5♠
+ * with nothing between them still out).
+ *
+ * Only cards still held (not yet played) are considered.
+ */
+export function areEqualCards(
+  hands: Record<Seat, Card[]>,
+  seat: Seat,
+  a: Card,
+  b: Card,
+): boolean {
+  if (a === b) return true;
+  if (cardSuit(a) !== cardSuit(b)) return false;
+  if (!hands[seat].includes(a) || !hands[seat].includes(b)) return false;
+
+  const suit = cardSuit(a);
+  const lo = Math.min(rankValue(cardRank(a)), rankValue(cardRank(b)));
+  const hi = Math.max(rankValue(cardRank(a)), rankValue(cardRank(b)));
+
+  for (const s of SEATS) {
+    if (s === seat) continue;
+    for (const c of hands[s]) {
+      if (cardSuit(c) !== suit) continue;
+      const r = rankValue(cardRank(c));
+      if (r > lo && r < hi) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * When the opponents hold no cards in a suit, every card of that suit in
+ * `seat`'s hand is equivalent for cashing (order of low winners / spots
+ * does not matter). Partner may still hold the suit.
+ */
+export function areCashEqualsWhenOpponentsVoid(
+  hands: Record<Seat, Card[]>,
+  seat: Seat,
+  a: Card,
+  b: Card,
+): boolean {
+  if (a === b) return true;
+  if (cardSuit(a) !== cardSuit(b)) return false;
+  if (!hands[seat].includes(a) || !hands[seat].includes(b)) return false;
+
+  const suit = cardSuit(a);
+  const opponents: Seat[] =
+    seat === "N" || seat === "S" ? ["E", "W"] : ["N", "S"];
+  for (const o of opponents) {
+    if (hands[o].some((c) => cardSuit(c) === suit)) return false;
+  }
+  return true;
+}
+
+/** Accept either strict equals or cashing equals when opponents are void. */
+export function areEquivalentPlays(
+  hands: Record<Seat, Card[]>,
+  seat: Seat,
+  expected: Card,
+  played: Card,
+): boolean {
+  return (
+    areEqualCards(hands, seat, expected, played) ||
+    areCashEqualsWhenOpponentsVoid(hands, seat, expected, played)
+  );
+}
+
 export function contractTrump(contract: string | null): Suit | null {
   if (!contract) return null;
   if (contract.endsWith("NT")) return null;

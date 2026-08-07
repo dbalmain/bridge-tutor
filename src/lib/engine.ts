@@ -1,4 +1,5 @@
 import {
+  areEquivalentPlays,
   bidDisplay,
   cardLabel,
   cardSuit,
@@ -34,6 +35,12 @@ export interface EngineState {
   phase: Phase;
   bidIndex: number;
   playIndex: number;
+  /**
+   * Mutable remaining play line (cards only). Starts as a copy of the lesson
+   * script; rewritten when the user plays an equivalent alternate card so
+   * later script steps stay consistent with cards still in hand.
+   */
+  playCards: Card[];
   hands: Record<Seat, Card[]>;
   auctionLog: { seat: Seat; bid: string }[];
   /** Scrollable running commentary for the whole hand. */
@@ -151,6 +158,7 @@ export function initialEngine(lesson: Lesson): EngineState {
     phase: "intro",
     bidIndex: 0,
     playIndex: 0,
+    playCards: lesson.play.map((p) => p.card),
     hands: cloneHands(lesson.hands),
     auctionLog: [],
     commentary: [],
@@ -172,6 +180,24 @@ export function initialEngine(lesson: Lesson): EngineState {
     pendingNextLead: null,
     lastTrickWinner: null,
   };
+}
+
+/** After playing alternate card `played` for scripted `expected`, fix the rest of the line. */
+function remapPlayLine(
+  playCards: Card[],
+  fromIndex: number,
+  expected: Card,
+  played: Card,
+): Card[] {
+  if (expected === played) return playCards;
+  // Current step is consumed as `played`. Any later `played` must become
+  // `expected` (the card still in hand that will stand in for those steps).
+  const next = [...playCards];
+  for (let i = fromIndex + 1; i < next.length; i++) {
+    if (next[i] === played) next[i] = expected;
+  }
+  next[fromIndex] = played; // record what was actually played at this index
+  return next;
 }
 
 export function startBidding(state: EngineState): EngineState {
@@ -376,10 +402,10 @@ export function advanceAutoPlays(
 
   // Safety cap against infinite loops
   let guard = 0;
-  while (s.phase === "play" && s.playIndex < lesson.play.length && guard++ < 60) {
+  while (s.phase === "play" && s.playIndex < s.playCards.length && guard++ < 60) {
     if (s.awaitingTrickAdvance) break;
 
-    const expected = lesson.play[s.playIndex].card;
+    const expected = s.playCards[s.playIndex];
     const seat = ownerOf(s.hands, expected);
     if (!seat) {
       s = {
@@ -402,7 +428,7 @@ export function advanceAutoPlays(
   // Only complete when the last trick has been reviewed (or no pending pause)
   if (
     s.phase === "play" &&
-    s.playIndex >= lesson.play.length &&
+    s.playIndex >= s.playCards.length &&
     !s.awaitingTrickAdvance
   ) {
     s = completeHand(lesson, s);
@@ -435,7 +461,7 @@ export function advanceTrick(
     },
   };
 
-  if (s.playIndex >= lesson.play.length) {
+  if (s.playIndex >= s.playCards.length) {
     return completeHand(lesson, s);
   }
 
@@ -449,6 +475,7 @@ function applyScriptedCard(
   seat: Seat,
   card: Card,
   isAuto: boolean,
+  options?: { equivalentTo?: Card },
 ): EngineState {
   const hands = cloneHands(state.hands);
   if (!hands[seat].includes(card)) {
@@ -472,20 +499,37 @@ function applyScriptedCard(
   let nextToPlay: Seat | null = nextSeat(seat);
   const playIndex = state.playIndex + 1;
   const ev = lesson.play[state.playIndex];
+  const scripted = options?.equivalentTo ?? card;
+  const playCards =
+    options?.equivalentTo && options.equivalentTo !== card
+      ? remapPlayLine(state.playCards, state.playIndex, options.equivalentTo, card)
+      : state.playCards;
 
   const notes = combineNotes(ev?.annotation, ev?.teaching);
   const headline = playHeadline(seat, card);
   const kind: CommentaryEntry["kind"] = isAuto ? "info" : "ok";
+  let text = notes ? `${headline} — ${notes}` : headline;
+  if (options?.equivalentTo && options.equivalentTo !== card) {
+    text = `${headline} — Fine (equivalent to ${cardLabel(scripted)}; order of equals does not matter here).${notes ? ` ${notes}` : ""}`;
+  }
   let commentary = pushCommentary(state.commentary, {
     kind,
     phase: "play",
     seat,
     action: card,
-    text: notes ? `${headline} — ${notes}` : headline,
+    text,
   });
 
   let feedback = state.feedback;
-  if (notes) {
+  if (options?.equivalentTo && options.equivalentTo !== card) {
+    feedback = {
+      kind: "ok",
+      title: headline,
+      body: `Fine — equivalent to ${cardLabel(scripted)}. With nothing between these spots still out, either card works.`,
+      expected: scripted,
+      actual: card,
+    };
+  } else if (notes) {
     feedback = {
       kind: isAuto ? "info" : "ok",
       title: headline,
@@ -514,7 +558,7 @@ function applyScriptedCard(
     else ewTricks += 1;
 
     // Keep all four cards visible until the user clicks Next
-    const nextCard = lesson.play[playIndex]?.card;
+    const nextCard = playCards[playIndex];
     const nextOwner = nextCard ? ownerOf(hands, nextCard) : null;
     const pendingNextLead = nextOwner ?? winner;
 
@@ -537,6 +581,7 @@ function applyScriptedCard(
     return {
       ...state,
       hands,
+      playCards,
       commentary,
       currentTrick,
       currentLead: lead,
@@ -559,13 +604,14 @@ function applyScriptedCard(
   }
 
   // Mid-trick: next seat from ownership of next scripted card
-  const nextCard = lesson.play[playIndex]?.card;
+  const nextCard = playCards[playIndex];
   const nextOwner = nextCard ? ownerOf(hands, nextCard) : nextSeat(seat);
   nextToPlay = nextOwner;
 
   return {
     ...state,
     hands,
+    playCards,
     commentary,
     currentTrick,
     currentLead: lead,
@@ -590,9 +636,9 @@ export function submitCard(
 ): EngineState {
   if (state.phase !== "play") return state;
   if (state.awaitingTrickAdvance) return state;
-  if (state.playIndex >= lesson.play.length) return state;
+  if (state.playIndex >= state.playCards.length) return state;
 
-  const expected = lesson.play[state.playIndex].card;
+  const expected = state.playCards[state.playIndex];
   const expectedSeat = ownerOf(state.hands, expected);
   if (!expectedSeat || (expectedSeat !== "S" && expectedSeat !== "N")) {
     // Not user's turn according to script
@@ -632,6 +678,15 @@ export function submitCard(
 
   const ev = lesson.play[state.playIndex];
   if (card !== expected) {
+    // Spot cards / cashing equals: accept without counting a mistake
+    if (areEquivalentPlays(state.hands, seat, expected, card)) {
+      let s = applyScriptedCard(lesson, state, seat, card, false, {
+        equivalentTo: expected,
+      });
+      s = advanceAutoPlays(lesson, s);
+      return s;
+    }
+
     const tip =
       combineNotes(ev.teaching, ev.annotation) ||
       `The recommended card is ${cardLabel(expected)}. Try again — keep going until the line is optimal.`;

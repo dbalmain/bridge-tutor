@@ -26,7 +26,7 @@ function playOptimal(lesson: Lesson) {
       s = advanceTrick(lesson, s);
       continue;
     }
-    const exp = lesson.play[s.playIndex].card;
+    const exp = s.playCards[s.playIndex];
     s = submitCard(lesson, s, exp);
     if (s.awaitingCorrection) throw new Error(`card rejected: ${exp}`);
   }
