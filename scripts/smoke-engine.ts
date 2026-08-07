@@ -1,16 +1,17 @@
 import curriculum from "../src/data/curriculum.json";
 import {
   advanceAutoBids,
-  advanceAutoPlays,
-  advanceTrick,
+  advanceAutoPlaysDds,
+  advanceTrickDds,
   initialEngine,
   startBidding,
   submitBid,
-  submitCard,
+  submitCardDds,
 } from "../src/lib/engine";
+import { cardSuit, legalCards } from "../src/lib/cards";
 import type { Curriculum, Lesson } from "../src/lib/types";
 
-function playOptimal(lesson: Lesson) {
+async function playThrough(lesson: Lesson) {
   let s = startBidding(initialEngine(lesson));
   s = advanceAutoBids(lesson, s);
   while (s.phase === "bidding") {
@@ -19,28 +20,47 @@ function playOptimal(lesson: Lesson) {
     s = submitBid(lesson, s, ev.bid);
     if (s.awaitingCorrection) throw new Error(`bid rejected: ${ev.bid}`);
   }
-  if (s.phase === "play") s = advanceAutoPlays(lesson, s);
+  if (s.phase === "play") s = await advanceAutoPlaysDds(lesson, s);
+
   let guard = 0;
   while (s.phase === "play" && guard++ < 200) {
     if (s.awaitingTrickAdvance) {
-      s = advanceTrick(lesson, s);
+      s = await advanceTrickDds(lesson, s);
       continue;
     }
-    const exp = s.playCards[s.playIndex];
-    s = submitCard(lesson, s, exp);
-    if (s.awaitingCorrection) throw new Error(`card rejected: ${exp}`);
+    const seat = s.nextToPlay;
+    if (seat !== "S" && seat !== "N") {
+      s = await advanceAutoPlaysDds(lesson, s);
+      continue;
+    }
+    const led =
+      s.currentTrick.length > 0 ? cardSuit(s.currentTrick[0]) : null;
+    const legal = legalCards(s.hands[seat!], led);
+    if (legal.length === 0) throw new Error("no legal cards");
+    s = await submitCardDds(lesson, s, legal[0]);
   }
   if (s.phase !== "complete") {
-    throw new Error(`stuck in ${s.phase} at play ${s.playIndex}`);
+    throw new Error(`stuck in ${s.phase}`);
   }
   return s;
 }
 
 const data = curriculum as Curriculum;
-let ok = 0;
-for (const lesson of data.lessons) {
-  const s = playOptimal(lesson);
-  console.log("OK", lesson.id, lesson.contract, "NS", s.nsTricks);
-  ok++;
-}
-console.log(`${ok}/${data.lessons.length} optimal paths`);
+// Smoke one hand deeply (DDS is slower than pure script)
+const sample = data.lessons[0];
+playThrough(sample)
+  .then((s) => {
+    console.log(
+      "OK",
+      sample.id,
+      sample.contract,
+      "NS",
+      s.nsTricks,
+      "mistakes",
+      s.mistakesThisRun,
+    );
+  })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });

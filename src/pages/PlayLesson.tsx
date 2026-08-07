@@ -16,12 +16,12 @@ import {
 } from "../lib/cards";
 import {
   advanceAutoBids,
-  advanceAutoPlays,
-  advanceTrick,
+  advanceAutoPlaysDds,
+  advanceTrickDds,
   initialEngine,
   startBidding,
   submitBid,
-  submitCard,
+  submitCardDds,
   type EngineState,
 } from "../lib/engine";
 import {
@@ -89,46 +89,75 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
     [lesson],
   );
 
-  const begin = () => {
-    let s = startBidding(initialEngine(lesson));
-    s = advanceAutoBids(lesson, s);
-    if (s.phase === "play") {
-      s = advanceAutoPlays(lesson, s);
+  const [busy, setBusy] = useState(false);
+
+  const begin = async () => {
+    setBusy(true);
+    try {
+      let s = startBidding(initialEngine(lesson));
+      s = advanceAutoBids(lesson, s);
+      if (s.phase === "play") {
+        s = await advanceAutoPlaysDds(lesson, s);
+      }
+      setEngine(s);
+      setStarted(true);
+      const p = recordAttemptStart(loadProgress(), lesson.id);
+      saveProgress(p);
+    } finally {
+      setBusy(false);
     }
-    setEngine(s);
-    setStarted(true);
-    const p = recordAttemptStart(loadProgress(), lesson.id);
-    saveProgress(p);
   };
 
-  const onBid = (bid: string) => {
+  const onBid = async (bid: string) => {
     const prevMistakes = engine.mistakesThisRun;
-    let s = submitBid(lesson, engine, bid);
-    if (s.mistakesThisRun > prevMistakes && s.feedback?.expected) {
-      persistMistake(
-        "bidding",
-        s.feedback.expected,
-        bid,
-        s.feedback.body,
-      );
+    setBusy(true);
+    try {
+      let s = submitBid(lesson, engine, bid);
+      if (s.mistakesThisRun > prevMistakes && s.feedback?.expected) {
+        persistMistake(
+          "bidding",
+          s.feedback.expected,
+          bid,
+          s.feedback.body,
+        );
+      }
+      if (s.phase === "play") {
+        s = await advanceAutoPlaysDds(lesson, s);
+      }
+      setEngine(s);
+    } finally {
+      setBusy(false);
     }
-    if (s.phase === "play") {
-      s = advanceAutoPlays(lesson, s);
-    }
-    setEngine(s);
   };
 
-  const onPlay = (card: Card) => {
+  const onPlay = async (card: Card) => {
+    if (busy) return;
     const prevMistakes = engine.mistakesThisRun;
-    let s = submitCard(lesson, engine, card);
-    if (s.mistakesThisRun > prevMistakes && s.feedback?.expected) {
-      persistMistake("play", s.feedback.expected, card, s.feedback.body);
+    setBusy(true);
+    try {
+      const s = await submitCardDds(lesson, engine, card);
+      if (s.mistakesThisRun > prevMistakes) {
+        persistMistake(
+          "play",
+          s.feedback?.expected ?? "best",
+          card,
+          s.feedback?.body,
+        );
+      }
+      setEngine(s);
+    } finally {
+      setBusy(false);
     }
-    setEngine(s);
   };
 
-  const onNextTrick = () => {
-    setEngine(advanceTrick(lesson, engine));
+  const onNextTrick = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      setEngine(await advanceTrickDds(lesson, engine));
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -148,10 +177,11 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
   const yourTurnPlay =
     engine.phase === "play" &&
     !engine.awaitingTrickAdvance &&
+    !busy &&
     (engine.nextToPlay === "S" || engine.nextToPlay === "N");
 
   const activeSeat =
-    engine.phase === "play" && !engine.awaitingTrickAdvance
+    engine.phase === "play" && !engine.awaitingTrickAdvance && !busy
       ? engine.nextToPlay
       : null;
   const ledSuit =
@@ -205,8 +235,9 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           <p>{lesson.tip}</p>
           <p className="muted small">
             Dealer {lesson.dealer} · You sit South · System: 5-card majors,
-            strong 1NT (15–17). Match the lesson line — wrong moves are logged;
-            keep replaying until zero mistakes for ★ optimal.
+            strong 1NT (15–17). Bidding follows the lesson. Card play is scored
+            by double dummy (DDS): only flagged if a card costs ≥1 trick versus
+            optimal. Replay for ★ with zero significant errors.
           </p>
           {progress.completed && (
             <p className="badge-inline">
@@ -216,8 +247,13 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           )}
         </section>
         <div className="btn-row">
-          <button type="button" className="btn btn--primary" onClick={begin}>
-            Start hand
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => void begin()}
+            disabled={busy}
+          >
+            {busy ? "Loading engine…" : "Start hand"}
           </button>
           <a
             className="btn"
@@ -340,10 +376,14 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
                 <button
                   type="button"
                   className="btn btn--primary btn--small trick-next-btn"
-                  onClick={onNextTrick}
+                  onClick={() => void onNextTrick()}
+                  disabled={busy}
                 >
-                  Next trick
+                  {busy ? "Thinking…" : "Next trick"}
                 </button>
+              )}
+              {busy && engine.phase === "play" && !engine.awaitingTrickAdvance && (
+                <p className="muted small">DDS thinking…</p>
               )}
             </div>
             <div className="seat seat--e">

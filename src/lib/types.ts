@@ -79,6 +79,48 @@ export interface Curriculum {
   lessons: Lesson[];
 }
 
+export type Phase = "intro" | "bidding" | "play" | "complete";
+
+export interface Feedback {
+  kind: "ok" | "mistake" | "info" | "complete";
+  title: string;
+  body: string;
+  expected?: string;
+  actual?: string;
+}
+
+export interface CommentaryEntry {
+  id: string;
+  kind: "info" | "ok" | "mistake";
+  phase: "bidding" | "play" | "system";
+  seat?: Seat;
+  action?: string;
+  text: string;
+}
+
+export interface EngineState {
+  phase: Phase;
+  bidIndex: number;
+  playIndex: number;
+  playCards: Card[];
+  hands: Record<Seat, Card[]>;
+  auctionLog: { seat: Seat; bid: string }[];
+  commentary: CommentaryEntry[];
+  tricks: { lead: Seat; cards: Card[]; winner: Seat }[];
+  currentTrick: Card[];
+  currentLead: Seat | null;
+  nextToPlay: Seat | null;
+  nsTricks: number;
+  ewTricks: number;
+  mistakesThisRun: number;
+  feedback: Feedback | null;
+  awaitingCorrection: boolean;
+  lastExpected: string | null;
+  awaitingTrickAdvance: boolean;
+  pendingNextLead: Seat | null;
+  lastTrickWinner: Seat | null;
+}
+
 export type MistakePhase = "bidding" | "play";
 
 export interface Mistake {

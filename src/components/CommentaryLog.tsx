@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { CommentaryEntry } from "../lib/engine";
+import type { CommentaryEntry } from "../lib/types";
 
 interface Props {
   entries: CommentaryEntry[];

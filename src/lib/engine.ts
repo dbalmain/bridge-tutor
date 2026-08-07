@@ -8,61 +8,21 @@ import {
   nextSeat,
   trickWinner,
 } from "./cards";
-import type { Bid, Card, Lesson, Seat } from "./types";
+import type {
+  Bid,
+  Card,
+  CommentaryEntry,
+  EngineState,
+  Lesson,
+  Seat,
+} from "./types";
 
-export type Phase = "intro" | "bidding" | "play" | "complete";
-
-export interface Feedback {
-  kind: "ok" | "mistake" | "info" | "complete";
-  title: string;
-  body: string;
-  expected?: string;
-  actual?: string;
-}
-
-/** One line in the running coach log (bids, plays, system notes). */
-export interface CommentaryEntry {
-  id: string;
-  kind: "info" | "ok" | "mistake";
-  phase: "bidding" | "play" | "system";
-  seat?: Seat;
-  /** e.g. "Pass", "1S", "HK" */
-  action?: string;
-  text: string;
-}
-
-export interface EngineState {
-  phase: Phase;
-  bidIndex: number;
-  playIndex: number;
-  /**
-   * Mutable remaining play line (cards only). Starts as a copy of the lesson
-   * script; rewritten when the user plays an equivalent alternate card so
-   * later script steps stay consistent with cards still in hand.
-   */
-  playCards: Card[];
-  hands: Record<Seat, Card[]>;
-  auctionLog: { seat: Seat; bid: string }[];
-  /** Scrollable running commentary for the whole hand. */
-  commentary: CommentaryEntry[];
-  tricks: { lead: Seat; cards: Card[]; winner: Seat }[];
-  currentTrick: Card[];
-  currentLead: Seat | null;
-  /** Seat that owns the next scripted card (S/N = user). */
-  nextToPlay: Seat | null;
-  nsTricks: number;
-  ewTricks: number;
-  mistakesThisRun: number;
-  feedback: Feedback | null;
-  awaitingCorrection: boolean;
-  lastExpected: string | null;
-  /** True when 4 cards are on the table; wait for user to click Next. */
-  awaitingTrickAdvance: boolean;
-  /** Lead seat for the next trick once the current one is cleared. */
-  pendingNextLead: Seat | null;
-  /** Winner of the trick currently displayed (while awaiting advance). */
-  lastTrickWinner: Seat | null;
-}
+export type {
+  CommentaryEntry,
+  EngineState,
+  Feedback,
+  Phase,
+} from "./types";
 
 let commentarySeq = 0;
 
@@ -364,13 +324,12 @@ export function submitBid(
 }
 
 function beginPlay(lesson: Lesson, state: EngineState): EngineState {
-  const hands = state.hands;
-  const firstCard = lesson.play[0]?.card;
-  const lead =
-    (firstCard && ownerOf(hands, firstCard)) || lesson.leadSeat;
-
+  // Free play with DDS scoring (see playEngine.ts / submitCardDds).
+  // Lead from the lesson's opening leader (left of declarer).
+  const lead = lesson.leadSeat;
   const body =
-    "You play South and Dummy (North). Click a card when it is your turn. Match the lesson line for an optimal result.";
+    "You play South and Dummy. Opponents play double-dummy best (DDS). " +
+    "You are only called out when a card costs ≥1 trick versus optimal.";
   const commentary = pushCommentary(state.commentary, {
     kind: "info",
     phase: "system",
@@ -391,6 +350,13 @@ function beginPlay(lesson: Lesson, state: EngineState): EngineState {
     },
   };
 }
+
+// Re-export free-play entry points for the UI
+export {
+  advanceAutoPlaysDds,
+  advanceTrickDds,
+  submitCardDds,
+} from "./playEngine";
 
 export function advanceAutoPlays(
   lesson: Lesson,

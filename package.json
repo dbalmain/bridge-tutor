@@ -12,6 +12,7 @@
     "test:engine": "tsx scripts/smoke-engine.ts"
   },
   "dependencies": {
+    "bridge-dds": "^1.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"

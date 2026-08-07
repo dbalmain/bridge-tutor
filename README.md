@@ -8,10 +8,14 @@ course: **5-card majors, strong 1NT (15–17)**.
 
 1. **Concept first** — each chapter has a short explanation.
 2. **Full hand** — you bid (South) and play (South + dummy).
-3. **Feedback** — wrong bids/cards show the lesson’s teaching note.
-4. **Until optimal** — replay until you finish with **zero mistakes** (★).
-5. **Mistake journal** — local history with tags for later AI coaching.
-6. **Export** — download progress JSON to paste into an AI tutor.
+3. **Bidding feedback** — follows the course line (5-card majors / strong NT).
+4. **Card play via DDS** — [Bo Haglund’s double-dummy solver](https://github.com/dds-bridge/dds)
+   (WASM) scores every card. You are only called out when a play costs
+   **≥1 trick** versus optimal. Spot cards that score the same are fine.
+   Opponents autoplay double-dummy best.
+5. **Until clean** — replay for ★ with zero significant DDS errors.
+6. **Mistake journal** — local history with tags for later AI coaching.
+7. **Export** — download progress JSON to paste into an AI tutor.
 
 ## Run
 
@@ -44,18 +48,20 @@ node scripts/parse-lin.mjs
 | 5 | Opening 1NT |
 | 6 | Overcalls and doubles |
 
-Hands are the official course deals (tutorials by Will Jenner-O’Shea). Optimal
-lines follow those scripts — not a free double-dummy engine yet.
+Hands are the official course deals (tutorials by Will Jenner-O’Shea). Bidding
+follows those scripts; card play is free and scored by DDS.
 
 ## Roadmap (agile)
 
 - [x] Curriculum + interactive bid/play + mistake log
-- [ ] Hint / “show next card” without counting as optimal
+- [x] DDS-backed card-play evaluation (significant-error threshold)
+- [ ] Hint / “show best card” without spoiling ★
 - [ ] Spaced-repetition micro-drills (bidding flashcards)
-- [ ] DDS-backed alternative lines (not only the scripted line)
 - [ ] Weekly AI coaching from exported mistake tags
 - [ ] More hands beyond the 24 beginners set
+- [ ] Optional softer threshold / matchpoint-style scoring
 
 ## Stack
 
-Vite · React · TypeScript · localStorage (no backend).
+Vite · React · TypeScript · localStorage ·
+[bridge-dds](https://github.com/bookchris/bridge-dds-js) (Bo Haglund DDS via WASM).
