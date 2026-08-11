@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Sol coach session logs (local codex transcripts)
+.coach-sessions/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
