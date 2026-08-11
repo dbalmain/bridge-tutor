@@ -15,10 +15,11 @@ course: **5-card majors, strong 1NT (15–17)**.
    Opponents autoplay double-dummy best.
 5. **Until clean** — replay for ★ with zero significant DDS errors.
 6. **Mistake journal** — local history with tags for later AI coaching.
-7. **Sol coach** — each hand opens a background [Codex](https://github.com/openai/codex)
-   session (`gpt-5.6-sol`, high reasoning). Moves are fed as context; mistakes get a
-   longer explanation inline in the commentary panel. Chat with Sol under that log;
-   transcripts persist in `localStorage` and `.coach-sessions/`.
+7. **Sol coach** — each hand opens a **standby** coach session: auction/play notes
+   are queued locally (no model calls). [Codex](https://github.com/openai/codex)
+   (`gpt-5.6-sol`, high reasoning) only runs when you make a mistake or chat.
+   Explanations appear in the commentary panel; transcripts persist in
+   `localStorage` and `.coach-sessions/`.
 8. **Export** — download progress JSON to paste into an AI tutor.
 
 ## Run
@@ -73,7 +74,7 @@ follows those scripts; card play is free and scored by DDS.
 
 - [x] Curriculum + interactive bid/play + mistake log
 - [x] DDS-backed card-play evaluation (significant-error threshold)
-- [x] Live Sol coach (Codex) on each hand + inline chat
+- [x] Lazy Sol coach (Codex on mistake/chat only) + inline chat
 - [ ] Hint / “show best card” without spoiling ★
 - [ ] Spaced-repetition micro-drills (bidding flashcards)
 - [ ] Weekly AI coaching from exported mistake tags

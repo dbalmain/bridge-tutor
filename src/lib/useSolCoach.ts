@@ -12,9 +12,9 @@ import {
   coachHealth,
   endCoachSession,
   explainCoachMistake,
-  getCoachSession,
   noteCoachMove,
   startCoachSession,
+  type CoachSessionInfo,
   type LessonCoachPayload,
 } from "./coachApi";
 import type { CoachTranscript, CommentaryEntry } from "./types";
@@ -61,7 +61,6 @@ export function useSolCoach(lesson: {
 
   const sessionIdRef = useRef<string | null>(null);
   const transcriptRef = useRef<CoachTranscript | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const seenCoachKeys = useRef(new Set<string>());
   /** Ignore stale async work after stop/restart. */
   const generationRef = useRef(0);
@@ -80,12 +79,6 @@ export function useSolCoach(lesson: {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // Do not end the codex session on React Strict Mode remount — only on
-      // intentional stop/reset. Clearing the poll timer is enough here.
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
     };
   }, []);
 
@@ -105,12 +98,15 @@ export function useSolCoach(lesson: {
     [persist],
   );
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
+  const rememberCodexId = useCallback(
+    (session?: CoachSessionInfo) => {
+      const codexId = session?.codexSessionId;
+      if (!codexId || !transcriptRef.current) return;
+      if (transcriptRef.current.codexSessionId === codexId) return;
+      persist(setTranscriptCodexId(transcriptRef.current, codexId));
+    },
+    [persist],
+  );
 
   const flushPending = useCallback(
     async (sessionId: string, gen: number) => {
@@ -130,8 +126,12 @@ export function useSolCoach(lesson: {
         setStatusBoth("thinking");
         setThinkingLabel("Sol is explaining that mistake…");
         try {
-          const { reply, message } = await explainCoachMistake(sessionId, body);
+          const { reply, message, session } = await explainCoachMistake(
+            sessionId,
+            body,
+          );
           if (generationRef.current !== gen) return;
+          rememberCodexId(session);
           const key = `${message.at}|${reply.slice(0, 40)}`;
           seenCoachKeys.current.add(key);
           pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
@@ -152,13 +152,12 @@ export function useSolCoach(lesson: {
         }
       }
     },
-    [pushEntry, setStatusBoth],
+    [pushEntry, rememberCodexId, setStatusBoth],
   );
 
   const start = useCallback(
     async (payload: LessonCoachPayload) => {
       lastPayloadRef.current = payload;
-      stopPolling();
       generationRef.current += 1;
       const gen = generationRef.current;
 
@@ -175,14 +174,10 @@ export function useSolCoach(lesson: {
       pendingMovesRef.current = [];
 
       pushEntry(
-        entryFromCoach(
-          "Connecting to Sol coach…",
-          "info",
-          "system",
-        ),
+        entryFromCoach("Connecting to Sol coach…", "info", "system"),
       );
       setStatusBoth("starting");
-      setThinkingLabel("Sol is joining this hand…");
+      setThinkingLabel("Checking coach server…");
 
       const health = await coachHealth();
       if (generationRef.current !== gen) return;
@@ -207,7 +202,7 @@ export function useSolCoach(lesson: {
         health.base === "/api/coach" ? "Vite proxy" : "direct :8787";
       pushEntry(
         entryFromCoach(
-          `Sol coach online (${health.model ?? "model?"} · ${health.reasoning ?? "?"} · ${via}). Opening session…`,
+          `Sol on standby (${health.model ?? "model?"} · ${health.reasoning ?? "?"} · ${via}). Moves are queued; Sol only runs on a mistake or your chat.`,
           "info",
           "system",
         ),
@@ -225,71 +220,19 @@ export function useSolCoach(lesson: {
         if (generationRef.current !== gen) return;
 
         sessionIdRef.current = session.id;
-        // Session id is enough to feed moves / queue mistakes while Sol boots.
+        // Local session only — codex starts on first mistake/chat.
+        // Queue any moves that arrived before the session id existed.
         void flushPending(session.id, gen);
 
-        pollRef.current = setInterval(() => {
-          void (async () => {
-            if (generationRef.current !== gen) {
-              stopPolling();
-              return;
-            }
-            const id = sessionIdRef.current;
-            if (!id) return;
-            try {
-              const s = await getCoachSession(id);
-              if (s.codexSessionId && transcriptRef.current) {
-                persist(
-                  setTranscriptCodexId(transcriptRef.current, s.codexSessionId),
-                );
-              }
-              for (const m of s.messages) {
-                if (m.role !== "coach") continue;
-                const key = `${m.at}|${m.text.slice(0, 40)}`;
-                if (seenCoachKeys.current.has(key)) continue;
-                seenCoachKeys.current.add(key);
-                pushEntry(entryFromCoach(m.text, "coach", "system", m.at));
-              }
-              if (s.status === "ready") {
-                setStatusBoth("ready");
-                setThinkingLabel(null);
-                stopPolling();
-              } else if (s.status === "error") {
-                setStatusBoth("error");
-                setError(s.error ?? "Sol failed to start");
-                setThinkingLabel(null);
-                pushEntry(
-                  entryFromCoach(
-                    `Sol failed to start: ${s.error ?? "unknown error"}`,
-                    "info",
-                    "system",
-                  ),
-                );
-                stopPolling();
-              }
-            } catch (err) {
-              // Keep polling for a bit; surface after many failures via timeout below.
-              console.warn("[sol-coach] poll failed", err);
-            }
-          })();
-        }, 1500);
-
-        // Safety: if Sol never becomes ready, stop the spinner after 3 minutes.
-        window.setTimeout(() => {
-          if (generationRef.current !== gen) return;
-          if (statusRef.current !== "starting") return;
-          stopPolling();
+        if (session.status === "error") {
           setStatusBoth("error");
-          setError("Sol is taking too long to join — try Restart hand.");
+          setError(session.error ?? "Sol session error");
           setThinkingLabel(null);
-          pushEntry(
-            entryFromCoach(
-              "Sol is taking too long to join this hand. You can keep playing; Restart to retry coaching.",
-              "info",
-              "system",
-            ),
-          );
-        }, 180_000);
+          return;
+        }
+
+        setStatusBoth("ready");
+        setThinkingLabel(null);
       } catch (err) {
         if (generationRef.current !== gen) return;
         setStatusBoth("error");
@@ -304,15 +247,7 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [
-      flushPending,
-      lesson.chapterId,
-      lesson.id,
-      persist,
-      pushEntry,
-      setStatusBoth,
-      stopPolling,
-    ],
+    [flushPending, lesson.chapterId, lesson.id, persist, pushEntry, setStatusBoth],
   );
 
   const noteMove = useCallback(async (text: string) => {
@@ -345,7 +280,8 @@ export function useSolCoach(lesson: {
       setStatusBoth("thinking");
       setThinkingLabel("Sol is explaining that mistake…");
       try {
-        const { reply, message } = await explainCoachMistake(id, body);
+        const { reply, message, session } = await explainCoachMistake(id, body);
+        rememberCodexId(session);
         const key = `${message.at}|${reply.slice(0, 40)}`;
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
@@ -364,7 +300,7 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [pushEntry, setStatusBoth],
+    [pushEntry, rememberCodexId, setStatusBoth],
   );
 
   const chat = useCallback(
@@ -387,7 +323,11 @@ export function useSolCoach(lesson: {
       setStatusBoth("thinking");
       setThinkingLabel("Sol is thinking…");
       try {
-        const { reply, message: coachMsg } = await chatWithCoach(id, trimmed);
+        const { reply, message: coachMsg, session } = await chatWithCoach(
+          id,
+          trimmed,
+        );
+        rememberCodexId(session);
         const key = `${coachMsg.at}|${reply.slice(0, 40)}`;
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", "chat", coachMsg.at));
@@ -406,11 +346,10 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [pushEntry, setStatusBoth],
+    [pushEntry, rememberCodexId, setStatusBoth],
   );
 
   const resetLocal = useCallback(() => {
-    stopPolling();
     generationRef.current += 1;
     const id = sessionIdRef.current;
     if (id) void endCoachSession(id);
@@ -424,7 +363,7 @@ export function useSolCoach(lesson: {
     setStatusBoth("idle");
     setError(null);
     setThinkingLabel(null);
-  }, [setStatusBoth, stopPolling]);
+  }, [setStatusBoth]);
 
   const retry = useCallback(() => {
     const payload = lastPayloadRef.current;

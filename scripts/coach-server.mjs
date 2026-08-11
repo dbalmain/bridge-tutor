@@ -2,9 +2,10 @@
 /**
  * Local Sol coach bridge for the Bridge Tutor UI.
  *
- * Spawns `codex exec` (model gpt-5.6-sol, reasoning high) per hand, resumes the
- * same thread for mistakes and free chat, and keeps a move log so Sol always
- * sees the auction/play context.
+ * Creates a per-hand session that only *queues* auction/play notes. Codex is
+ * not started until the student makes a MISTAKE or sends CHAT — then we open
+ * (or resume) a thread with the full deal + move log. Clean hands cost no
+ * model tokens.
  *
  * Endpoints (JSON):
  *   GET  /api/coach/health
@@ -259,7 +260,8 @@ function formatHand(seat, cards) {
   return `${seat}: ${cards.join(" ")}`;
 }
 
-function buildStartPrompt(lesson) {
+/** Full deal + persona — only included on the first codex turn for a session. */
+function buildLessonContext(lesson) {
   const hands = lesson.hands ?? {};
   return `You are Sol, a patient bridge coach embedded in a beginners' tutor.
 
@@ -276,21 +278,35 @@ ${formatHand("N", hands.N)}
 ${formatHand("E", hands.E)}
 
 How we work:
-- I will send you MOVE notes (auction and card play) as the hand unfolds — treat them as context.
+- Auction and card-play notes appear in the move log below — treat them as context only.
 - On MISTAKE, explain in clear detail: what was wrong, the better thought process, and a rule of thumb the student can reuse. Avoid spoiling future cards unless needed to explain this error.
 - On CHAT, answer the student's questions at a beginner level. Prefer short paragraphs over dense lists.
 - Do not run tools or edit files. Coaching only.
-- Bidding feedback follows the course line; card play is scored by double-dummy (DDS) — only significant (≥1 trick) errors are flagged.
+- Bidding feedback follows the course line; card play is scored by double-dummy (DDS) — only significant (≥1 trick) errors are flagged.`;
+}
 
-Reply with one short acknowledgement that you are ready to coach this hand (one or two sentences). Do not start teaching until a MISTAKE or CHAT arrives.`;
+function formatMoveLog(session, { recentOnly = false } = {}) {
+  if (session.moveLog.length === 0) {
+    return recentOnly ? "(no moves yet)" : "(no moves logged yet)";
+  }
+  const lines = recentOnly ? session.moveLog.slice(-24) : session.moveLog;
+  return lines.map((m, i) => `${i + 1}. ${m}`).join("\n");
+}
+
+function withFirstTurnContext(session, body) {
+  if (session.codexSessionId) return body;
+  return `${buildLessonContext(session.lesson)}
+
+---
+
+${body}`;
 }
 
 function buildMistakePrompt(session, body) {
-  const moves =
-    session.moveLog.length > 0
-      ? session.moveLog.map((m, i) => `${i + 1}. ${m}`).join("\n")
-      : "(no moves logged yet)";
-  return `MISTAKE during ${body.phase}.
+  const moves = formatMoveLog(session);
+  return withFirstTurnContext(
+    session,
+    `MISTAKE during ${body.phase}.
 Student played/bid: ${body.actual}
 Recommended: ${body.expected}
 Engine note: ${body.teaching ?? "—"}
@@ -304,21 +320,22 @@ Explain this mistake in more detail than the engine note. Cover:
 2) The better bid/card and the reasoning a beginner should use.
 3) One reusable tip.
 
-Keep it friendly and concrete. No tools.`;
+Keep it friendly and concrete. No tools.`,
+  );
 }
 
 function buildChatPrompt(session, message) {
-  const moves =
-    session.moveLog.length > 0
-      ? session.moveLog.slice(-24).map((m, i) => `${i + 1}. ${m}`).join("\n")
-      : "(no moves yet)";
-  return `CHAT from the student:
+  const moves = formatMoveLog(session, { recentOnly: true });
+  return withFirstTurnContext(
+    session,
+    `CHAT from the student:
 ${message}
 
 Recent move log (context only):
 ${moves}
 
-Answer as Sol, their bridge coach. No tools.`;
+Answer as Sol, their bridge coach. No tools.`,
+  );
 }
 
 function publicSession(session) {
@@ -404,31 +421,15 @@ async function handle(req, res) {
         queue: Promise.resolve(),
         createdAt: nowIso(),
       };
+      // Standby only: queue moves free of charge. Codex starts on first
+      // mistake or chat (see withFirstTurnContext).
+      session.status = "ready";
       sessions.set(id, session);
       writeFileSync(
         join(SESSIONS_DIR, `${id}.meta.json`),
         JSON.stringify({ id, lessonId: lesson.id, createdAt: session.createdAt }, null, 2),
       );
-      logLine(id, { type: "created", lessonId: lesson.id });
-
-      // Kick off Sol in the background; client may poll status.
-      enqueue(session, async () => {
-        try {
-          const reply = await runTurn(session, buildStartPrompt(lesson));
-          session.messages.push({
-            role: "coach",
-            kind: "ready",
-            text: reply,
-            at: nowIso(),
-          });
-          session.status = "ready";
-          logLine(id, { type: "ready", codexSessionId: session.codexSessionId });
-        } catch (err) {
-          session.status = "error";
-          session.error = String(err?.message ?? err);
-          logLine(id, { type: "error", error: session.error });
-        }
-      });
+      logLine(id, { type: "created", lessonId: lesson.id, lazy: true });
 
       sendJson(res, 201, publicSession(session));
       return;

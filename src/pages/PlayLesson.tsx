@@ -534,8 +534,9 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
               }
             >
               {coach.status === "idle" && "Sol not started for this hand."}
-              {coach.status === "starting" && "Sol is joining this hand…"}
-              {coach.status === "ready" && "Sol is coaching · ask anything below"}
+              {coach.status === "starting" && "Checking coach server…"}
+              {coach.status === "ready" &&
+                "Sol on standby · joins on mistakes or chat"}
               {coach.status === "thinking" &&
                 (coach.thinkingLabel ?? "Sol is thinking…")}
               {coach.status === "unavailable" &&

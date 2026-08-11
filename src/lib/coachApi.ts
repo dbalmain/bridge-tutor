@@ -158,7 +158,11 @@ export async function explainCoachMistake(
     teaching?: string;
     context?: string;
   },
-): Promise<{ reply: string; message: CoachServerMessage }> {
+): Promise<{
+  reply: string;
+  message: CoachServerMessage;
+  session?: CoachSessionInfo;
+}> {
   const res = await fetch(`${baseOrThrow()}/sessions/${sessionId}/mistake`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -174,6 +178,7 @@ export async function chatWithCoach(
   reply: string;
   userMessage: CoachServerMessage;
   message: CoachServerMessage;
+  session?: CoachSessionInfo;
 }> {
   const res = await fetch(`${baseOrThrow()}/sessions/${sessionId}/chat`, {
     method: "POST",
