@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import curriculum from "../data/curriculum.json";
 import { BiddingBox } from "../components/BiddingBox";
@@ -33,7 +33,14 @@ import {
   saveProgress,
 } from "../lib/progress";
 import { guessTags } from "../lib/cards";
-import type { Card, Curriculum, Lesson, Mistake } from "../lib/types";
+import { useSolCoach } from "../lib/useSolCoach";
+import type {
+  Card,
+  CommentaryEntry,
+  Curriculum,
+  Lesson,
+  Mistake,
+} from "../lib/types";
 
 const data = curriculum as Curriculum;
 
@@ -68,6 +75,34 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
   );
   const [showAllHands, setShowAllHands] = useState(false);
   const [started, setStarted] = useState(false);
+  const coach = useSolCoach({ id: lesson.id, chapterId: lesson.chapterId });
+  /** How many engine commentary lines we have already fed to Sol as context. */
+  const fedCommentaryRef = useRef(0);
+  /** Unified log: engine + Sol/user in arrival order (mistakes then Sol’s reply). */
+  const [timeline, setTimeline] = useState<CommentaryEntry[]>([]);
+  const engineTimelineRef = useRef(0);
+  const coachTimelineRef = useRef(0);
+
+  useEffect(() => {
+    if (engine.commentary.length <= engineTimelineRef.current) return;
+    const neu = engine.commentary.slice(engineTimelineRef.current);
+    engineTimelineRef.current = engine.commentary.length;
+    setTimeline((t) => [...t, ...neu]);
+  }, [engine.commentary]);
+
+  useEffect(() => {
+    if (coach.entries.length <= coachTimelineRef.current) return;
+    const neu = coach.entries.slice(coachTimelineRef.current);
+    coachTimelineRef.current = coach.entries.length;
+    setTimeline((t) => [...t, ...neu]);
+  }, [coach.entries]);
+
+  const resetTimeline = useCallback(() => {
+    engineTimelineRef.current = 0;
+    coachTimelineRef.current = 0;
+    fedCommentaryRef.current = 0;
+    setTimeline([]);
+  }, []);
 
   const persistMistake = useCallback(
     (phase: "bidding" | "play", expected: string, actual: string, teaching?: string) => {
@@ -89,11 +124,26 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
     [lesson],
   );
 
+  const feedCoachMoves = useCallback(
+    (s: EngineState, fromIndex: number) => {
+      const slice = s.commentary.slice(fromIndex);
+      for (const e of slice) {
+        // Mistakes get a dedicated Sol turn; skip the short engine line here.
+        if (e.kind === "mistake") continue;
+        void coach.noteMove(e.text);
+      }
+      fedCommentaryRef.current = s.commentary.length;
+    },
+    [coach],
+  );
+
   const [busy, setBusy] = useState(false);
 
   const begin = async () => {
     setBusy(true);
     try {
+      coach.stop();
+      resetTimeline();
       let s = startBidding(initialEngine(lesson));
       s = advanceAutoBids(lesson, s);
       if (s.phase === "play") {
@@ -103,6 +153,20 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
       setStarted(true);
       const p = recordAttemptStart(loadProgress(), lesson.id);
       saveProgress(p);
+      void coach.start({
+        id: lesson.id,
+        title: lesson.title,
+        chapterId: lesson.chapterId,
+        chapterNumber: lesson.chapterNumber,
+        handNumber: lesson.handNumber,
+        dealer: lesson.dealer,
+        vulnerability: lesson.vulnerability,
+        tip: lesson.tip,
+        contract: lesson.contract,
+        declarer: lesson.declarer,
+        hands: lesson.hands,
+      });
+      feedCoachMoves(s, 0);
     } finally {
       setBusy(false);
     }
@@ -110,6 +174,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
 
   const onBid = async (bid: string) => {
     const prevMistakes = engine.mistakesThisRun;
+    const fedFrom = fedCommentaryRef.current;
     setBusy(true);
     try {
       let s = submitBid(lesson, engine, bid);
@@ -120,9 +185,21 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           bid,
           s.feedback.body,
         );
-      }
-      if (s.phase === "play") {
-        s = await advanceAutoPlaysDds(lesson, s);
+        void coach.explainMistake({
+          phase: "bidding",
+          actual: bid,
+          expected: s.feedback.expected,
+          teaching: s.feedback.body,
+          context: `Hand ${lesson.title} · auction so far: ${s.auctionLog
+            .map((a) => `${a.seat}:${a.bid}`)
+            .join(" ")}`,
+        });
+        fedCommentaryRef.current = s.commentary.length;
+      } else {
+        if (s.phase === "play") {
+          s = await advanceAutoPlaysDds(lesson, s);
+        }
+        feedCoachMoves(s, fedFrom);
       }
       setEngine(s);
     } finally {
@@ -133,6 +210,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
   const onPlay = async (card: Card) => {
     if (busy) return;
     const prevMistakes = engine.mistakesThisRun;
+    const fedFrom = fedCommentaryRef.current;
     setBusy(true);
     try {
       const s = await submitCardDds(lesson, engine, card);
@@ -143,6 +221,16 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           card,
           s.feedback?.body,
         );
+        void coach.explainMistake({
+          phase: "play",
+          actual: card,
+          expected: s.feedback?.expected ?? "best",
+          teaching: s.feedback?.body,
+          context: `Hand ${lesson.title} · ${lesson.contract ?? "?"} · tricks NS ${s.nsTricks} EW ${s.ewTricks}`,
+        });
+        fedCommentaryRef.current = s.commentary.length;
+      } else {
+        feedCoachMoves(s, fedFrom);
       }
       setEngine(s);
     } finally {
@@ -152,9 +240,12 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
 
   const onNextTrick = async () => {
     if (busy) return;
+    const fedFrom = fedCommentaryRef.current;
     setBusy(true);
     try {
-      setEngine(await advanceTrickDds(lesson, engine));
+      const s = await advanceTrickDds(lesson, engine);
+      feedCoachMoves(s, fedFrom);
+      setEngine(s);
     } finally {
       setBusy(false);
     }
@@ -302,6 +393,8 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
             type="button"
             className="btn btn--small"
             onClick={() => {
+              coach.stop();
+              resetTimeline();
               setEngine(initialEngine(lesson));
               setStarted(false);
             }}
@@ -432,7 +525,43 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
 
           <section className="panel commentary-panel">
             <h2>Commentary</h2>
-            <CommentaryLog entries={engine.commentary} />
+            {coach.status === "unavailable" && (
+              <p className="coach-status coach-status--error">
+                {coach.error ?? "Sol coach unavailable."}
+              </p>
+            )}
+            {coach.status === "error" && coach.error && (
+              <p className="coach-status coach-status--error">{coach.error}</p>
+            )}
+            {(coach.status === "starting" || coach.status === "ready") && (
+              <p className="coach-status">
+                {coach.status === "starting"
+                  ? "Sol is joining this hand…"
+                  : "Sol is coaching · ask anything below"}
+              </p>
+            )}
+            <CommentaryLog
+              entries={timeline}
+              thinkingLabel={coach.thinkingLabel}
+              onSendChat={
+                coach.sessionActive
+                  ? (msg) => {
+                      void coach.chat(msg);
+                    }
+                  : undefined
+              }
+              chatDisabled={
+                coach.status === "thinking" ||
+                coach.status === "starting" ||
+                coach.status === "unavailable" ||
+                coach.status === "idle"
+              }
+              chatPlaceholder={
+                coach.status === "unavailable"
+                  ? "Start npm run dev (with coach) to chat with Sol"
+                  : "Ask Sol about this hand…"
+              }
+            />
           </section>
 
           {engine.feedback && engine.feedback.kind === "mistake" && (
@@ -462,6 +591,8 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
                   type="button"
                   className="btn btn--primary"
                   onClick={() => {
+                    coach.stop();
+                    resetTimeline();
                     setEngine(initialEngine(lesson));
                     setStarted(false);
                   }}
