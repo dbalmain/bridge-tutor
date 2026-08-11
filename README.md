@@ -15,7 +15,11 @@ course: **5-card majors, strong 1NT (15–17)**.
    Opponents autoplay double-dummy best.
 5. **Until clean** — replay for ★ with zero significant DDS errors.
 6. **Mistake journal** — local history with tags for later AI coaching.
-7. **Export** — download progress JSON to paste into an AI tutor.
+7. **Sol coach** — each hand opens a background [Codex](https://github.com/openai/codex)
+   session (`gpt-5.6-sol`, high reasoning). Moves are fed as context; mistakes get a
+   longer explanation inline in the commentary panel. Chat with Sol under that log;
+   transcripts persist in `localStorage` and `.coach-sessions/`.
+8. **Export** — download progress JSON to paste into an AI tutor.
 
 ## Run
 
@@ -24,11 +28,25 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints (usually `http://localhost:5173`).
+That starts **Vite** and the **Sol coach server** (`scripts/coach-server.mjs` on
+port 8787). Open the URL Vite prints (usually `http://localhost:5173`).
+
+Requires the `codex` CLI on your `PATH` and a working Codex login. Override model
+or port if needed:
+
+```bash
+COACH_MODEL=gpt-5.6-sol COACH_REASONING=high COACH_PORT=8787 npm run coach
+```
+
+UI only (no Sol):
+
+```bash
+npm run dev:ui
+```
 
 ```bash
 npm run build    # production build
-npm run preview  # serve the build
+npm run preview  # serve the build (coach not included)
 ```
 
 Regenerate lesson data from the course LIN files:
@@ -55,6 +73,7 @@ follows those scripts; card play is free and scored by DDS.
 
 - [x] Curriculum + interactive bid/play + mistake log
 - [x] DDS-backed card-play evaluation (significant-error threshold)
+- [x] Live Sol coach (Codex) on each hand + inline chat
 - [ ] Hint / “show best card” without spoiling ★
 - [ ] Spaced-repetition micro-drills (bidding flashcards)
 - [ ] Weekly AI coaching from exported mistake tags
@@ -63,5 +82,5 @@ follows those scripts; card play is free and scored by DDS.
 
 ## Stack
 
-Vite · React · TypeScript · localStorage ·
+Vite · React · TypeScript · localStorage · Codex CLI (Sol coach) ·
 [bridge-dds](https://github.com/bookchris/bridge-dds-js) (Bo Haglund DDS via WASM).
