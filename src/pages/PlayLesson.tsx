@@ -4,7 +4,9 @@ import curriculum from "../data/curriculum.json";
 import { BiddingBox } from "../components/BiddingBox";
 import { CardView } from "../components/CardView";
 import { CommentaryLog } from "../components/CommentaryLog";
+import { CoachSettings } from "../components/CoachSettings";
 import { HandRow } from "../components/HandRow";
+import { formatCoachLabel } from "../lib/coachConfig";
 import {
   bidDisplay,
   cardLabel,
@@ -525,6 +527,17 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
 
           <section className="panel commentary-panel">
             <h2>Commentary · Sol coach</h2>
+            <CoachSettings
+              prefs={coach.prefs}
+              onChange={coach.setPrefs}
+              available={coach.available}
+              disabled={coach.status === "thinking"}
+            />
+            <p className="coach-settings__hint muted small">
+              {coach.sessionPrefs
+                ? `This hand: ${formatCoachLabel(coach.sessionPrefs)}. Restart after changing harness/model.`
+                : "Applies when you start the hand."}
+            </p>
             <p
               className={
                 "coach-status" +

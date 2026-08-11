@@ -1,5 +1,7 @@
 /** Thin client for scripts/coach-server.mjs (proxied at /api/coach). */
 
+import type { CoachHarnessId, CoachPrefs } from "./coachConfig";
+
 export type CoachStatus = "starting" | "ready" | "busy" | "error" | "ended";
 
 export interface CoachServerMessage {
@@ -11,7 +13,12 @@ export interface CoachServerMessage {
 
 export interface CoachSessionInfo {
   id: string;
-  codexSessionId: string | null;
+  harness?: CoachHarnessId | string;
+  model?: string;
+  thinking?: string;
+  agentSessionId: string | null;
+  /** @deprecated server still sends this as an alias */
+  codexSessionId?: string | null;
   status: CoachStatus;
   error: string | null;
   createdAt: string;
@@ -98,8 +105,8 @@ async function parseJson<T>(res: Response): Promise<T> {
 
 export async function coachHealth(): Promise<{
   ok: boolean;
-  model?: string;
-  reasoning?: string;
+  defaults?: Partial<CoachPrefs>;
+  available?: Partial<Record<CoachHarnessId, boolean>>;
   base?: string;
 }> {
   const base = await resolveCoachBase(true);
@@ -109,10 +116,18 @@ export async function coachHealth(): Promise<{
     if (!res.ok) return { ok: false };
     const data = (await res.json()) as {
       ok: boolean;
+      defaults?: Partial<CoachPrefs>;
+      available?: Partial<Record<CoachHarnessId, boolean>>;
+      /** legacy fields from older servers */
       model?: string;
       reasoning?: string;
     };
-    return { ...data, base };
+    const defaults = data.defaults ?? {
+      model: data.model,
+      thinking: data.reasoning,
+      harness: "codex" as CoachHarnessId,
+    };
+    return { ...data, defaults, base };
   } catch {
     return { ok: false };
   }
@@ -120,12 +135,18 @@ export async function coachHealth(): Promise<{
 
 export async function startCoachSession(
   lesson: LessonCoachPayload,
+  prefs: CoachPrefs,
 ): Promise<CoachSessionInfo> {
   await resolveCoachBase();
   const res = await fetch(`${baseOrThrow()}/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lesson }),
+    body: JSON.stringify({
+      lesson,
+      harness: prefs.harness,
+      model: prefs.model,
+      thinking: prefs.thinking,
+    }),
   });
   return parseJson<CoachSessionInfo>(res);
 }
@@ -196,4 +217,11 @@ export async function endCoachSession(sessionId: string): Promise<void> {
   } catch {
     // best-effort
   }
+}
+
+export function agentSessionIdOf(
+  session?: CoachSessionInfo | null,
+): string | null {
+  if (!session) return null;
+  return session.agentSessionId ?? session.codexSessionId ?? null;
 }

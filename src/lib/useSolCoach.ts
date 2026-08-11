@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  formatCoachLabel,
+  loadCoachPrefs,
+  saveCoachPrefs,
+  type CoachHarnessId,
+  type CoachPrefs,
+} from "./coachConfig";
+import {
   appendTranscriptEntry,
   createTranscript,
   loadCoachStore,
   saveCoachStore,
-  setTranscriptCodexId,
+  setTranscriptAgentSessionId,
   upsertTranscript,
 } from "./coachStore";
 import {
+  agentSessionIdOf,
   chatWithCoach,
   coachHealth,
   endCoachSession,
@@ -58,6 +66,12 @@ export function useSolCoach(lesson: {
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<CommentaryEntry[]>([]);
   const [thinkingLabel, setThinkingLabel] = useState<string | null>(null);
+  const [prefs, setPrefsState] = useState<CoachPrefs>(() => loadCoachPrefs());
+  /** Prefs locked into the current hand's server session (null if none). */
+  const [sessionPrefs, setSessionPrefs] = useState<CoachPrefs | null>(null);
+  const [available, setAvailable] = useState<
+    Partial<Record<CoachHarnessId, boolean>>
+  >({});
 
   const sessionIdRef = useRef<string | null>(null);
   const transcriptRef = useRef<CoachTranscript | null>(null);
@@ -69,16 +83,35 @@ export function useSolCoach(lesson: {
   const pendingMovesRef = useRef<string[]>([]);
   const mountedRef = useRef(true);
   const statusRef = useRef<CoachUiStatus>("idle");
+  const prefsRef = useRef(prefs);
 
   const setStatusBoth = useCallback((next: CoachUiStatus) => {
     statusRef.current = next;
     setStatus(next);
   }, []);
 
+  const setPrefs = useCallback((next: CoachPrefs) => {
+    prefsRef.current = next;
+    setPrefsState(next);
+    saveCoachPrefs(next);
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+    };
+  }, []);
+
+  // Soft probe so harness dropdown can grey out missing CLIs before Start.
+  useEffect(() => {
+    let cancelled = false;
+    void coachHealth().then((h) => {
+      if (cancelled || !h.available) return;
+      setAvailable(h.available);
+    });
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -98,12 +131,12 @@ export function useSolCoach(lesson: {
     [persist],
   );
 
-  const rememberCodexId = useCallback(
+  const rememberAgentSession = useCallback(
     (session?: CoachSessionInfo) => {
-      const codexId = session?.codexSessionId;
-      if (!codexId || !transcriptRef.current) return;
-      if (transcriptRef.current.codexSessionId === codexId) return;
-      persist(setTranscriptCodexId(transcriptRef.current, codexId));
+      const agentId = agentSessionIdOf(session);
+      if (!agentId || !transcriptRef.current) return;
+      if (transcriptRef.current.agentSessionId === agentId) return;
+      persist(setTranscriptAgentSessionId(transcriptRef.current, agentId));
     },
     [persist],
   );
@@ -131,7 +164,7 @@ export function useSolCoach(lesson: {
             body,
           );
           if (generationRef.current !== gen) return;
-          rememberCodexId(session);
+          rememberAgentSession(session);
           const key = `${message.at}|${reply.slice(0, 40)}`;
           seenCoachKeys.current.add(key);
           pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
@@ -152,7 +185,7 @@ export function useSolCoach(lesson: {
         }
       }
     },
-    [pushEntry, rememberCodexId, setStatusBoth],
+    [pushEntry, rememberAgentSession, setStatusBoth],
   );
 
   const start = useCallback(
@@ -160,6 +193,7 @@ export function useSolCoach(lesson: {
       lastPayloadRef.current = payload;
       generationRef.current += 1;
       const gen = generationRef.current;
+      const activePrefs = prefsRef.current;
 
       if (sessionIdRef.current) {
         const old = sessionIdRef.current;
@@ -169,6 +203,7 @@ export function useSolCoach(lesson: {
 
       setEntries([]);
       setError(null);
+      setSessionPrefs(null);
       seenCoachKeys.current = new Set();
       pendingMistakesRef.current = [];
       pendingMovesRef.current = [];
@@ -182,10 +217,12 @@ export function useSolCoach(lesson: {
       const health = await coachHealth();
       if (generationRef.current !== gen) return;
 
+      if (health.available) setAvailable(health.available);
+
       if (!health.ok) {
         setStatusBoth("unavailable");
         setError(
-          "Sol coach server is not reachable. Run `npm run dev` (starts UI + coach) or `npm run coach` alongside the UI. Needs the codex CLI logged in.",
+          "Sol coach server is not reachable. Run `npm run dev` (starts UI + coach) or `npm run coach` alongside the UI.",
         );
         setThinkingLabel(null);
         pushEntry(
@@ -198,11 +235,27 @@ export function useSolCoach(lesson: {
         return;
       }
 
+      if (health.available && health.available[activePrefs.harness] === false) {
+        setStatusBoth("error");
+        setError(
+          `Harness "${activePrefs.harness}" CLI not found. Pick another harness in the coach settings.`,
+        );
+        setThinkingLabel(null);
+        pushEntry(
+          entryFromCoach(
+            `Harness "${activePrefs.harness}" is not installed on this machine. Choose Codex, Grok, OpenCode, or Claude Code above.`,
+            "info",
+            "system",
+          ),
+        );
+        return;
+      }
+
       const via =
         health.base === "/api/coach" ? "Vite proxy" : "direct :8787";
       pushEntry(
         entryFromCoach(
-          `Sol on standby (${health.model ?? "model?"} · ${health.reasoning ?? "?"} · ${via}). Moves are queued; Sol only runs on a mistake or your chat.`,
+          `Sol on standby (${formatCoachLabel(activePrefs)} · ${via}). Moves are queued; Sol only runs on a mistake or your chat.`,
           "info",
           "system",
         ),
@@ -211,17 +264,24 @@ export function useSolCoach(lesson: {
       const transcript = createTranscript({
         lessonId: lesson.id,
         chapterId: lesson.chapterId,
+        harness: activePrefs.harness,
+        model: activePrefs.model,
+        thinking: activePrefs.thinking,
       });
       transcriptRef.current = transcript;
       persist(transcript);
 
       try {
-        const session = await startCoachSession(payload);
+        const session = await startCoachSession(payload, activePrefs);
         if (generationRef.current !== gen) return;
 
         sessionIdRef.current = session.id;
-        // Local session only — codex starts on first mistake/chat.
-        // Queue any moves that arrived before the session id existed.
+        setSessionPrefs({
+          harness: (session.harness as CoachHarnessId) ?? activePrefs.harness,
+          model: session.model ?? activePrefs.model,
+          thinking: session.thinking ?? activePrefs.thinking,
+        });
+        // Local session only — agent starts on first mistake/chat.
         void flushPending(session.id, gen);
 
         if (session.status === "error") {
@@ -247,7 +307,14 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [flushPending, lesson.chapterId, lesson.id, persist, pushEntry, setStatusBoth],
+    [
+      flushPending,
+      lesson.chapterId,
+      lesson.id,
+      persist,
+      pushEntry,
+      setStatusBoth,
+    ],
   );
 
   const noteMove = useCallback(async (text: string) => {
@@ -281,7 +348,7 @@ export function useSolCoach(lesson: {
       setThinkingLabel("Sol is explaining that mistake…");
       try {
         const { reply, message, session } = await explainCoachMistake(id, body);
-        rememberCodexId(session);
+        rememberAgentSession(session);
         const key = `${message.at}|${reply.slice(0, 40)}`;
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
@@ -300,7 +367,7 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [pushEntry, rememberCodexId, setStatusBoth],
+    [pushEntry, rememberAgentSession, setStatusBoth],
   );
 
   const chat = useCallback(
@@ -327,7 +394,7 @@ export function useSolCoach(lesson: {
           id,
           trimmed,
         );
-        rememberCodexId(session);
+        rememberAgentSession(session);
         const key = `${coachMsg.at}|${reply.slice(0, 40)}`;
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", "chat", coachMsg.at));
@@ -346,7 +413,7 @@ export function useSolCoach(lesson: {
         );
       }
     },
-    [pushEntry, rememberCodexId, setStatusBoth],
+    [pushEntry, rememberAgentSession, setStatusBoth],
   );
 
   const resetLocal = useCallback(() => {
@@ -360,6 +427,7 @@ export function useSolCoach(lesson: {
     pendingMovesRef.current = [];
     lastPayloadRef.current = null;
     setEntries([]);
+    setSessionPrefs(null);
     setStatusBoth("idle");
     setError(null);
     setThinkingLabel(null);
@@ -375,6 +443,10 @@ export function useSolCoach(lesson: {
     error,
     entries,
     thinkingLabel,
+    prefs,
+    setPrefs,
+    sessionPrefs,
+    available,
     start,
     stop: resetLocal,
     retry,

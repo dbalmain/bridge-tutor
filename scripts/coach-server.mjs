@@ -2,14 +2,15 @@
 /**
  * Local Sol coach bridge for the Bridge Tutor UI.
  *
- * Creates a per-hand session that only *queues* auction/play notes. Codex is
- * not started until the student makes a MISTAKE or sends CHAT — then we open
- * (or resume) a thread with the full deal + move log. Clean hands cost no
- * model tokens.
+ * Creates a per-hand session that only *queues* auction/play notes. The chosen
+ * harness (Codex / Grok / OpenCode / Claude) is not started until the student
+ * makes a MISTAKE or sends CHAT — then we open (or resume) a thread with the
+ * full deal + move log. Clean hands cost no model tokens.
  *
  * Endpoints (JSON):
  *   GET  /api/coach/health
- *   POST /api/coach/sessions          { lesson }
+ *   GET  /api/coach/options
+ *   POST /api/coach/sessions          { lesson, harness?, model?, thinking? }
  *   POST /api/coach/sessions/:id/move { text }
  *   POST /api/coach/sessions/:id/mistake { phase, actual, expected, teaching?, context? }
  *   POST /api/coach/sessions/:id/chat { message }
@@ -17,7 +18,7 @@
  *   GET  /api/coach/sessions/:id
  */
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { mkdirSync, appendFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -28,11 +29,52 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const PORT = Number(process.env.COACH_PORT ?? 8787);
 const HOST = process.env.COACH_HOST ?? "127.0.0.1";
-const CODEX_BIN = process.env.CODEX_BIN ?? "codex";
-const MODEL = process.env.COACH_MODEL ?? "gpt-5.6-sol";
-const REASONING = process.env.COACH_REASONING ?? "high";
 const SESSIONS_DIR = join(ROOT, ".coach-sessions");
 const TURN_TIMEOUT_MS = Number(process.env.COACH_TURN_TIMEOUT_MS ?? 10 * 60 * 1000);
+
+const BINS = {
+  codex: process.env.CODEX_BIN ?? "codex",
+  grok: process.env.GROK_BIN ?? "grok",
+  opencode: process.env.OPENCODE_BIN ?? "opencode",
+  claude: process.env.CLAUDE_BIN ?? "claude",
+};
+
+const DEFAULTS = {
+  harness: process.env.COACH_HARNESS ?? "codex",
+  model: process.env.COACH_MODEL ?? "gpt-5.6-sol",
+  thinking: process.env.COACH_REASONING ?? process.env.COACH_THINKING ?? "high",
+};
+
+const HARNESS_META = {
+  codex: {
+    id: "codex",
+    label: "Codex",
+    defaultModel: "gpt-5.6-sol",
+    defaultThinking: "high",
+    thinkingLevels: ["low", "medium", "high"],
+  },
+  grok: {
+    id: "grok",
+    label: "Grok Build",
+    defaultModel: "grok-4.5",
+    defaultThinking: "medium",
+    thinkingLevels: ["low", "medium", "high"],
+  },
+  opencode: {
+    id: "opencode",
+    label: "OpenCode",
+    defaultModel: "opencode-go/grok-4.5",
+    defaultThinking: "medium",
+    thinkingLevels: ["minimal", "low", "medium", "high", "max"],
+  },
+  claude: {
+    id: "claude",
+    label: "Claude Code",
+    defaultModel: "sonnet",
+    defaultThinking: "medium",
+    thinkingLevels: ["low", "medium", "high", "xhigh", "max"],
+  },
+};
 
 if (!existsSync(SESSIONS_DIR)) {
   mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -41,7 +83,10 @@ if (!existsSync(SESSIONS_DIR)) {
 /** @typedef {{ role: 'system'|'coach'|'user'|'note', text: string, at: string, kind?: string }} Msg */
 /** @typedef {{
  *   id: string,
- *   codexSessionId: string | null,
+ *   harness: string,
+ *   model: string,
+ *   thinking: string,
+ *   agentSessionId: string | null,
  *   status: 'starting'|'ready'|'busy'|'error'|'ended',
  *   error: string | null,
  *   lesson: object,
@@ -63,56 +108,24 @@ function logLine(sessionId, obj) {
   appendFileSync(path, `${JSON.stringify({ at: nowIso(), ...obj })}\n`);
 }
 
-/**
- * Parse codex --json JSONL for thread id and assistant text.
- * @param {string} stdout
- */
-function parseCodexJsonl(stdout) {
-  let threadId = null;
-  let assistantText = "";
-  const errors = [];
-  for (const line of stdout.split("\n")) {
-    if (!line.trim()) continue;
-    let ev;
-    try {
-      ev = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (typeof ev.thread_id === "string") threadId = ev.thread_id;
-    if (ev.type === "thread.started" && typeof ev.thread_id === "string") {
-      threadId = ev.thread_id;
-    }
-    if (ev.type === "error" || ev.type === "turn.failed") {
-      const msg =
-        typeof ev.error === "string"
-          ? ev.error
-          : (ev.error?.message ?? ev.message ?? "codex error");
-      errors.push(msg);
-    }
-    if (
-      ev.type === "item.completed" &&
-      ev.item?.type === "agent_message" &&
-      typeof ev.item.text === "string"
-    ) {
-      assistantText += `${ev.item.text}\n`;
-    }
+function binOnPath(bin) {
+  try {
+    const r = spawnSync("which", [bin], { encoding: "utf8" });
+    return r.status === 0 && Boolean(r.stdout?.trim());
+  } catch {
+    return false;
   }
-  return {
-    threadId,
-    assistantText: assistantText.trim(),
-    errors,
-  };
 }
 
 /**
+ * @param {string} bin
  * @param {string[]} args
- * @param {string} stdinText
+ * @param {string | null} stdinText
  * @param {number} timeoutMs
  */
-function runCodex(args, stdinText, timeoutMs) {
+function runProcess(bin, args, stdinText, timeoutMs) {
   return new Promise((resolve) => {
-    const child = spawn(CODEX_BIN, args, {
+    const child = spawn(bin, args, {
       cwd: ROOT,
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
@@ -164,25 +177,394 @@ function runCodex(args, stdinText, timeoutMs) {
       });
     });
 
-    child.stdin.write(stdinText);
+    if (stdinText != null) {
+      child.stdin.write(stdinText);
+    }
     child.stdin.end();
   });
 }
 
-function baseExecArgs() {
-  return [
-    "exec",
-    "-C",
-    ROOT,
-    "-m",
-    MODEL,
-    "-c",
-    `model_reasoning_effort="${REASONING}"`,
-    "-s",
-    "read-only",
-    "--skip-git-repo-check",
-    "--json",
-  ];
+// ─── harness parsers ────────────────────────────────────────────────────────
+
+function parseCodexJsonl(stdout) {
+  let threadId = null;
+  let assistantText = "";
+  const errors = [];
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue;
+    let ev;
+    try {
+      ev = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof ev.thread_id === "string") threadId = ev.thread_id;
+    if (ev.type === "thread.started" && typeof ev.thread_id === "string") {
+      threadId = ev.thread_id;
+    }
+    if (ev.type === "error" || ev.type === "turn.failed") {
+      const msg =
+        typeof ev.error === "string"
+          ? ev.error
+          : (ev.error?.message ?? ev.message ?? "codex error");
+      errors.push(msg);
+    }
+    if (
+      ev.type === "item.completed" &&
+      ev.item?.type === "agent_message" &&
+      typeof ev.item.text === "string"
+    ) {
+      assistantText += `${ev.item.text}\n`;
+    }
+  }
+  return {
+    sessionId: threadId,
+    text: assistantText.trim(),
+    errors,
+  };
+}
+
+/** Best-effort parse of Grok --output-format json. */
+function parseGrokJson(stdout) {
+  const errors = [];
+  let sessionId = null;
+  let text = "";
+  const trimmed = stdout.trim();
+  if (!trimmed) return { sessionId, text, errors };
+
+  // Single JSON object
+  try {
+    const obj = JSON.parse(trimmed);
+    sessionId =
+      obj.session_id ?? obj.sessionId ?? obj.id ?? obj.uuid ?? null;
+    text =
+      obj.result ??
+      obj.text ??
+      obj.message ??
+      obj.content ??
+      obj.output ??
+      "";
+    if (typeof text !== "string") {
+      text = JSON.stringify(text);
+    }
+    if (obj.error) {
+      errors.push(
+        typeof obj.error === "string" ? obj.error : JSON.stringify(obj.error),
+      );
+    }
+    return { sessionId, text: String(text).trim(), errors };
+  } catch {
+    // fall through to JSONL / embedded
+  }
+
+  for (const line of trimmed.split("\n")) {
+    if (!line.trim()) continue;
+    let ev;
+    try {
+      ev = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof ev.session_id === "string") sessionId = ev.session_id;
+    if (typeof ev.sessionId === "string") sessionId = ev.sessionId;
+    if (ev.type === "session" && typeof ev.id === "string") sessionId = ev.id;
+    if (ev.type === "result" || ev.type === "assistant" || ev.role === "assistant") {
+      const t = ev.result ?? ev.text ?? ev.content ?? ev.message;
+      if (typeof t === "string") text += `${t}\n`;
+      else if (Array.isArray(t)) {
+        for (const part of t) {
+          if (typeof part === "string") text += `${part}\n`;
+          else if (part?.text) text += `${part.text}\n`;
+        }
+      }
+    }
+    if (ev.type === "error") {
+      errors.push(ev.message ?? ev.error ?? "grok error");
+    }
+  }
+  if (!text) {
+    // last resort: plain text (if --output-format plain leaked)
+    const plain = trimmed
+      .split("\n")
+      .filter((l) => l && !l.startsWith("{"))
+      .join("\n")
+      .trim();
+    if (plain) text = plain;
+  }
+  return { sessionId, text: text.trim(), errors };
+}
+
+/** Parse OpenCode --format json event stream. */
+function parseOpenCodeJson(stdout) {
+  const errors = [];
+  let sessionId = null;
+  let text = "";
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue;
+    let ev;
+    try {
+      ev = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    // session id
+    if (typeof ev.sessionID === "string") sessionId = ev.sessionID;
+    if (typeof ev.sessionId === "string") sessionId = ev.sessionId;
+    if (typeof ev.session_id === "string") sessionId = ev.session_id;
+    if (ev.type === "session" && typeof (ev.session?.id ?? ev.id) === "string") {
+      sessionId = ev.session?.id ?? ev.id;
+    }
+    if (ev.properties?.sessionID) sessionId = ev.properties.sessionID;
+
+    // assistant text — several OpenCode event shapes over versions
+    const part = ev.part ?? ev.properties?.part;
+    if (part?.type === "text" && typeof part.text === "string") {
+      text += part.text;
+    }
+    if (ev.type === "message" || ev.type === "text") {
+      const t = ev.text ?? ev.message ?? ev.content;
+      if (typeof t === "string") text += t;
+    }
+    if (
+      (ev.type === "message.updated" || ev.type === "message.part.updated") &&
+      typeof ev.properties?.part?.text === "string"
+    ) {
+      // streaming updates often replace; keep last full message via accumulation of deltas if any
+      if (ev.properties.part.type === "text") {
+        // prefer final completed texts only — use delta if present
+        if (typeof ev.properties.delta === "string") {
+          text += ev.properties.delta;
+        }
+      }
+    }
+    if (ev.type === "error" || ev.error) {
+      errors.push(
+        typeof ev.error === "string"
+          ? ev.error
+          : (ev.message ?? JSON.stringify(ev.error ?? ev)),
+      );
+    }
+  }
+  // Fallback: whole stdout as one JSON
+  if (!text && !sessionId) {
+    try {
+      const obj = JSON.parse(stdout.trim());
+      sessionId = obj.sessionID ?? obj.sessionId ?? obj.id ?? null;
+      text = obj.result ?? obj.text ?? obj.message ?? "";
+    } catch {
+      // ignore
+    }
+  }
+  return { sessionId, text: String(text).trim(), errors };
+}
+
+function parseClaudeJson(stdout) {
+  const errors = [];
+  let sessionId = null;
+  let text = "";
+  const trimmed = stdout.trim();
+  try {
+    const obj = JSON.parse(trimmed);
+    sessionId = obj.session_id ?? obj.sessionId ?? null;
+    text = obj.result ?? obj.content ?? obj.text ?? "";
+    if (obj.is_error || obj.type === "error") {
+      errors.push(obj.result ?? obj.error ?? "claude error");
+    }
+    return { sessionId, text: String(text).trim(), errors };
+  } catch {
+    // stream-json lines
+  }
+  for (const line of trimmed.split("\n")) {
+    if (!line.trim()) continue;
+    let ev;
+    try {
+      ev = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof ev.session_id === "string") sessionId = ev.session_id;
+    if (ev.type === "result" && typeof ev.result === "string") {
+      text = ev.result;
+    }
+    if (ev.type === "assistant" && ev.message?.content) {
+      for (const c of ev.message.content) {
+        if (c.type === "text" && c.text) text += `${c.text}\n`;
+      }
+    }
+    if (ev.type === "error") {
+      errors.push(ev.error?.message ?? ev.message ?? "claude error");
+    }
+  }
+  return { sessionId, text: text.trim(), errors };
+}
+
+// ─── harness runners ────────────────────────────────────────────────────────
+
+/**
+ * @param {Session} session
+ * @param {string} prompt
+ * @returns {Promise<{ sessionId: string|null, text: string, errors: string[], raw: {stdout:string,stderr:string,exitCode:number|null} }>}
+ */
+async function runHarnessTurn(session, prompt) {
+  const { harness, model, thinking } = session;
+  const isFirst = !session.agentSessionId;
+
+  if (harness === "codex") {
+    const bin = BINS.codex;
+    const args = isFirst
+      ? [
+          "exec",
+          "-C",
+          ROOT,
+          "-m",
+          model,
+          "-c",
+          `model_reasoning_effort="${thinking}"`,
+          "-s",
+          "read-only",
+          "--skip-git-repo-check",
+          "--json",
+          "-",
+        ]
+      : [
+          "exec",
+          "resume",
+          session.agentSessionId,
+          "-m",
+          model,
+          "-c",
+          `model_reasoning_effort="${thinking}"`,
+          "--skip-git-repo-check",
+          "--json",
+          "-",
+        ];
+    const proc = await runProcess(bin, args, prompt, TURN_TIMEOUT_MS);
+    if (proc.spawnError) throw new Error(`cannot start codex: ${proc.spawnError}`);
+    if (proc.timedOut) throw new Error(`codex timed out after ${TURN_TIMEOUT_MS}ms`);
+    const parsed = parseCodexJsonl(proc.stdout);
+    if (proc.exitCode !== 0 && !parsed.text) {
+      const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
+      throw new Error(`codex exited ${proc.exitCode}: ${detail || "no output"}`);
+    }
+    return { ...parsed, raw: proc };
+  }
+
+  if (harness === "grok") {
+    const bin = BINS.grok;
+    const args = [
+      "-p",
+      prompt,
+      "-m",
+      model,
+      "--reasoning-effort",
+      thinking,
+      "--output-format",
+      "json",
+      "--permission-mode",
+      "dontAsk",
+      "--disable-web-search",
+      "--tools",
+      "",
+      "--max-turns",
+      "1",
+    ];
+    if (!isFirst && session.agentSessionId) {
+      args.push("--resume", session.agentSessionId);
+    }
+    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
+    if (proc.spawnError) throw new Error(`cannot start grok: ${proc.spawnError}`);
+    if (proc.timedOut) throw new Error(`grok timed out after ${TURN_TIMEOUT_MS}ms`);
+    const parsed = parseGrokJson(proc.stdout || proc.stderr);
+    // plain fallback
+    if (!parsed.text && proc.stdout.trim()) {
+      parsed.text = proc.stdout.trim();
+    }
+    if (proc.exitCode !== 0 && !parsed.text) {
+      const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
+      throw new Error(`grok exited ${proc.exitCode}: ${detail || "no output"}`);
+    }
+    return { ...parsed, raw: proc };
+  }
+
+  if (harness === "opencode") {
+    const bin = BINS.opencode;
+    const args = [
+      "run",
+      "-m",
+      model,
+      "--variant",
+      thinking,
+      "--format",
+      "json",
+      "--title",
+      `bridge-coach-${session.id.slice(0, 8)}`,
+    ];
+    if (!isFirst && session.agentSessionId) {
+      args.push("-s", session.agentSessionId);
+    }
+    // message as final positional (spawn array = no shell quoting issues)
+    args.push(prompt);
+    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
+    if (proc.spawnError) {
+      throw new Error(`cannot start opencode: ${proc.spawnError}`);
+    }
+    if (proc.timedOut) {
+      throw new Error(`opencode timed out after ${TURN_TIMEOUT_MS}ms`);
+    }
+    const parsed = parseOpenCodeJson(proc.stdout);
+    if (!parsed.text && proc.stdout.trim()) {
+      // default format sometimes still prints human text on stderr/stdout
+      const lines = proc.stdout
+        .split("\n")
+        .filter((l) => l.trim() && !l.trim().startsWith("{"));
+      if (lines.length) parsed.text = lines.join("\n").trim();
+    }
+    if (proc.exitCode !== 0 && !parsed.text) {
+      const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
+      throw new Error(
+        `opencode exited ${proc.exitCode}: ${detail || "no output"}`,
+      );
+    }
+    return { ...parsed, raw: proc };
+  }
+
+  if (harness === "claude") {
+    const bin = BINS.claude;
+    const args = [
+      "-p",
+      "--output-format",
+      "json",
+      "--model",
+      model,
+      "--effort",
+      thinking,
+      "--tools",
+      "",
+      "--permission-mode",
+      "dontAsk",
+    ];
+    if (!isFirst && session.agentSessionId) {
+      args.push("--resume", session.agentSessionId);
+    }
+    args.push(prompt);
+    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
+    if (proc.spawnError) {
+      throw new Error(`cannot start claude: ${proc.spawnError}`);
+    }
+    if (proc.timedOut) {
+      throw new Error(`claude timed out after ${TURN_TIMEOUT_MS}ms`);
+    }
+    const parsed = parseClaudeJson(proc.stdout);
+    if (proc.exitCode !== 0 && !parsed.text) {
+      const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
+      throw new Error(
+        `claude exited ${proc.exitCode}: ${detail || "no output"}`,
+      );
+    }
+    return { ...parsed, raw: proc };
+  }
+
+  throw new Error(`unknown harness: ${harness}`);
 }
 
 /**
@@ -192,57 +574,35 @@ function baseExecArgs() {
  */
 async function runTurn(session, prompt, opts = {}) {
   const expectReply = opts.expectReply !== false;
-  const isFirst = !session.codexSessionId;
-  const args = isFirst
-    ? [...baseExecArgs(), "-"]
-    : [
-        "exec",
-        "resume",
-        session.codexSessionId,
-        "-m",
-        MODEL,
-        "-c",
-        `model_reasoning_effort="${REASONING}"`,
-        "--skip-git-repo-check",
-        "--json",
-        "-",
-      ];
+  const isFirst = !session.agentSessionId;
 
   logLine(session.id, {
     type: "turn_start",
     first: isFirst,
-    codexSessionId: session.codexSessionId,
+    harness: session.harness,
+    model: session.model,
+    thinking: session.thinking,
+    agentSessionId: session.agentSessionId,
     promptPreview: prompt.slice(0, 500),
   });
 
-  const proc = await runCodex(args, prompt, TURN_TIMEOUT_MS);
-  if (proc.spawnError) {
-    throw new Error(`cannot start codex: ${proc.spawnError}`);
+  const result = await runHarnessTurn(session, prompt);
+  if (result.errors?.length) {
+    throw new Error(result.errors.join("; "));
   }
-  if (proc.timedOut) {
-    throw new Error(`codex timed out after ${TURN_TIMEOUT_MS}ms`);
-  }
-
-  const parsed = parseCodexJsonl(proc.stdout);
-  if (parsed.threadId) session.codexSessionId = parsed.threadId;
-  if (parsed.errors.length) {
-    throw new Error(parsed.errors.join("; "));
-  }
-  if (proc.exitCode !== 0 && !parsed.assistantText) {
-    const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
-    throw new Error(`codex exited ${proc.exitCode}: ${detail || "no output"}`);
-  }
+  if (result.sessionId) session.agentSessionId = result.sessionId;
 
   logLine(session.id, {
     type: "turn_end",
-    codexSessionId: session.codexSessionId,
-    replyPreview: parsed.assistantText.slice(0, 500),
+    harness: session.harness,
+    agentSessionId: session.agentSessionId,
+    replyPreview: (result.text ?? "").slice(0, 500),
   });
 
-  if (expectReply && !parsed.assistantText) {
+  if (expectReply && !result.text) {
     return "(Sol had no reply — try asking again.)";
   }
-  return parsed.assistantText;
+  return result.text;
 }
 
 /** Serialise turns so resume never races. */
@@ -260,7 +620,7 @@ function formatHand(seat, cards) {
   return `${seat}: ${cards.join(" ")}`;
 }
 
-/** Full deal + persona — only included on the first codex turn for a session. */
+/** Full deal + persona — only included on the first agent turn for a session. */
 function buildLessonContext(lesson) {
   const hands = lesson.hands ?? {};
   return `You are Sol, a patient bridge coach embedded in a beginners' tutor.
@@ -281,7 +641,7 @@ How we work:
 - Auction and card-play notes appear in the move log below — treat them as context only.
 - On MISTAKE, explain in clear detail: what was wrong, the better thought process, and a rule of thumb the student can reuse. Avoid spoiling future cards unless needed to explain this error.
 - On CHAT, answer the student's questions at a beginner level. Prefer short paragraphs over dense lists.
-- Do not run tools or edit files. Coaching only.
+- Do not run tools or edit files. Coaching only. Reply with coaching text only.
 - Bidding feedback follows the course line; card play is scored by double-dummy (DDS) — only significant (≥1 trick) errors are flagged.`;
 }
 
@@ -294,7 +654,7 @@ function formatMoveLog(session, { recentOnly = false } = {}) {
 }
 
 function withFirstTurnContext(session, body) {
-  if (session.codexSessionId) return body;
+  if (session.agentSessionId) return body;
   return `${buildLessonContext(session.lesson)}
 
 ---
@@ -341,13 +701,24 @@ Answer as Sol, their bridge coach. No tools.`,
 function publicSession(session) {
   return {
     id: session.id,
-    codexSessionId: session.codexSessionId,
+    harness: session.harness,
+    model: session.model,
+    thinking: session.thinking,
+    agentSessionId: session.agentSessionId,
+    /** @deprecated alias for older clients */
+    codexSessionId: session.agentSessionId,
     status: session.status,
     error: session.error,
     createdAt: session.createdAt,
     moveCount: session.moveLog.length,
     messages: session.messages,
   };
+}
+
+function normalizeHarness(raw) {
+  const id = String(raw ?? DEFAULTS.harness).toLowerCase();
+  if (id in HARNESS_META) return id;
+  return "codex";
 }
 
 function readBody(req) {
@@ -379,6 +750,15 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
+function harnessAvailability() {
+  /** @type {Record<string, boolean>} */
+  const out = {};
+  for (const id of Object.keys(HARNESS_META)) {
+    out[id] = binOnPath(BINS[id]);
+  }
+  return out;
+}
+
 async function handle(req, res) {
   const url = new URL(req.url ?? "/", `http://${HOST}:${PORT}`);
   const path = url.pathname;
@@ -396,11 +776,25 @@ async function handle(req, res) {
 
   try {
     if (req.method === "GET" && path === "/api/coach/health") {
+      const available = harnessAvailability();
       sendJson(res, 200, {
         ok: true,
-        model: MODEL,
-        reasoning: REASONING,
-        codexBin: CODEX_BIN,
+        defaults: DEFAULTS,
+        available,
+        bins: BINS,
+      });
+      return;
+    }
+
+    if (req.method === "GET" && path === "/api/coach/options") {
+      const available = harnessAvailability();
+      sendJson(res, 200, {
+        defaults: DEFAULTS,
+        harnesses: Object.values(HARNESS_META).map((h) => ({
+          ...h,
+          available: available[h.id] === true,
+          bin: BINS[h.id],
+        })),
       });
       return;
     }
@@ -408,12 +802,33 @@ async function handle(req, res) {
     if (req.method === "POST" && path === "/api/coach/sessions") {
       const body = await readBody(req);
       const lesson = body.lesson ?? {};
+      const harness = normalizeHarness(body.harness);
+      const meta = HARNESS_META[harness];
+      const model =
+        typeof body.model === "string" && body.model.trim()
+          ? body.model.trim()
+          : (meta.defaultModel ?? DEFAULTS.model);
+      const thinking =
+        typeof body.thinking === "string" && body.thinking.trim()
+          ? body.thinking.trim()
+          : (meta.defaultThinking ?? DEFAULTS.thinking);
+
+      if (!binOnPath(BINS[harness])) {
+        sendJson(res, 400, {
+          error: `Harness "${harness}" CLI not found on PATH (${BINS[harness]}). Install it or pick another harness.`,
+        });
+        return;
+      }
+
       const id = randomUUID();
       /** @type {Session} */
       const session = {
         id,
-        codexSessionId: null,
-        status: "starting",
+        harness,
+        model,
+        thinking,
+        agentSessionId: null,
+        status: "ready",
         error: null,
         lesson,
         moveLog: [],
@@ -421,15 +836,30 @@ async function handle(req, res) {
         queue: Promise.resolve(),
         createdAt: nowIso(),
       };
-      // Standby only: queue moves free of charge. Codex starts on first
-      // mistake or chat (see withFirstTurnContext).
-      session.status = "ready";
       sessions.set(id, session);
       writeFileSync(
         join(SESSIONS_DIR, `${id}.meta.json`),
-        JSON.stringify({ id, lessonId: lesson.id, createdAt: session.createdAt }, null, 2),
+        JSON.stringify(
+          {
+            id,
+            lessonId: lesson.id,
+            harness,
+            model,
+            thinking,
+            createdAt: session.createdAt,
+          },
+          null,
+          2,
+        ),
       );
-      logLine(id, { type: "created", lessonId: lesson.id, lazy: true });
+      logLine(id, {
+        type: "created",
+        lessonId: lesson.id,
+        lazy: true,
+        harness,
+        model,
+        thinking,
+      });
 
       sendJson(res, 201, publicSession(session));
       return;
@@ -482,16 +912,11 @@ async function handle(req, res) {
         session.status = "busy";
         try {
           const reply = await enqueue(session, async () => {
-            if (session.status === "error" && !session.codexSessionId) {
+            if (session.status === "error" && !session.agentSessionId) {
               throw new Error(session.error ?? "coach unavailable");
             }
-            // Wait until start finished if still starting.
-            if (!session.codexSessionId && session.status === "starting") {
-              // start is already on the queue ahead of us
-            }
-            if (!session.codexSessionId) {
-              // Start may have failed
-              if (session.error) throw new Error(session.error);
+            if (session.error && !session.agentSessionId) {
+              throw new Error(session.error);
             }
             return runTurn(session, buildMistakePrompt(session, body));
           });
@@ -503,9 +928,13 @@ async function handle(req, res) {
           };
           session.messages.push(msg);
           session.status = "ready";
-          sendJson(res, 200, { reply, message: msg, session: publicSession(session) });
+          sendJson(res, 200, {
+            reply,
+            message: msg,
+            session: publicSession(session),
+          });
         } catch (err) {
-          session.status = session.codexSessionId ? "ready" : "error";
+          session.status = session.agentSessionId ? "ready" : "error";
           session.error = String(err?.message ?? err);
           sendJson(res, 502, { error: session.error });
         }
@@ -546,7 +975,7 @@ async function handle(req, res) {
             session: publicSession(session),
           });
         } catch (err) {
-          session.status = session.codexSessionId ? "ready" : "error";
+          session.status = session.agentSessionId ? "ready" : "error";
           session.error = String(err?.message ?? err);
           sendJson(res, 502, { error: session.error });
         }
@@ -572,7 +1001,11 @@ const server = createServer((req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
+  const avail = harnessAvailability();
+  const list = Object.entries(avail)
+    .map(([k, v]) => `${k}${v ? "" : "✗"}`)
+    .join(" ");
   console.log(
-    `[coach] Sol coach listening on http://${HOST}:${PORT}  model=${MODEL} reasoning=${REASONING}`,
+    `[coach] Sol coach listening on http://${HOST}:${PORT}  default=${DEFAULTS.harness}/${DEFAULTS.model}/${DEFAULTS.thinking}  bins: ${list}`,
   );
 });

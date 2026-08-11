@@ -110,8 +110,14 @@ export interface CoachTranscript {
   chapterId: string;
   startedAt: string;
   updatedAt: string;
-  /** Codex thread id when available. */
-  codexSessionId: string | null;
+  /** Harness used for this transcript (codex / grok / opencode / claude). */
+  harness?: string;
+  model?: string;
+  thinking?: string;
+  /** Agent thread / session id when available. */
+  agentSessionId: string | null;
+  /** @deprecated use agentSessionId */
+  codexSessionId?: string | null;
   entries: CommentaryEntry[];
 }
 

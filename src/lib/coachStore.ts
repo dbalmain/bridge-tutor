@@ -14,6 +14,12 @@ export function loadCoachStore(): CoachStore {
     if (!raw) return empty();
     const data = JSON.parse(raw) as CoachStore;
     if (data.version !== 1 || !Array.isArray(data.transcripts)) return empty();
+    // Migrate older transcripts that only stored codexSessionId.
+    data.transcripts = data.transcripts.map((t) => {
+      const agentSessionId =
+        t.agentSessionId ?? t.codexSessionId ?? null;
+      return { ...t, agentSessionId, codexSessionId: agentSessionId };
+    });
     return data;
   } catch {
     return empty();
@@ -27,16 +33,25 @@ export function saveCoachStore(store: CoachStore): void {
 export function createTranscript(meta: {
   lessonId: string;
   chapterId: string;
+  harness?: string;
+  model?: string;
+  thinking?: string;
+  agentSessionId?: string | null;
   codexSessionId?: string | null;
 }): CoachTranscript {
   const now = new Date().toISOString();
+  const agentId = meta.agentSessionId ?? meta.codexSessionId ?? null;
   return {
     id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     lessonId: meta.lessonId,
     chapterId: meta.chapterId,
     startedAt: now,
     updatedAt: now,
-    codexSessionId: meta.codexSessionId ?? null,
+    harness: meta.harness,
+    model: meta.model,
+    thinking: meta.thinking,
+    agentSessionId: agentId,
+    codexSessionId: agentId,
     entries: [],
   };
 }
@@ -71,16 +86,20 @@ export function appendTranscriptEntry(
   };
 }
 
-export function setTranscriptCodexId(
+export function setTranscriptAgentSessionId(
   transcript: CoachTranscript,
-  codexSessionId: string | null,
+  agentSessionId: string | null,
 ): CoachTranscript {
   return {
     ...transcript,
-    codexSessionId,
+    agentSessionId,
+    codexSessionId: agentSessionId,
     updatedAt: new Date().toISOString(),
   };
 }
+
+/** @deprecated use setTranscriptAgentSessionId */
+export const setTranscriptCodexId = setTranscriptAgentSessionId;
 
 export function transcriptsForLesson(
   store: CoachStore,
