@@ -122,7 +122,34 @@ function ddsCard(suit: number, rank: number): Card {
 }
 
 /**
+ * DDS solutions=3 returns one representative per score group and encodes
+ * lower same-suit equals in a rank bitmask (bit r set ⇒ rank r is equivalent).
+ * Expand those so playing the 8 when only the 9 is listed is scored correctly.
+ */
+function expandEquals(
+  suit: number,
+  rank: number,
+  equalsMask: number,
+  score: number,
+): CardScore[] {
+  const out: CardScore[] = [{ card: ddsCard(suit, rank), score }];
+  // Bits 2..14 correspond to ranks 2..A (DDS convention).
+  for (let r = 2; r <= 14; r++) {
+    if (r === rank) continue;
+    if (equalsMask & (1 << r)) {
+      const sym = DDS_RANK[r];
+      if (sym) out.push({ card: ddsCard(suit, r), score });
+    }
+  }
+  return out;
+}
+
+/**
  * Score every legal card for the side about to play at this position.
+ *
+ * `hands` must already exclude cards from earlier tricks (and cards already
+ * played to the current trick). Cards still to be played — including the
+ * one under evaluation — stay in hand.
  */
 export async function scoreLegalCards(opts: {
   hands: Record<Seat, Card[]>;
@@ -154,14 +181,23 @@ export async function scoreLegalCards(opts: {
     1, // always search
   );
 
-  const scores: CardScore[] = [];
+  // Deduplicate if equals somehow overlaps a listed card.
+  const byCard = new Map<Card, number>();
   for (let i = 0; i < future.cards; i++) {
-    scores.push({
-      card: ddsCard(future.suit[i], future.rank[i]),
-      score: future.score[i],
-    });
+    const expanded = expandEquals(
+      future.suit[i],
+      future.rank[i],
+      future.equals[i] ?? 0,
+      future.score[i],
+    );
+    for (const row of expanded) {
+      const prev = byCard.get(row.card);
+      if (prev === undefined || row.score > prev) {
+        byCard.set(row.card, row.score);
+      }
+    }
   }
-  return scores;
+  return [...byCard.entries()].map(([card, score]) => ({ card, score }));
 }
 
 export async function evaluatePlay(opts: {
@@ -187,8 +223,23 @@ export async function evaluatePlay(opts: {
   const bestScore = Math.max(...all.map((c) => c.score));
   const bestCards = all.filter((c) => c.score === bestScore).map((c) => c.card);
   const hit = all.find((c) => c.card === opts.played);
-  const playedScore = hit?.score ?? -1;
-  const tricksLost = playedScore < 0 ? bestScore : bestScore - playedScore;
+
+  // If DDS still did not list the card (should be rare after equals expand),
+  // do not invent a "lost every remaining trick" score — treat as no error.
+  if (!hit) {
+    return {
+      played: opts.played,
+      playedScore: bestScore,
+      bestScore,
+      bestCards,
+      all,
+      significantError: false,
+      tricksLost: 0,
+    };
+  }
+
+  const playedScore = hit.score;
+  const tricksLost = bestScore - playedScore;
 
   return {
     played: opts.played,

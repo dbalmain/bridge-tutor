@@ -11,7 +11,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "curriculum": "node scripts/parse-lin.mjs",
-    "test:engine": "tsx scripts/smoke-engine.ts"
+    "test:engine": "tsx scripts/smoke-engine.ts",
+    "test:dds": "tsx scripts/test-dds-equals.ts"
   },
   "dependencies": {
     "bridge-dds": "^1.4.0",
