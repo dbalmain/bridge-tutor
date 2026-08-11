@@ -655,6 +655,12 @@ input {
   flex-direction: column;
   min-height: 0;
 }
+.commentary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
 .commentary {
   max-height: min(40vh, 22rem);
   overflow-y: auto;
@@ -665,6 +671,9 @@ input {
 }
 .commentary--empty {
   padding: 0.75rem;
+  border: 1px solid #2a3a30;
+  border-radius: 8px;
+  background: #121a15;
 }
 .commentary__list {
   list-style: none;
@@ -692,6 +701,16 @@ input {
 .commentary__item--info {
   background: transparent;
 }
+.commentary__item--coach {
+  background: rgba(126, 182, 232, 0.1);
+}
+.commentary__item--user {
+  background: rgba(232, 197, 71, 0.08);
+}
+.commentary__item--thinking {
+  background: rgba(126, 182, 232, 0.06);
+  font-style: italic;
+}
 .commentary__badge {
   flex: 0 0 auto;
   min-width: 1.4rem;
@@ -707,9 +726,57 @@ input {
 .commentary__badge--play {
   color: #9fd0ff;
 }
+.commentary__badge--sol {
+  color: #0f1410;
+  background: var(--info);
+  min-width: 2rem;
+}
+.commentary__badge--you {
+  color: #0f1410;
+  background: var(--accent);
+  min-width: 2rem;
+}
 .commentary__text {
   flex: 1;
   color: var(--ink);
+  white-space: pre-wrap;
+}
+.coach-chat {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  align-items: end;
+}
+.coach-chat__input {
+  width: 100%;
+  resize: vertical;
+  min-height: 2.6rem;
+  max-height: 8rem;
+  border-radius: 8px;
+  border: 1px solid #3a4d40;
+  background: #121a15;
+  color: var(--ink);
+  padding: 0.45rem 0.55rem;
+  line-height: 1.35;
+}
+.coach-chat__input:focus {
+  outline: 2px solid rgba(126, 182, 232, 0.45);
+  outline-offset: 1px;
+  border-color: var(--info);
+}
+.coach-chat__input:disabled {
+  opacity: 0.55;
+}
+.coach-chat__send {
+  align-self: stretch;
+}
+.coach-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+.coach-status--error {
+  color: var(--danger);
 }
 
 code {

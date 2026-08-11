@@ -1,50 +1,126 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 import type { CommentaryEntry } from "../lib/types";
 
 interface Props {
   entries: CommentaryEntry[];
+  /** Optional Sol thinking indicator shown at the bottom of the log. */
+  thinkingLabel?: string | null;
+  /** When set, show a chat composer under the log. */
+  onSendChat?: (message: string) => void;
+  chatDisabled?: boolean;
+  chatPlaceholder?: string;
 }
 
-export function CommentaryLog({ entries }: Props) {
+function badgeFor(e: CommentaryEntry): string | null {
+  if (e.kind === "coach") return "Sol";
+  if (e.kind === "user") return "You";
+  if (e.phase === "bidding" && e.action) return e.seat ?? "?";
+  if (e.phase === "play" && e.action) return e.seat ?? "?";
+  return null;
+}
+
+export function CommentaryLog({
+  entries,
+  thinkingLabel,
+  onSendChat,
+  chatDisabled = false,
+  chatPlaceholder = "Ask Sol about this hand…",
+}: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    // Keep the newest line in view as commentary accumulates
     bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [entries.length]);
+  }, [entries.length, thinkingLabel]);
 
-  if (entries.length === 0) {
-    return (
-      <div className="commentary commentary--empty">
-        <p className="muted small">Commentary will appear here as the auction and play unfold.</p>
-      </div>
-    );
-  }
+  const submit = (e?: FormEvent) => {
+    e?.preventDefault();
+    const el = inputRef.current;
+    if (!el || !onSendChat || chatDisabled) return;
+    const text = el.value.trim();
+    if (!text) return;
+    onSendChat(text);
+    el.value = "";
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  };
 
   return (
-    <div className="commentary" ref={scrollerRef}>
-      <ol className="commentary__list">
-        {entries.map((e) => (
-          <li
-            key={e.id}
-            className={`commentary__item commentary__item--${e.kind}`}
+    <div className="commentary-wrap">
+      {entries.length === 0 && !thinkingLabel ? (
+        <div className="commentary commentary--empty">
+          <p className="muted small">
+            Commentary will appear here as the auction and play unfold. Sol can
+            join in when the coach server is running.
+          </p>
+        </div>
+      ) : (
+        <div className="commentary" ref={scrollerRef}>
+          <ol className="commentary__list">
+            {entries.map((entry) => {
+              const badge = badgeFor(entry);
+              return (
+                <li
+                  key={entry.id}
+                  className={`commentary__item commentary__item--${entry.kind}`}
+                >
+                  {badge && (
+                    <span
+                      className={
+                        "commentary__badge" +
+                        (entry.phase === "play" && entry.kind !== "coach" && entry.kind !== "user"
+                          ? " commentary__badge--play"
+                          : "") +
+                        (entry.kind === "coach" ? " commentary__badge--sol" : "") +
+                        (entry.kind === "user" ? " commentary__badge--you" : "")
+                      }
+                    >
+                      {badge}
+                    </span>
+                  )}
+                  <span className="commentary__text">{entry.text}</span>
+                </li>
+              );
+            })}
+            {thinkingLabel && (
+              <li className="commentary__item commentary__item--thinking">
+                <span className="commentary__badge commentary__badge--sol">
+                  Sol
+                </span>
+                <span className="commentary__text muted">{thinkingLabel}</span>
+              </li>
+            )}
+          </ol>
+          <div ref={bottomRef} />
+        </div>
+      )}
+
+      {onSendChat && (
+        <form className="coach-chat" onSubmit={submit}>
+          <textarea
+            ref={inputRef}
+            className="coach-chat__input"
+            rows={2}
+            placeholder={chatPlaceholder}
+            disabled={chatDisabled}
+            onKeyDown={onKeyDown}
+            aria-label="Message Sol"
+          />
+          <button
+            type="submit"
+            className="btn btn--small btn--primary coach-chat__send"
+            disabled={chatDisabled}
           >
-            {e.phase === "bidding" && e.action && (
-              <span className="commentary__badge">
-                {e.seat ?? "?"}
-              </span>
-            )}
-            {e.phase === "play" && e.action && (
-              <span className="commentary__badge commentary__badge--play">
-                {e.seat ?? "?"}
-              </span>
-            )}
-            <span className="commentary__text">{e.text}</span>
-          </li>
-        ))}
-      </ol>
-      <div ref={bottomRef} />
+            Send
+          </button>
+        </form>
+      )}
     </div>
   );
 }
