@@ -89,13 +89,30 @@ export interface Feedback {
   actual?: string;
 }
 
+export type CommentaryKind = "info" | "ok" | "mistake" | "coach" | "user";
+export type CommentaryPhase = "bidding" | "play" | "system" | "chat";
+
 export interface CommentaryEntry {
   id: string;
-  kind: "info" | "ok" | "mistake";
-  phase: "bidding" | "play" | "system";
+  kind: CommentaryKind;
+  phase: CommentaryPhase;
   seat?: Seat;
   action?: string;
   text: string;
+  /** ISO timestamp; set for coach/user chat so transcripts survive reloads. */
+  at?: string;
+}
+
+/** One Sol coaching conversation for a hand attempt. */
+export interface CoachTranscript {
+  id: string;
+  lessonId: string;
+  chapterId: string;
+  startedAt: string;
+  updatedAt: string;
+  /** Codex thread id when available. */
+  codexSessionId: string | null;
+  entries: CommentaryEntry[];
 }
 
 export interface EngineState {
@@ -150,4 +167,11 @@ export interface ProgressState {
   lessons: Record<string, LessonProgress>;
   mistakes: Mistake[];
   currentLessonId: string | null;
+}
+
+/** Separate from ProgressState so coach history can grow without bumping progress version. */
+export interface CoachStore {
+  version: 1;
+  /** Newest first. */
+  transcripts: CoachTranscript[];
 }
