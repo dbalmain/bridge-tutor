@@ -551,7 +551,6 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
                   : undefined
               }
               chatDisabled={
-                coach.status === "thinking" ||
                 coach.status === "starting" ||
                 coach.status === "unavailable" ||
                 coach.status === "idle"
