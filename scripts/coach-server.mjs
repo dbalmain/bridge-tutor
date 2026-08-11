@@ -365,6 +365,7 @@ function sendJson(res, status, obj) {
 async function handle(req, res) {
   const url = new URL(req.url ?? "/", `http://${HOST}:${PORT}`);
   const path = url.pathname;
+  console.log(`[coach] ${req.method} ${path}`);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {

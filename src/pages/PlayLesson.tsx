@@ -524,40 +524,47 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           </section>
 
           <section className="panel commentary-panel">
-            <h2>Commentary</h2>
-            {coach.status === "unavailable" && (
-              <p className="coach-status coach-status--error">
-                {coach.error ?? "Sol coach unavailable."}
-              </p>
-            )}
-            {coach.status === "error" && coach.error && (
-              <p className="coach-status coach-status--error">{coach.error}</p>
-            )}
-            {(coach.status === "starting" || coach.status === "ready") && (
-              <p className="coach-status">
-                {coach.status === "starting"
-                  ? "Sol is joining this hand…"
-                  : "Sol is coaching · ask anything below"}
-              </p>
-            )}
+            <h2>Commentary · Sol coach</h2>
+            <p
+              className={
+                "coach-status" +
+                (coach.status === "unavailable" || coach.status === "error"
+                  ? " coach-status--error"
+                  : "")
+              }
+            >
+              {coach.status === "idle" && "Sol not started for this hand."}
+              {coach.status === "starting" && "Sol is joining this hand…"}
+              {coach.status === "ready" && "Sol is coaching · ask anything below"}
+              {coach.status === "thinking" &&
+                (coach.thinkingLabel ?? "Sol is thinking…")}
+              {coach.status === "unavailable" &&
+                (coach.error ?? "Sol coach unavailable.")}
+              {coach.status === "error" &&
+                (coach.error ?? "Sol coach error.")}
+              {(coach.status === "unavailable" || coach.status === "error") && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    onClick={() => coach.retry()}
+                  >
+                    Retry Sol
+                  </button>
+                </>
+              )}
+            </p>
             <CommentaryLog
               entries={timeline}
               thinkingLabel={coach.thinkingLabel}
-              onSendChat={
-                coach.sessionActive
-                  ? (msg) => {
-                      void coach.chat(msg);
-                    }
-                  : undefined
-              }
-              chatDisabled={
-                coach.status === "starting" ||
-                coach.status === "unavailable" ||
-                coach.status === "idle"
-              }
+              onSendChat={(msg) => {
+                void coach.chat(msg);
+              }}
+              chatDisabled={coach.status === "unavailable"}
               chatPlaceholder={
                 coach.status === "unavailable"
-                  ? "Start npm run dev (with coach) to chat with Sol"
+                  ? "Coach offline — run npm run dev (or npm run coach)"
                   : "Ask Sol about this hand…"
               }
             />

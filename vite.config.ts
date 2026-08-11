@@ -14,6 +14,10 @@ export default defineConfig({
     },
   },
   server: {
+    // Bind IPv4 + IPv6. Default was sometimes [::1] only, so
+    // http://127.0.0.1:5173 failed while localhost worked (or vice versa).
+    host: true,
+    port: 5173,
     proxy: {
       // Sol coach (scripts/coach-server.mjs) — long-running codex turns.
       "/api/coach": {
