@@ -151,6 +151,27 @@ export async function startCoachSession(
   return parseJson<CoachSessionInfo>(res);
 }
 
+/** Update harness/model/thinking on an open session (resets agent thread). */
+export async function updateCoachSessionConfig(
+  sessionId: string,
+  prefs: CoachPrefs,
+): Promise<{
+  ok: boolean;
+  changed: boolean;
+  session: CoachSessionInfo;
+}> {
+  const res = await fetch(`${baseOrThrow()}/sessions/${sessionId}/config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      harness: prefs.harness,
+      model: prefs.model,
+      thinking: prefs.thinking,
+    }),
+  });
+  return parseJson(res);
+}
+
 export async function getCoachSession(
   sessionId: string,
 ): Promise<CoachSessionInfo> {
@@ -179,6 +200,7 @@ export async function explainCoachMistake(
     teaching?: string;
     context?: string;
   },
+  opts?: { signal?: AbortSignal },
 ): Promise<{
   reply: string;
   message: CoachServerMessage;
@@ -188,6 +210,7 @@ export async function explainCoachMistake(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: opts?.signal,
   });
   return parseJson(res);
 }
@@ -195,6 +218,7 @@ export async function explainCoachMistake(
 export async function chatWithCoach(
   sessionId: string,
   message: string,
+  opts?: { signal?: AbortSignal },
 ): Promise<{
   reply: string;
   userMessage: CoachServerMessage;
@@ -205,6 +229,7 @@ export async function chatWithCoach(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
+    signal: opts?.signal,
   });
   return parseJson(res);
 }

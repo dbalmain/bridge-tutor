@@ -6,7 +6,7 @@ import { CardView } from "../components/CardView";
 import { CommentaryLog } from "../components/CommentaryLog";
 import { CoachSettings } from "../components/CoachSettings";
 import { HandRow } from "../components/HandRow";
-import { formatCoachLabel } from "../lib/coachConfig";
+import { coachUiName, formatCoachLabel } from "../lib/coachConfig";
 import {
   bidDisplay,
   cardLabel,
@@ -78,7 +78,8 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
   const [showAllHands, setShowAllHands] = useState(false);
   const [started, setStarted] = useState(false);
   const coach = useSolCoach({ id: lesson.id, chapterId: lesson.chapterId });
-  /** How many engine commentary lines we have already fed to Sol as context. */
+  const coachName = coachUiName(coach.sessionPrefs ?? coach.prefs);
+  /** How many engine commentary lines we have already fed to the coach as context. */
   const fedCommentaryRef = useRef(0);
   /** Unified log: engine + Sol/user in arrival order (mistakes then Sol’s reply). */
   const [timeline, setTimeline] = useState<CommentaryEntry[]>([]);
@@ -526,7 +527,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           </section>
 
           <section className="panel commentary-panel">
-            <h2>Commentary · Sol coach</h2>
+            <h2>Commentary · coach</h2>
             <CoachSettings
               prefs={coach.prefs}
               onChange={coach.setPrefs}
@@ -535,7 +536,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
             />
             <p className="coach-settings__hint muted small">
               {coach.sessionPrefs
-                ? `This hand: ${formatCoachLabel(coach.sessionPrefs)}. Restart after changing harness/model.`
+                ? `Active: ${formatCoachLabel(coach.sessionPrefs)}. Changes apply immediately (next reply).`
                 : "Applies when you start the hand."}
             </p>
             <p
@@ -546,16 +547,16 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
                   : "")
               }
             >
-              {coach.status === "idle" && "Sol not started for this hand."}
+              {coach.status === "idle" &&
+                `${coachName} not started for this hand.`}
               {coach.status === "starting" && "Checking coach server…"}
               {coach.status === "ready" &&
-                "Sol on standby · joins on mistakes or chat"}
+                `${coachName} on standby · joins on mistakes or chat`}
               {coach.status === "thinking" &&
-                (coach.thinkingLabel ?? "Sol is thinking…")}
+                (coach.thinkingLabel ?? `${coachName} is thinking…`)}
               {coach.status === "unavailable" &&
-                (coach.error ?? "Sol coach unavailable.")}
-              {coach.status === "error" &&
-                (coach.error ?? "Sol coach error.")}
+                (coach.error ?? "Coach unavailable.")}
+              {coach.status === "error" && (coach.error ?? "Coach error.")}
               {(coach.status === "unavailable" || coach.status === "error") && (
                 <>
                   {" "}
@@ -564,7 +565,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
                     className="btn btn--small"
                     onClick={() => coach.retry()}
                   >
-                    Retry Sol
+                    Retry
                   </button>
                 </>
               )}
@@ -572,6 +573,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
             <CommentaryLog
               entries={timeline}
               thinkingLabel={coach.thinkingLabel}
+              coachBadge={coachName}
               onSendChat={(msg) => {
                 void coach.chat(msg);
               }}
@@ -579,7 +581,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
               chatPlaceholder={
                 coach.status === "unavailable"
                   ? "Coach offline — run npm run dev (or npm run coach)"
-                  : "Ask Sol about this hand…"
+                  : `Ask ${coachName} about this hand…`
               }
             />
           </section>

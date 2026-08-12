@@ -3,16 +3,18 @@ import type { CommentaryEntry } from "../lib/types";
 
 interface Props {
   entries: CommentaryEntry[];
-  /** Optional Sol thinking indicator shown at the bottom of the log. */
+  /** Optional coach thinking indicator shown at the bottom of the log. */
   thinkingLabel?: string | null;
   /** When set, show a chat composer under the log. */
   onSendChat?: (message: string) => void;
   chatDisabled?: boolean;
   chatPlaceholder?: string;
+  /** Badge label for coach replies / thinking (e.g. Sol, Grok, Claude). */
+  coachBadge?: string;
 }
 
-function badgeFor(e: CommentaryEntry): string | null {
-  if (e.kind === "coach") return "Sol";
+function badgeFor(e: CommentaryEntry, coachBadge: string): string | null {
+  if (e.kind === "coach") return coachBadge;
   if (e.kind === "user") return "You";
   if (e.phase === "bidding" && e.action) return e.seat ?? "?";
   if (e.phase === "play" && e.action) return e.seat ?? "?";
@@ -24,7 +26,8 @@ export function CommentaryLog({
   thinkingLabel,
   onSendChat,
   chatDisabled = false,
-  chatPlaceholder = "Ask Sol about this hand…",
+  chatPlaceholder = "Ask the coach about this hand…",
+  coachBadge = "Coach",
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -56,15 +59,15 @@ export function CommentaryLog({
       {entries.length === 0 && !thinkingLabel ? (
         <div className="commentary commentary--empty">
           <p className="muted small">
-            Commentary will appear here as the auction and play unfold. Sol can
-            join in when the coach server is running.
+            Commentary will appear here as the auction and play unfold. The coach
+            can join in when the coach server is running.
           </p>
         </div>
       ) : (
         <div className="commentary" ref={scrollerRef}>
           <ol className="commentary__list">
             {entries.map((entry) => {
-              const badge = badgeFor(entry);
+              const badge = badgeFor(entry, coachBadge);
               return (
                 <li
                   key={entry.id}
@@ -91,7 +94,7 @@ export function CommentaryLog({
             {thinkingLabel && (
               <li className="commentary__item commentary__item--thinking">
                 <span className="commentary__badge commentary__badge--sol">
-                  Sol
+                  {coachBadge}
                 </span>
                 <span className="commentary__text muted">{thinkingLabel}</span>
               </li>
@@ -110,7 +113,7 @@ export function CommentaryLog({
             placeholder={chatPlaceholder}
             disabled={chatDisabled}
             onKeyDown={onKeyDown}
-            aria-label="Message Sol"
+            aria-label={`Message ${coachBadge}`}
           />
           <button
             type="submit"

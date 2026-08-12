@@ -153,3 +153,21 @@ export function prefsForHarness(
 export function formatCoachLabel(prefs: CoachPrefs): string {
   return `${prefs.harness} · ${prefs.model} · ${prefs.thinking}`;
 }
+
+/**
+ * Short UI name for the selected harness (placeholder, badges, status).
+ * "Sol" is kept only for the classic Codex + sol model path.
+ */
+export function coachUiName(prefs: CoachPrefs): string {
+  switch (prefs.harness) {
+    case "grok":
+      return "Grok";
+    case "opencode":
+      return "OpenCode";
+    case "claude":
+      return "Claude";
+    case "codex":
+    default:
+      return prefs.model.toLowerCase().includes("sol") ? "Sol" : "Codex";
+  }
+}

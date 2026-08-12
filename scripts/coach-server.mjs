@@ -11,6 +11,7 @@
  *   GET  /api/coach/health
  *   GET  /api/coach/options
  *   POST /api/coach/sessions          { lesson, harness?, model?, thinking? }
+ *   POST /api/coach/sessions/:id/config { harness?, model?, thinking? }
  *   POST /api/coach/sessions/:id/move { text }
  *   POST /api/coach/sessions/:id/mistake { phase, actual, expected, teaching?, context? }
  *   POST /api/coach/sessions/:id/chat { message }
@@ -20,7 +21,13 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdirSync, appendFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdirSync,
+  appendFileSync,
+  writeFileSync,
+  existsSync,
+  unlinkSync,
+} from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
@@ -94,6 +101,8 @@ if (!existsSync(SESSIONS_DIR)) {
  *   messages: Msg[],
  *   queue: Promise<unknown>,
  *   createdAt: string,
+ *   activeChild: import('node:child_process').ChildProcess | null,
+ *   ended: boolean,
  * }} Session */
 
 /** @type {Map<string, Session>} */
@@ -118,26 +127,62 @@ function binOnPath(bin) {
 }
 
 /**
+ * @param {import('node:child_process').ChildProcess | null | undefined} child
+ */
+function killChildTree(child) {
+  if (!child?.pid) return;
+  try {
+    // Negative PID: signal the process group when we spawned detached.
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // already gone
+    }
+  }
+  setTimeout(() => {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        // ignore
+      }
+    }
+  }, 1500);
+}
+
+/**
  * @param {string} bin
  * @param {string[]} args
  * @param {string | null} stdinText
  * @param {number} timeoutMs
+ * @param {{ onSpawn?: (child: import('node:child_process').ChildProcess) => void }} [hooks]
  */
-function runProcess(bin, args, stdinText, timeoutMs) {
+function runProcess(bin, args, stdinText, timeoutMs, hooks = {}) {
   return new Promise((resolve) => {
     const child = spawn(bin, args, {
       cwd: ROOT,
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
+      // Own process group so we can kill the whole tree on cancel/timeout.
+      detached: true,
     });
+    hooks.onSpawn?.(child);
     let stdout = "";
     let stderr = "";
     let settled = false;
-    const timer = setTimeout(() => {
+    const finish = (result) => {
       if (settled) return;
       settled = true;
-      child.kill("SIGTERM");
-      resolve({
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      killChildTree(child);
+      finish({
         exitCode: null,
         timedOut: true,
         stdout,
@@ -153,10 +198,7 @@ function runProcess(bin, args, stdinText, timeoutMs) {
       stderr += chunk.toString();
     });
     child.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({
+      finish({
         exitCode: null,
         timedOut: false,
         stdout,
@@ -165,10 +207,7 @@ function runProcess(bin, args, stdinText, timeoutMs) {
       });
     });
     child.on("close", (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({
+      finish({
         exitCode: code,
         timedOut: false,
         stdout,
@@ -405,6 +444,28 @@ function parseClaudeJson(stdout) {
  * @param {string} prompt
  * @returns {Promise<{ sessionId: string|null, text: string, errors: string[], raw: {stdout:string,stderr:string,exitCode:number|null} }>}
  */
+/**
+ * @param {Session} session
+ * @param {string} bin
+ * @param {string[]} args
+ * @param {string | null} stdinText
+ */
+async function runSessionProcess(session, bin, args, stdinText) {
+  if (session.ended) {
+    throw new Error("session ended");
+  }
+  const proc = await runProcess(bin, args, stdinText, TURN_TIMEOUT_MS, {
+    onSpawn(child) {
+      session.activeChild = child;
+    },
+  });
+  if (session.activeChild) session.activeChild = null;
+  if (session.ended) {
+    throw new Error("session ended");
+  }
+  return proc;
+}
+
 async function runHarnessTurn(session, prompt) {
   const { harness, model, thinking } = session;
   const isFirst = !session.agentSessionId;
@@ -438,7 +499,7 @@ async function runHarnessTurn(session, prompt) {
           "--json",
           "-",
         ];
-    const proc = await runProcess(bin, args, prompt, TURN_TIMEOUT_MS);
+    const proc = await runSessionProcess(session, bin, args, prompt);
     if (proc.spawnError) throw new Error(`cannot start codex: ${proc.spawnError}`);
     if (proc.timedOut) throw new Error(`codex timed out after ${TURN_TIMEOUT_MS}ms`);
     const parsed = parseCodexJsonl(proc.stdout);
@@ -451,9 +512,14 @@ async function runHarnessTurn(session, prompt) {
 
   if (harness === "grok") {
     const bin = BINS.grok;
+    // Prefer --prompt-file for long coach prompts (avoids ARG_MAX / argv noise).
+    const promptPath = join(SESSIONS_DIR, `${session.id}-prompt.txt`);
+    writeFileSync(promptPath, prompt, "utf8");
+    // Headless via --prompt-file (mutually exclusive with -p). Empty --tools
+    // disables built-ins so the coach cannot wander into the repo.
     const args = [
-      "-p",
-      prompt,
+      "--prompt-file",
+      promptPath,
       "-m",
       model,
       "--reasoning-effort",
@@ -471,19 +537,27 @@ async function runHarnessTurn(session, prompt) {
     if (!isFirst && session.agentSessionId) {
       args.push("--resume", session.agentSessionId);
     }
-    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
-    if (proc.spawnError) throw new Error(`cannot start grok: ${proc.spawnError}`);
-    if (proc.timedOut) throw new Error(`grok timed out after ${TURN_TIMEOUT_MS}ms`);
-    const parsed = parseGrokJson(proc.stdout || proc.stderr);
-    // plain fallback
-    if (!parsed.text && proc.stdout.trim()) {
-      parsed.text = proc.stdout.trim();
+    try {
+      const proc = await runSessionProcess(session, bin, args, null);
+      if (proc.spawnError) throw new Error(`cannot start grok: ${proc.spawnError}`);
+      if (proc.timedOut) throw new Error(`grok timed out after ${TURN_TIMEOUT_MS}ms`);
+      const parsed = parseGrokJson(proc.stdout || proc.stderr);
+      // plain fallback
+      if (!parsed.text && proc.stdout.trim()) {
+        parsed.text = proc.stdout.trim();
+      }
+      if (proc.exitCode !== 0 && !parsed.text) {
+        const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
+        throw new Error(`grok exited ${proc.exitCode}: ${detail || "no output"}`);
+      }
+      return { ...parsed, raw: proc };
+    } finally {
+      try {
+        unlinkSync(promptPath);
+      } catch {
+        // ignore
+      }
     }
-    if (proc.exitCode !== 0 && !parsed.text) {
-      const detail = (proc.stderr || proc.stdout).trim().slice(0, 400);
-      throw new Error(`grok exited ${proc.exitCode}: ${detail || "no output"}`);
-    }
-    return { ...parsed, raw: proc };
   }
 
   if (harness === "opencode") {
@@ -504,7 +578,7 @@ async function runHarnessTurn(session, prompt) {
     }
     // message as final positional (spawn array = no shell quoting issues)
     args.push(prompt);
-    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
+    const proc = await runSessionProcess(session, bin, args, null);
     if (proc.spawnError) {
       throw new Error(`cannot start opencode: ${proc.spawnError}`);
     }
@@ -547,7 +621,7 @@ async function runHarnessTurn(session, prompt) {
       args.push("--resume", session.agentSessionId);
     }
     args.push(prompt);
-    const proc = await runProcess(bin, args, null, TURN_TIMEOUT_MS);
+    const proc = await runSessionProcess(session, bin, args, null);
     if (proc.spawnError) {
       throw new Error(`cannot start claude: ${proc.spawnError}`);
     }
@@ -600,7 +674,7 @@ async function runTurn(session, prompt, opts = {}) {
   });
 
   if (expectReply && !result.text) {
-    return "(Sol had no reply — try asking again.)";
+    return "(Coach had no reply — try asking again.)";
   }
   return result.text;
 }
@@ -621,9 +695,11 @@ function formatHand(seat, cards) {
 }
 
 /** Full deal + persona — only included on the first agent turn for a session. */
-function buildLessonContext(lesson) {
+function buildLessonContext(lesson, harness) {
   const hands = lesson.hands ?? {};
-  return `You are Sol, a patient bridge coach embedded in a beginners' tutor.
+  const harnessLabel =
+    HARNESS_META[harness]?.label ?? harness ?? "the coach";
+  return `You are a patient bridge coach embedded in a beginners' tutor (running via ${harnessLabel}).
 
 System: 5-card majors, strong 1NT (15–17). The student sits South.
 Course hand: ${lesson.title ?? lesson.id} (chapter ${lesson.chapterNumber ?? "?"}).
@@ -655,7 +731,7 @@ function formatMoveLog(session, { recentOnly = false } = {}) {
 
 function withFirstTurnContext(session, body) {
   if (session.agentSessionId) return body;
-  return `${buildLessonContext(session.lesson)}
+  return `${buildLessonContext(session.lesson, session.harness)}
 
 ---
 
@@ -694,8 +770,18 @@ ${message}
 Recent move log (context only):
 ${moves}
 
-Answer as Sol, their bridge coach. No tools.`,
+Answer as their bridge coach. No tools.`,
   );
+}
+
+function endSession(session) {
+  session.ended = true;
+  session.status = "ended";
+  if (session.activeChild) {
+    killChildTree(session.activeChild);
+    session.activeChild = null;
+  }
+  logLine(session.id, { type: "ended" });
 }
 
 function publicSession(session) {
@@ -835,6 +921,8 @@ async function handle(req, res) {
         messages: [],
         queue: Promise.resolve(),
         createdAt: nowIso(),
+        activeChild: null,
+        ended: false,
       };
       sessions.set(id, session);
       writeFileSync(
@@ -866,7 +954,7 @@ async function handle(req, res) {
     }
 
     const sessionMatch = path.match(
-      /^\/api\/coach\/sessions\/([^/]+)(?:\/(move|mistake|chat|end))?$/,
+      /^\/api\/coach\/sessions\/([^/]+)(?:\/(move|mistake|chat|end|config))?$/,
     );
     if (sessionMatch) {
       const session = sessions.get(sessionMatch[1]);
@@ -878,6 +966,75 @@ async function handle(req, res) {
 
       if (req.method === "GET" && !action) {
         sendJson(res, 200, publicSession(session));
+        return;
+      }
+
+      // Switch harness/model/thinking mid-hand. Keeps the move log; drops any
+      // open agent thread so the next mistake/chat starts a fresh thread with
+      // full lesson context under the new settings.
+      if (req.method === "POST" && action === "config") {
+        if (session.status === "busy") {
+          sendJson(res, 409, {
+            error: "coach is busy — wait for the current reply, then switch",
+          });
+          return;
+        }
+        if (session.status === "ended") {
+          sendJson(res, 400, { error: "session already ended" });
+          return;
+        }
+        const body = await readBody(req);
+        const prev = {
+          harness: session.harness,
+          model: session.model,
+          thinking: session.thinking,
+          agentSessionId: session.agentSessionId,
+        };
+        const harness = body.harness
+          ? normalizeHarness(body.harness)
+          : session.harness;
+        const meta = HARNESS_META[harness] ?? HARNESS_META.codex;
+        if (!binOnPath(BINS[harness])) {
+          sendJson(res, 400, {
+            error: `Harness "${harness}" CLI not found on PATH (${BINS[harness]}).`,
+          });
+          return;
+        }
+        const model =
+          typeof body.model === "string" && body.model.trim()
+            ? body.model.trim()
+            : session.model;
+        const thinking =
+          typeof body.thinking === "string" && body.thinking.trim()
+            ? body.thinking.trim()
+            : session.thinking;
+
+        const changed =
+          harness !== session.harness ||
+          model !== session.model ||
+          thinking !== session.thinking;
+
+        session.harness = harness;
+        session.model = model;
+        session.thinking = thinking;
+        if (changed || body.forceReset) {
+          session.agentSessionId = null;
+          session.error = null;
+          if (session.status === "error") session.status = "ready";
+        }
+
+        logLine(session.id, {
+          type: "config",
+          from: prev,
+          to: { harness, model, thinking },
+          agentReset: session.agentSessionId === null,
+        });
+
+        sendJson(res, 200, {
+          ok: true,
+          changed,
+          session: publicSession(session),
+        });
         return;
       }
 
@@ -983,8 +1140,7 @@ async function handle(req, res) {
       }
 
       if (req.method === "POST" && action === "end") {
-        session.status = "ended";
-        logLine(session.id, { type: "ended" });
+        endSession(session);
         sendJson(res, 200, { ok: true });
         return;
       }
