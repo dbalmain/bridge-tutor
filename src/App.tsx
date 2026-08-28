@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { DrillPage } from "./pages/DrillPage";
 import { Home } from "./pages/Home";
 import { MistakesPage } from "./pages/MistakesPage";
 import { PlayLesson } from "./pages/PlayLesson";
@@ -11,6 +12,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="drill" element={<DrillPage />} />
           <Route path="play/:lessonId" element={<PlayLesson />} />
           <Route path="progress" element={<ProgressPage />} />
           <Route path="mistakes" element={<MistakesPage />} />

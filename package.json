@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:ui": "vite",
+    "system": "cargo run -p bridge-system -- serve",
     "coach": "node scripts/coach-server.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

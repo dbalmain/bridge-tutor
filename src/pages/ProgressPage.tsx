@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import curriculum from "../data/curriculum.json";
+import { fetchWeights, type LeafWeight } from "../lib/bridgeSystem";
 import {
   clearProgress,
   exportProgressJson,
@@ -8,6 +9,10 @@ import {
   loadProgress,
   mistakeSummary,
 } from "../lib/progress";
+import {
+  clearSystemProgress,
+  loadSystemProgressJson,
+} from "../lib/systemProgress";
 import type { Curriculum, ProgressState } from "../lib/types";
 
 const data = curriculum as Curriculum;
@@ -21,6 +26,13 @@ export function ProgressPage() {
     (l) => getLessonProgress(progress, l.id).optimal,
   ).length;
   const tags = mistakeSummary(progress);
+  const [weights, setWeights] = useState<LeafWeight[] | null>(null);
+
+  useEffect(() => {
+    void fetchWeights(loadSystemProgressJson())
+      .then(setWeights)
+      .catch(() => setWeights([]));
+  }, []);
 
   function download() {
     const blob = new Blob([exportProgressJson(progress)], {
@@ -51,6 +63,49 @@ export function ProgressPage() {
           <div className="stat__l">Mistakes logged</div>
         </div>
       </div>
+
+      {weights && weights.length > 0 && (
+        <section className="panel">
+          <h2>5-card majors drills</h2>
+          <p className="muted small">
+            Sampling weight is the chance the next drill is this leaf. Misses
+            and unseen nodes are heavier; strong ones still appear.
+          </p>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Leaf</th>
+                <th>Seen</th>
+                <th>Right</th>
+                <th>Wrong</th>
+                <th>Next</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weights
+                .slice()
+                .sort((a, b) => b.weight - a.weight)
+                .map((w) => (
+                  <tr key={w.id}>
+                    <td>
+                      {w.title}
+                      <div className="muted small">{w.id}</div>
+                    </td>
+                    <td>{w.seen}</td>
+                    <td>{w.correct}</td>
+                    <td>{w.wrong}</td>
+                    <td className="weight-pct">
+                      {(w.weight * 100).toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+          <p className="muted small">
+            <Link to="/drill">Open drills</Link>
+          </p>
+        </section>
+      )}
 
       <section className="panel">
         <h2>Weak spots (from tags)</h2>
@@ -127,6 +182,8 @@ export function ProgressPage() {
           onClick={() => {
             if (confirm("Clear all progress and mistakes?")) {
               setProgress(clearProgress());
+              clearSystemProgress();
+              setWeights([]);
             }
           }}
         >

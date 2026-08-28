@@ -26,6 +26,11 @@ export default defineConfig({
         timeout: 0,
         proxyTimeout: 0,
       },
+      // Bidding drills (crates/bridge-system serve).
+      "/api/system": {
+        target: "http://127.0.0.1:8788",
+        changeOrigin: true,
+      },
     },
   },
 });

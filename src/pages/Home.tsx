@@ -33,11 +33,16 @@ export function Home() {
           Each lesson: short explanation → bid and play the hand → feedback on
           mistakes → replay until you match the optimal lesson line.
         </p>
-        {nextLesson && (
-          <Link className="btn btn--primary" to={`/play/${nextLesson.id}`}>
-            Continue · Hand {nextLesson.title}
+        <div className="btn-row">
+          <Link className="btn btn--primary" to="/drill">
+            5-card majors drills
           </Link>
-        )}
+          {nextLesson && (
+            <Link className="btn" to={`/play/${nextLesson.id}`}>
+              Continue play course · Hand {nextLesson.title}
+            </Link>
+          )}
+        </div>
       </section>
 
       <section className="chapter-list">

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Start the Sol coach server and Vite together.
- * Ctrl-C stops both.
+ * Start the Sol coach server, the Rust bidding sidecar, and Vite.
+ * Ctrl-C stops all three.
  */
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -40,4 +40,5 @@ process.on("SIGTERM", shutdown);
 
 const viteBin = join(root, "node_modules/vite/bin/vite.js");
 run("coach", process.execPath, [join(root, "scripts/coach-server.mjs")]);
+run("system", "cargo", ["run", "-p", "bridge-system", "--", "serve"]);
 run("vite", process.execPath, [viteBin]);
