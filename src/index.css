@@ -726,6 +726,7 @@ input {
 .commentary__badge--play {
   color: #9fd0ff;
 }
+.commentary__badge--coach,
 .commentary__badge--sol {
   color: #0f1410;
   background: var(--info);

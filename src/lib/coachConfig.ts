@@ -156,7 +156,7 @@ export function formatCoachLabel(prefs: CoachPrefs): string {
 
 /**
  * Short UI name for the selected harness (placeholder, badges, status).
- * "Sol" is kept only for the classic Codex + sol model path.
+ * Always follows the harness selector — never a fixed persona like "Sol".
  */
 export function coachUiName(prefs: CoachPrefs): string {
   switch (prefs.harness) {
@@ -167,7 +167,8 @@ export function coachUiName(prefs: CoachPrefs): string {
     case "claude":
       return "Claude";
     case "codex":
+      return "Codex";
     default:
-      return prefs.model.toLowerCase().includes("sol") ? "Sol" : "Codex";
+      return harnessOption(prefs.harness as CoachHarnessId).label;
   }
 }

@@ -78,7 +78,10 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
   const [showAllHands, setShowAllHands] = useState(false);
   const [started, setStarted] = useState(false);
   const coach = useSolCoach({ id: lesson.id, chapterId: lesson.chapterId });
-  const coachName = coachUiName(coach.sessionPrefs ?? coach.prefs);
+  // Prefer the selector (prefs). While a turn is in flight, use the badge
+  // frozen with that turn so it cannot lag on a previous "Sol" session.
+  const coachName =
+    coach.thinkingBadge ?? coachUiName(coach.prefs);
   /** How many engine commentary lines we have already fed to the coach as context. */
   const fedCommentaryRef = useRef(0);
   /** Unified log: engine + Sol/user in arrival order (mistakes then Sol’s reply). */

@@ -68,7 +68,14 @@ export function useSolCoach(lesson: {
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<CommentaryEntry[]>([]);
   const [thinkingLabel, setThinkingLabel] = useState<string | null>(null);
+  /** Badge frozen with the thinking label so it cannot lag on "Sol". */
+  const [thinkingBadge, setThinkingBadge] = useState<string | null>(null);
   const [prefs, setPrefsState] = useState<CoachPrefs>(() => loadCoachPrefs());
+
+  const setThinking = useCallback((label: string | null, badge?: string | null) => {
+    setThinkingLabel(label);
+    setThinkingBadge(label ? (badge ?? null) : null);
+  }, []);
   /** Prefs locked into the current hand's server session (null if none). */
   const [sessionPrefs, setSessionPrefs] = useState<CoachPrefs | null>(null);
   const [available, setAvailable] = useState<
@@ -275,8 +282,9 @@ export function useSolCoach(lesson: {
         const name = coachUiName(prefsRef.current);
         const ac = beginTurnAbort();
         setStatusBoth("thinking");
-        setThinkingLabel(
+        setThinking(
           `${name} is explaining that mistake… (first reply can take ~30–90s)`,
+          name,
         );
         try {
           const { reply, message, session } = await explainCoachMistake(
@@ -291,7 +299,7 @@ export function useSolCoach(lesson: {
           seenCoachKeys.current.add(key);
           pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
           setStatusBoth("ready");
-          setThinkingLabel(null);
+          setThinking(null);
           flushPendingPrefs();
         } catch (err) {
           if (generationRef.current !== gen) return;
@@ -299,7 +307,7 @@ export function useSolCoach(lesson: {
           if (ac.signal.aborted) return;
           setStatusBoth("error");
           setError(String(err instanceof Error ? err.message : err));
-          setThinkingLabel(null);
+          setThinking(null);
           pushEntry(
             entryFromCoach(
               `${name} could not explain that mistake: ${err instanceof Error ? err.message : String(err)}`,
@@ -317,6 +325,7 @@ export function useSolCoach(lesson: {
       pushEntry,
       rememberAgentSession,
       setStatusBoth,
+      setThinking,
     ],
   );
 
@@ -347,7 +356,7 @@ export function useSolCoach(lesson: {
         entryFromCoach(`Connecting to ${name} coach…`, "info", "system"),
       );
       setStatusBoth("starting");
-      setThinkingLabel("Checking coach server…");
+      setThinking("Checking coach server…");
 
       const health = await coachHealth();
       if (generationRef.current !== gen) return;
@@ -359,7 +368,7 @@ export function useSolCoach(lesson: {
         setError(
           "Coach server is not reachable. Run `npm run dev` (starts UI + coach) or `npm run coach` alongside the UI.",
         );
-        setThinkingLabel(null);
+        setThinking(null);
         pushEntry(
           entryFromCoach(
             "Coach unavailable — start the coach server (`npm run dev` or `npm run coach` on port 8787), then Restart the hand.",
@@ -375,7 +384,7 @@ export function useSolCoach(lesson: {
         setError(
           `Harness "${activePrefs.harness}" CLI not found. Pick another harness in the coach settings.`,
         );
-        setThinkingLabel(null);
+        setThinking(null);
         pushEntry(
           entryFromCoach(
             `Harness "${activePrefs.harness}" is not installed on this machine. Choose Codex, Grok, OpenCode, or Claude Code above.`,
@@ -422,17 +431,17 @@ export function useSolCoach(lesson: {
         if (session.status === "error") {
           setStatusBoth("error");
           setError(session.error ?? "Coach session error");
-          setThinkingLabel(null);
+          setThinking(null);
           return;
         }
 
         setStatusBoth("ready");
-        setThinkingLabel(null);
+        setThinking(null);
       } catch (err) {
         if (generationRef.current !== gen) return;
         setStatusBoth("error");
         setError(String(err instanceof Error ? err.message : err));
-        setThinkingLabel(null);
+        setThinking(null);
         pushEntry(
           entryFromCoach(
             `Could not open coach session: ${err instanceof Error ? err.message : String(err)}`,
@@ -450,6 +459,7 @@ export function useSolCoach(lesson: {
       persist,
       pushEntry,
       setStatusBoth,
+      setThinking,
     ],
   );
 
@@ -484,8 +494,9 @@ export function useSolCoach(lesson: {
       }
       const ac = beginTurnAbort();
       setStatusBoth("thinking");
-      setThinkingLabel(
+      setThinking(
         `${name} is explaining that mistake… (first reply can take ~30–90s)`,
+        name,
       );
       try {
         const { reply, message, session } = await explainCoachMistake(
@@ -500,7 +511,7 @@ export function useSolCoach(lesson: {
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", body.phase, message.at));
         setStatusBoth("ready");
-        setThinkingLabel(null);
+        setThinking(null);
         flushPendingPrefs();
       } catch (err) {
         if (generationRef.current !== gen) return;
@@ -508,7 +519,7 @@ export function useSolCoach(lesson: {
         if (ac.signal.aborted) return;
         setStatusBoth("error");
         setError(String(err instanceof Error ? err.message : err));
-        setThinkingLabel(null);
+        setThinking(null);
         pushEntry(
           entryFromCoach(
             `${name} could not explain that mistake: ${err instanceof Error ? err.message : String(err)}`,
@@ -525,6 +536,7 @@ export function useSolCoach(lesson: {
       pushEntry,
       rememberAgentSession,
       setStatusBoth,
+      setThinking,
     ],
   );
 
@@ -549,7 +561,7 @@ export function useSolCoach(lesson: {
       const ac = beginTurnAbort();
       pushEntry(entryFromCoach(trimmed, "user", "chat"));
       setStatusBoth("thinking");
-      setThinkingLabel(`${name} is thinking…`);
+      setThinking(`${name} is thinking…`, name);
       try {
         const { reply, message: coachMsg, session } = await chatWithCoach(
           id,
@@ -563,7 +575,7 @@ export function useSolCoach(lesson: {
         seenCoachKeys.current.add(key);
         pushEntry(entryFromCoach(reply, "coach", "chat", coachMsg.at));
         setStatusBoth("ready");
-        setThinkingLabel(null);
+        setThinking(null);
         flushPendingPrefs();
       } catch (err) {
         if (generationRef.current !== gen) return;
@@ -571,7 +583,7 @@ export function useSolCoach(lesson: {
         if (ac.signal.aborted) return;
         setStatusBoth("error");
         setError(String(err instanceof Error ? err.message : err));
-        setThinkingLabel(null);
+        setThinking(null);
         pushEntry(
           entryFromCoach(
             `${name} could not reply: ${err instanceof Error ? err.message : String(err)}`,
@@ -588,6 +600,7 @@ export function useSolCoach(lesson: {
       pushEntry,
       rememberAgentSession,
       setStatusBoth,
+      setThinking,
     ],
   );
 
@@ -607,8 +620,8 @@ export function useSolCoach(lesson: {
     setSessionPrefs(null);
     setStatusBoth("idle");
     setError(null);
-    setThinkingLabel(null);
-  }, [abortInFlightTurn, setStatusBoth]);
+    setThinking(null);
+  }, [abortInFlightTurn, setStatusBoth, setThinking]);
 
   const retry = useCallback(() => {
     const payload = lastPayloadRef.current;
@@ -620,6 +633,7 @@ export function useSolCoach(lesson: {
     error,
     entries,
     thinkingLabel,
+    thinkingBadge,
     prefs,
     setPrefs,
     sessionPrefs,

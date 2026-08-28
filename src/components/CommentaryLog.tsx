@@ -9,7 +9,7 @@ interface Props {
   onSendChat?: (message: string) => void;
   chatDisabled?: boolean;
   chatPlaceholder?: string;
-  /** Badge label for coach replies / thinking (e.g. Sol, Grok, Claude). */
+  /** Badge label for coach replies / thinking (e.g. Grok, Codex, Claude). */
   coachBadge?: string;
 }
 
@@ -80,7 +80,9 @@ export function CommentaryLog({
                         (entry.phase === "play" && entry.kind !== "coach" && entry.kind !== "user"
                           ? " commentary__badge--play"
                           : "") +
-                        (entry.kind === "coach" ? " commentary__badge--sol" : "") +
+                        (entry.kind === "coach"
+                          ? " commentary__badge--coach"
+                          : "") +
                         (entry.kind === "user" ? " commentary__badge--you" : "")
                       }
                     >
@@ -93,7 +95,7 @@ export function CommentaryLog({
             })}
             {thinkingLabel && (
               <li className="commentary__item commentary__item--thinking">
-                <span className="commentary__badge commentary__badge--sol">
+                <span className="commentary__badge commentary__badge--coach">
                   {coachBadge}
                 </span>
                 <span className="commentary__text muted">{thinkingLabel}</span>
