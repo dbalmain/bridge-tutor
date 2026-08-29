@@ -7,7 +7,7 @@ use crate::bid::Call;
 use crate::cards::{Card, Deal, Hand, Seat};
 use crate::deal::{auction_for, generate_for_id};
 use crate::leaves::{catalog, leaf_by_id, Family};
-use crate::progress::{pick_leaf_id, weight_table, Progress};
+use crate::progress::{pick_from_ids, pick_leaf_id, weight_table, Progress};
 use crate::system::{decide, HOUSE_RULES, SYSTEM_ID};
 
 #[derive(Serialize)]
@@ -58,6 +58,7 @@ struct DrillJson {
     student: &'static str,
     hands: HandsJson,
     south_hcp: u8,
+    south_opening_points: u8,
     south_shape: String,
     attempts: u32,
 }
@@ -104,21 +105,30 @@ fn err(msg: impl Into<String>) -> String {
     serde_json::to_string(&ErrorJson { error: msg.into() }).unwrap()
 }
 
-pub fn next_drill_json(progress_json: &str, seed: u32, family: &str) -> String {
+pub fn next_drill_json(progress_json: &str, seed: u32, family: &str, leaves: &[String]) -> String {
     let progress = Progress::parse(progress_json);
-    let fam = match family.trim() {
-        "" | "all" => None,
-        other => match Family::parse(other) {
-            Some(f) => Some(f),
-            None if crate::leaves::leaf_by_id(other).is_some() => {
-                return drill_for_id(&progress, seed, other);
-            }
-            None => return err(format!("unknown family '{other}'")),
-        },
-    };
     let mut rng = SmallRng::seed_from_u64(u64::from(seed) | 0x5C1D_0000_0000);
-    let Some(id) = pick_leaf_id(&progress, &mut rng, fam) else {
-        return err("no leaves in that family");
+    let id = if !leaves.is_empty() {
+        let refs: Vec<&str> = leaves.iter().map(String::as_str).collect();
+        match pick_from_ids(&progress, &mut rng, &refs) {
+            Some(id) => id,
+            None => return err("no matching leaves"),
+        }
+    } else {
+        let fam = match family.trim() {
+            "" | "all" => None,
+            other => match Family::parse(other) {
+                Some(f) => Some(f),
+                None if crate::leaves::leaf_by_id(other).is_some() => {
+                    return drill_for_id(&progress, seed, other);
+                }
+                None => return err(format!("unknown family '{other}'")),
+            },
+        };
+        match pick_leaf_id(&progress, &mut rng, fam) {
+            Some(id) => id,
+            None => return err("no leaves in that family"),
+        }
     };
     drill_for_id(&progress, seed.wrapping_add(1), id)
 }
@@ -142,6 +152,7 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
                 student: "S",
                 hands: HandsJson::from_deal(&deal),
                 south_hcp: deal.south.hcp(),
+                south_opening_points: deal.south.opening_points(),
                 south_shape: shape_str(deal.south),
                 attempts,
             };
@@ -256,6 +267,18 @@ mod tests {
         let v: Value = serde_json::from_str(&next).unwrap();
         assert_eq!(v["leaves"]["open.1s"]["wrong"], 1);
         assert_eq!(v["leaves"]["open.1s"]["correct"], 0);
+    }
+
+    #[test]
+    fn next_drill_can_restrict_to_a_leaf_list() {
+        let body = next_drill_json("{}", 11, "all", &["open.pass".into()]);
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["leaf_id"], "open.pass");
+        assert_eq!(v["expected"], "Pass");
+        assert!(v["south_opening_points"].as_u64().is_some());
+        let empty = next_drill_json("{}", 1, "all", &["no.such".into()]);
+        let e: Value = serde_json::from_str(&empty).unwrap();
+        assert!(e["error"].as_str().unwrap().contains("no matching"));
     }
 
     #[test]

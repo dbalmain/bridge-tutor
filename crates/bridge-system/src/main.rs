@@ -17,7 +17,10 @@ fn main() {
         "deal" => {
             let id = args.next().expect("leaf id");
             let seed: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1);
-            println!("{}", bridge_system::api::next_drill_json("{}", seed, &id));
+            println!(
+                "{}",
+                bridge_system::api::next_drill_json("{}", seed, &id, &[])
+            );
         }
         "weights" => {
             let progress = args.next().unwrap_or_else(|| "{}".into());

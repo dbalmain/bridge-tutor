@@ -58,6 +58,18 @@ fn family_from(v: &Value) -> String {
         .to_string()
 }
 
+fn leaves_from(v: &Value) -> Vec<String> {
+    v.get("leaves")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn seed_from(v: &Value) -> u32 {
     v.get("seed")
         .and_then(Value::as_u64)
@@ -129,6 +141,7 @@ fn dispatch(method: &Method, path: &str, body: &str) -> (u16, String) {
                 &progress_from(&payload),
                 seed_from(&payload),
                 &family_from(&payload),
+                &leaves_from(&payload),
             );
             let status = if is_error_json(&json) { 400 } else { 200 };
             (status, json)

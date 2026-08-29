@@ -17,6 +17,7 @@ export interface Drill {
     W: string[];
   };
   south_hcp: number;
+  south_opening_points?: number;
   south_shape: string;
   attempts: number;
   error?: string;
@@ -92,6 +93,7 @@ export async function nextDrill(
   progressJson: string,
   family: string,
   seed: number,
+  leaves?: string[],
 ): Promise<Drill> {
   return api<Drill>("/next-drill", {
     method: "POST",
@@ -99,6 +101,7 @@ export async function nextDrill(
       progress: progressObject(progressJson),
       family,
       seed,
+      ...(leaves && leaves.length > 0 ? { leaves } : {}),
     }),
   });
 }

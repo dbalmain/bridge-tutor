@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::leaves::{catalog, leaf_by_id, leaves_in_family, Family};
+use crate::leaves::{catalog, leaf_by_id, leaves_in_family, Family, LeafSpec};
 use crate::system::SYSTEM_ID;
 
 const UNIFORM_MIX: f64 = 0.15;
@@ -92,7 +92,29 @@ pub fn pick_leaf_id<R: Rng>(
     rng: &mut R,
     family: Option<Family>,
 ) -> Option<&'static str> {
-    let leaves = leaves_in_family(family);
+    pick_from_leaves(progress, rng, &leaves_in_family(family))
+}
+
+/// Weighted pick from an explicit lesson (or quiz) leaf list. Unknown ids are skipped.
+pub fn pick_from_ids<R: Rng>(
+    progress: &Progress,
+    rng: &mut R,
+    ids: &[&str],
+) -> Option<&'static str> {
+    let mut seen = std::collections::BTreeSet::new();
+    let leaves: Vec<&LeafSpec> = ids
+        .iter()
+        .filter(|id| seen.insert(**id))
+        .filter_map(|id| leaf_by_id(id))
+        .collect();
+    pick_from_leaves(progress, rng, &leaves)
+}
+
+fn pick_from_leaves<R: Rng>(
+    progress: &Progress,
+    rng: &mut R,
+    leaves: &[&LeafSpec],
+) -> Option<&'static str> {
     if leaves.is_empty() {
         return None;
     }
@@ -185,6 +207,18 @@ mod tests {
         let p = Progress::default();
         let mut rng = SmallRng::seed_from_u64(1);
         assert!(pick_leaf_id(&p, &mut rng, None).is_some());
+    }
+
+    #[test]
+    fn pick_from_ids_stays_inside_the_list() {
+        let p = Progress::default();
+        let mut rng = SmallRng::seed_from_u64(7);
+        let ids = ["open.pass", "open.1s", "no.such.leaf"];
+        for _ in 0..40 {
+            let id = pick_from_ids(&p, &mut rng, &ids).expect("non-empty");
+            assert!(id == "open.pass" || id == "open.1s");
+        }
+        assert!(pick_from_ids(&p, &mut rng, &["no.such.leaf"]).is_none());
     }
 
     #[test]
