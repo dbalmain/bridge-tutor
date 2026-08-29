@@ -426,6 +426,7 @@ export function useSolCoach(lesson: {
           thinking: session.thinking ?? activePrefs.thinking,
         });
         // Local session only — agent starts on first mistake/chat.
+        const willExplain = pendingMistakesRef.current.length > 0;
         void flushPending(session.id, gen);
 
         if (session.status === "error") {
@@ -435,8 +436,13 @@ export function useSolCoach(lesson: {
           return;
         }
 
-        setStatusBoth("ready");
-        setThinking(null);
+        // flushPending sets thinking/status for a queued mistake. Do not
+        // clobber that with ready/null — it also made setPrefs POST /config
+        // into a 409 because the UI thought the coach was idle.
+        if (!willExplain) {
+          setStatusBoth("ready");
+          setThinking(null);
+        }
       } catch (err) {
         if (generationRef.current !== gen) return;
         setStatusBoth("error");
