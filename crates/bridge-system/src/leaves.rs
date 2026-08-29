@@ -337,7 +337,7 @@ fn build() -> Vec<LeafSpec> {
         "Open 1♦",
         Call::suit_bid(1, Suit::Diamond),
         HandPat::hcp(12, 16)
-            .lens((0, 4), (4, 6), (0, 4), (0, 4))
+            .lens((0, 4), (4, 7), (0, 5), (0, 5))
             .bal(false),
     ));
     v.push(open(
@@ -353,7 +353,7 @@ fn build() -> Vec<LeafSpec> {
         "Open 1♣",
         Call::suit_bid(1, Suit::Club),
         HandPat::hcp(12, 16)
-            .lens((4, 6), (0, 3), (0, 4), (0, 4))
+            .lens((4, 7), (0, 4), (0, 5), (0, 5))
             .bal(false),
     ));
     v.push(open(
@@ -647,7 +647,7 @@ fn build() -> Vec<LeafSpec> {
         "1♣ – 1♥",
         Call::suit_bid(1, Suit::Heart),
         Call::suit_bid(1, Suit::Club),
-        HandPat::hcp(6, 11).lens((1, 4), (1, 4), (4, 5), (0, 3)),
+        HandPat::hcp(6, 11).lens((1, 4), (1, 4), (4, 5), (0, 4)),
         one_club_opener(),
     ));
     v.push(resp(
@@ -694,7 +694,7 @@ fn build() -> Vec<LeafSpec> {
         "1♦ – 1♥",
         Call::suit_bid(1, Suit::Heart),
         Call::suit_bid(1, Suit::Diamond),
-        HandPat::hcp(6, 11).lens((1, 4), (1, 3), (4, 5), (0, 3)),
+        HandPat::hcp(6, 11).lens((1, 4), (1, 3), (4, 5), (0, 4)),
         one_diamond_opener(),
     ));
     v.push(resp(
@@ -904,4 +904,35 @@ fn build() -> Vec<LeafSpec> {
     ));
 
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_ids_are_unique() {
+        let mut ids: Vec<&str> = catalog().iter().map(|l| l.id).collect();
+        let n = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(n, ids.len());
+    }
+
+    #[test]
+    fn every_family_has_leaves() {
+        for fam in [
+            Family::Open,
+            Family::Resp1NT,
+            Family::RespMajor,
+            Family::RespMinor,
+            Family::Rebid,
+        ] {
+            assert!(
+                !leaves_in_family(Some(fam)).is_empty(),
+                "empty family {}",
+                fam.slug()
+            );
+        }
+    }
 }

@@ -45,7 +45,12 @@ impl Progress {
         if s.trim().is_empty() {
             return Self::default();
         }
-        serde_json::from_str(s).unwrap_or_default()
+        let parsed = serde_json::from_str::<Self>(s).unwrap_or_default();
+        if parsed.system != SYSTEM_ID {
+            // Leaf meanings changed (e.g. 4-4 majors → 1♥). Drop old counts.
+            return Self::default();
+        }
+        parsed
     }
 
     pub fn to_json(&self) -> String {
@@ -180,5 +185,13 @@ mod tests {
         let p = Progress::default();
         let mut rng = SmallRng::seed_from_u64(1);
         assert!(pick_leaf_id(&p, &mut rng, None).is_some());
+    }
+
+    #[test]
+    fn parse_drops_progress_from_another_system_id() {
+        let raw = r#"{"version":1,"system":"abf-5cm-v1","leaves":{"resp.1c.1s":{"seen":9,"correct":9,"wrong":0,"streak":9}}}"#;
+        let p = Progress::parse(raw);
+        assert_eq!(p.system, SYSTEM_ID);
+        assert!(p.leaves.is_empty());
     }
 }

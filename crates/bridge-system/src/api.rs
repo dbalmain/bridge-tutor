@@ -234,6 +234,31 @@ mod tests {
     use serde_json::Value;
 
     #[test]
+    fn catalog_is_valid_json_with_unique_ids() {
+        let v: Value = serde_json::from_str(&catalog_json()).unwrap();
+        assert_eq!(v["system"], SYSTEM_ID);
+        let ids: Vec<&str> = v["leaves"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l["id"].as_str().unwrap())
+            .collect();
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(ids.len(), sorted.len(), "duplicate leaf ids in catalog");
+        assert!(ids.len() > 20);
+    }
+
+    #[test]
+    fn apply_result_records_a_miss() {
+        let next = apply_result_json("{}", "open.1s", false);
+        let v: Value = serde_json::from_str(&next).unwrap();
+        assert_eq!(v["leaves"]["open.1s"]["wrong"], 1);
+        assert_eq!(v["leaves"]["open.1s"]["correct"], 0);
+    }
+
+    #[test]
     fn decide_json_game_values_over_diamond_is_3nt() {
         let body = serde_json::json!({
             "cards": ["SA","SJ","S2","HA","H8","H3","DA","D9","D8","D4","CA","C7","C6"],

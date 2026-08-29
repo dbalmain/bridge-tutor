@@ -7,7 +7,7 @@ use crate::auction::{Auction, Phase};
 use crate::bid::{Call, Strain};
 use crate::cards::{Hand, Suit};
 
-pub const SYSTEM_ID: &str = "abf-5cm-v1";
+pub const SYSTEM_ID: &str = "abf-5cm-v2";
 
 pub const HOUSE_RULES: &str = "\
 ABF Standard Five-Card Majors (Joan Butts teaching dialect), pinned for drills:
@@ -178,32 +178,57 @@ fn open_one(hand: &Hand) -> Decision {
     let h = hand.len_of(Suit::Heart);
     let d = hand.len_of(Suit::Diamond);
     let c = hand.len_of(Suit::Club);
+    let longest = s.max(h).max(d).max(c);
 
-    if s >= 5 || h >= 5 {
-        if s > h {
+    // Longest suit. 5-5 / 6-6: higher ranking. 6-5: the six.
+    if longest >= 5 {
+        if s == longest {
+            if h == s {
+                return dec(
+                    "open.1s.equal-majors",
+                    Call::suit_bid(1, Suit::Spade),
+                    "Equal majors: open 1♠",
+                    "Equal length in both majors: open the higher-ranking suit, then bid hearts next.",
+                );
+            }
             let id = if s >= 6 { "open.1s.6plus" } else { "open.1s" };
             return dec(
                 id,
                 Call::suit_bid(1, Suit::Spade),
                 "Open 1♠",
-                "Five-card or longer spades, and spades are not shorter than hearts. \
-                 1♠ promises 5+; partner can raise with three.",
+                "Spades are the longest suit (5+). 1♠ promises 5+; partner can raise with three.",
             );
         }
-        if h > s {
+        if h == longest {
             let id = if h >= 6 { "open.1h.6plus" } else { "open.1h" };
             return dec(
                 id,
                 Call::suit_bid(1, Suit::Heart),
                 "Open 1♥",
-                "Five-card or longer hearts, longer than spades (or no 5-card spade suit).",
+                "Hearts are the longest suit (5+), and longer than spades.",
+            );
+        }
+        if d == longest {
+            if c == d {
+                return dec(
+                    "open.1d.equal-minors",
+                    Call::suit_bid(1, Suit::Diamond),
+                    "Equal minors: open 1♦",
+                    "4–4, 5–5 or 6–6 in the minors: open the higher-ranking minor.",
+                );
+            }
+            return dec(
+                "open.1d",
+                Call::suit_bid(1, Suit::Diamond),
+                "Open 1♦",
+                "Diamonds are the longest suit. A 5-card major would have been opened if it were as long.",
             );
         }
         return dec(
-            "open.1s.equal-majors",
-            Call::suit_bid(1, Suit::Spade),
-            "5–5 majors: open 1♠",
-            "Equal length in both majors: open the higher-ranking suit, then bid hearts next.",
+            "open.1c",
+            Call::suit_bid(1, Suit::Club),
+            "Open 1♣",
+            "Clubs are the longest suit (6–5 with a 5-card major still opens the six).",
         );
     }
 
@@ -541,6 +566,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
     let pts = hand.support_points(minor);
 
     // Majors first, even with minor support.
+    // Longer major first; 4-4 cheaper (hearts); 5-5/6-6 higher (spades).
     if spades >= 4 && hcp >= 6 && spades > hearts {
         let id = if minor == Suit::Club {
             "resp.1c.1s"
@@ -551,13 +577,11 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
             id,
             Call::suit_bid(1, Suit::Spade),
             "Bid 1♠",
-            "Four-card or longer spades, 6+ HCP. Show the major before raising a minor.",
+            "Four-card or longer spades, longer than hearts, 6+ HCP. Show the major before raising a minor.",
         );
     }
     if hearts >= 4 && hcp >= 6 {
-        // 4-4 majors: cheaper (hearts). 5-5 already took spades if spades > hearts;
-        // 5-5 equal: prefer spades — handle:
-        if spades >= 4 && spades >= hearts {
+        if spades >= 5 && spades == hearts {
             let id = if minor == Suit::Club {
                 "resp.1c.1s"
             } else {
@@ -567,7 +591,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
                 id,
                 Call::suit_bid(1, Suit::Spade),
                 "Bid 1♠",
-                "With both majors, bid the longer; if equal, bid 1♠ (higher).",
+                "5–5 (or 6–6) majors: bid the higher-ranking suit first, then hearts next.",
             );
         }
         let id = if minor == Suit::Club {
@@ -579,7 +603,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
             id,
             Call::suit_bid(1, Suit::Heart),
             "Bid 1♥",
-            "Four-card or longer hearts, 6+ HCP, and not four spades longer/equal.",
+            "Four-card or longer hearts, 6+ HCP. With 4–4 majors, bid the cheaper (1♥).",
         );
     }
     if minor == Suit::Club && hand.len_of(Suit::Diamond) >= 4 && hcp >= 6 && !support {
@@ -1178,6 +1202,53 @@ mod tests {
         let d = opening(&h);
         assert_eq!(d.bid, Call::suit_bid(1, Suit::Spade));
         assert_eq!(d.leaf_id, "open.1s.equal-majors");
+    }
+
+    #[test]
+    fn six_five_opens_the_six_not_the_five_major() {
+        // 6 clubs, 5 spades — HOUSE_RULES: 6-5: the six.
+        let h = hand(&[
+            "SA", "S9", "S8", "S4", "S2", "H3", "D3", "CA", "CK", "C9", "C8", "C5", "C4",
+        ]);
+        assert_eq!(h.len_of(Suit::Club), 6);
+        assert_eq!(h.len_of(Suit::Spade), 5);
+        let d = opening(&h);
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Club), "{}", d.leaf_id);
+        assert_eq!(d.leaf_id, "open.1c");
+    }
+
+    #[test]
+    fn four_four_majors_over_one_club_bid_cheaper() {
+        // 4-4 majors, 13 HCP, after 1♣ → 1♥ (not 1♠).
+        let h = hand(&[
+            "SA", "SK", "S9", "S4", "HA", "HQ", "H8", "H3", "D9", "D8", "D2", "C7", "C6",
+        ]);
+        assert_eq!(h.hcp(), 13);
+        assert_eq!(h.len_of(Suit::Spade), 4);
+        assert_eq!(h.len_of(Suit::Heart), 4);
+        let auction = Auction {
+            dealer: Seat::North,
+            calls: vec![Call::suit_bid(1, Suit::Club), Call::Pass],
+        };
+        let d = decide(&h, &auction);
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Heart), "{}", d.leaf_id);
+        assert_eq!(d.leaf_id, "resp.1c.1h");
+    }
+
+    #[test]
+    fn five_five_majors_over_one_club_still_bid_spades() {
+        let h = hand(&[
+            "SA", "SK", "S9", "S8", "S4", "HA", "HK", "H8", "H5", "H3", "D2", "C7", "C6",
+        ]);
+        assert_eq!(h.len_of(Suit::Spade), 5);
+        assert_eq!(h.len_of(Suit::Heart), 5);
+        let auction = Auction {
+            dealer: Seat::North,
+            calls: vec![Call::suit_bid(1, Suit::Club), Call::Pass],
+        };
+        let d = decide(&h, &auction);
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Spade), "{}", d.leaf_id);
+        assert_eq!(d.leaf_id, "resp.1c.1s");
     }
 
     #[test]
