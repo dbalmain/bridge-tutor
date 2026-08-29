@@ -46,8 +46,9 @@ COACH_HARNESS=codex COACH_MODEL=gpt-5.6-sol COACH_REASONING=high COACH_PORT=8787
 ```
 
 The UI selector overrides the default harness/model/thinking **per hand**
-(stored in `localStorage`). Restart the hand after changing them. Env vars only
-set server-side defaults when the UI does not send a choice.
+(stored in `localStorage`) and applies live — a change mid-hand starts a
+fresh coach thread on the next mistake or chat. Env vars only set
+server-side defaults when the UI does not send a choice.
 
 UI only (no Sol):
 
