@@ -472,6 +472,11 @@ async function runSessionProcess(session, bin, args, stdinText) {
   return proc;
 }
 
+/** Codex `-c key="value"` is not a shell, but `"` still closes the value. */
+function codexConfigValue(s) {
+  return String(s ?? "").replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
 async function runHarnessTurn(session, prompt) {
   const { harness, model, thinking } = session;
   const isFirst = !session.agentSessionId;
@@ -486,7 +491,7 @@ async function runHarnessTurn(session, prompt) {
           "-m",
           model,
           "-c",
-          `model_reasoning_effort="${thinking}"`,
+          `model_reasoning_effort="${codexConfigValue(thinking)}"`,
           "-s",
           "read-only",
           "--skip-git-repo-check",
@@ -500,7 +505,7 @@ async function runHarnessTurn(session, prompt) {
           "-m",
           model,
           "-c",
-          `model_reasoning_effort="${thinking}"`,
+          `model_reasoning_effort="${codexConfigValue(thinking)}"`,
           "--skip-git-repo-check",
           "--json",
           "-",
