@@ -216,10 +216,16 @@ function runProcess(bin, args, stdinText, timeoutMs, hooks = {}) {
       });
     });
 
-    if (stdinText != null) {
-      child.stdin.write(stdinText);
+    const stdin = child.stdin;
+    if (stdin) {
+      // Failed spawn / EPIPE must not become an unhandled stream error
+      // that takes down the whole process (and every other session).
+      stdin.on("error", () => {});
+      if (stdinText != null) {
+        stdin.write(stdinText);
+      }
+      stdin.end();
     }
-    child.stdin.end();
   });
 }
 
