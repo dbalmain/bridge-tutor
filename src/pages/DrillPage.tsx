@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BiddingBox } from "../components/BiddingBox";
 import { HandRow } from "../components/HandRow";
 import {
@@ -47,21 +47,25 @@ export function DrillPage() {
   const [chosen, setChosen] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const loadGen = useRef(0);
 
   const load = useCallback(
     async (fam: string) => {
+      const gen = (loadGen.current += 1);
       setBusy(true);
       setLoadError(null);
       setChosen(null);
       setReveal(false);
       try {
         const d = await nextDrill(loadSystemProgressJson(), fam, randomSeed());
+        if (loadGen.current !== gen) return;
         setDrill(d);
       } catch (e) {
+        if (loadGen.current !== gen) return;
         setLoadError(e instanceof Error ? e.message : String(e));
         setDrill(null);
       } finally {
-        setBusy(false);
+        if (loadGen.current === gen) setBusy(false);
       }
     },
     [],
