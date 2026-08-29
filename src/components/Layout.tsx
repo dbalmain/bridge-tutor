@@ -9,8 +9,9 @@ export function Layout() {
         </NavLink>
         <nav className="nav">
           <NavLink to="/" end>
-            Lessons
+            Play
           </NavLink>
+          <NavLink to="/bid">Bidding</NavLink>
           <NavLink to="/drill">Drills</NavLink>
           <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/mistakes">Mistakes</NavLink>

@@ -282,6 +282,24 @@ mod tests {
     }
 
     #[test]
+    fn bidding_curriculum_leaf_ids_exist() {
+        let raw = include_str!("../../../src/data/bidding-curriculum.json");
+        let v: Value = serde_json::from_str(raw).unwrap();
+        let lessons = v["lessons"].as_array().expect("lessons");
+        assert!(lessons.len() >= 10, "course is too thin");
+        let mut missing = Vec::new();
+        for lesson in lessons {
+            for id in lesson["leaves"].as_array().unwrap() {
+                let id = id.as_str().unwrap();
+                if leaf_by_id(id).is_none() {
+                    missing.push(id.to_string());
+                }
+            }
+        }
+        assert!(missing.is_empty(), "unknown curriculum leaves: {missing:?}");
+    }
+
+    #[test]
     fn decide_json_game_values_over_diamond_is_3nt() {
         let body = serde_json::json!({
             "cards": ["SA","SJ","S2","HA","H8","H3","DA","D9","D8","D4","CA","C7","C6"],

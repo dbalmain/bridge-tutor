@@ -309,7 +309,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
     return (
       <div className="page play-page">
         <div className="breadcrumb">
-          <Link to="/">Lessons</Link>
+          <Link to="/">Play course</Link>
           <span>·</span>
           <span>
             Ch {chapter.number}: {chapter.title}
@@ -370,7 +370,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
       <div className="play-header">
         <div>
           <div className="breadcrumb">
-            <Link to="/">Lessons</Link>
+            <Link to="/">Play course</Link>
             <span>·</span>
             <span>
               Hand {lesson.title}

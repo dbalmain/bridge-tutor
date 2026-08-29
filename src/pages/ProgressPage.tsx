@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import curriculum from "../data/curriculum.json";
+import { biddingCurriculum } from "../lib/biddingCurriculum";
 import { fetchWeights, type LeafWeight } from "../lib/bridgeSystem";
 import {
   clearProgress,
@@ -19,12 +20,19 @@ const data = curriculum as Curriculum;
 
 export function ProgressPage() {
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
-  const completed = data.lessons.filter(
+  const playDone = data.lessons.filter(
     (l) => getLessonProgress(progress, l.id).completed,
   ).length;
-  const optimal = data.lessons.filter(
-    (l) => getLessonProgress(progress, l.id).optimal,
+  const bidDone = biddingCurriculum.lessons.filter(
+    (l) => getLessonProgress(progress, l.id).completed,
   ).length;
+  const completed = playDone + bidDone;
+  const optimal =
+    data.lessons.filter((l) => getLessonProgress(progress, l.id).optimal)
+      .length +
+    biddingCurriculum.lessons.filter(
+      (l) => getLessonProgress(progress, l.id).optimal,
+    ).length;
   const tags = mistakeSummary(progress);
   const [weights, setWeights] = useState<LeafWeight[] | null>(null);
 
@@ -138,7 +146,50 @@ export function ProgressPage() {
       </section>
 
       <section className="panel">
-        <h2>Per-hand status</h2>
+        <h2>Bidding course</h2>
+        <p className="muted small">
+          {bidDone}/{biddingCurriculum.lessons.length} lessons complete.
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Lesson</th>
+              <th>Attempts</th>
+              <th>Best misses</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {biddingCurriculum.lessons.map((l) => {
+              const lp = getLessonProgress(progress, l.id);
+              return (
+                <tr key={l.id}>
+                  <td>
+                    <Link to={`/bid/${l.id}`}>
+                      {l.lessonNumber}. {l.title}
+                    </Link>
+                  </td>
+                  <td>{lp.attempts}</td>
+                  <td>{lp.bestMistakes ?? "—"}</td>
+                  <td>
+                    {lp.optimal
+                      ? "Optimal ★"
+                      : lp.completed
+                        ? "Done"
+                        : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel">
+        <h2>Play course</h2>
+        <p className="muted small">
+          {playDone}/{data.lessons.length} hands complete.
+        </p>
         <table className="table">
           <thead>
             <tr>
