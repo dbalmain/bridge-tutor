@@ -112,12 +112,22 @@ fn take_random_13<R: Rng>(rng: &mut R, piles: &mut [Vec<Card>; 4]) -> Option<Han
     Hand::try_from_slice(&hand_cards).ok()
 }
 
+fn inclusive_u8<R: Rng>(rng: &mut R, lo: u8, hi: u8) -> Option<u8> {
+    if lo > hi {
+        return None;
+    }
+    Some(rng.gen_range(lo..=hi))
+}
+
 fn sample_shape<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<[u8; 4]> {
     if pat.five_four_majors {
         let (h, s) = if rng.gen::<bool>() { (5, 4) } else { (4, 5) };
         let rest = 4u8;
         for _ in 0..80 {
-            let c = rng.gen_range(pat.min_len[0]..=pat.max_len[0].min(rest));
+            let hi = pat.max_len[0].min(rest);
+            let Some(c) = inclusive_u8(rng, pat.min_len[0], hi) else {
+                continue;
+            };
             if rest < c {
                 continue;
             }
@@ -136,7 +146,7 @@ fn sample_shape<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<[u8; 4]> {
             if pat.min_len[i] > pat.max_len[i] {
                 return None;
             }
-            *slot = rng.gen_range(pat.min_len[i]..=pat.max_len[i].min(13));
+            *slot = inclusive_u8(rng, pat.min_len[i], pat.max_len[i].min(13))?;
         }
         if l.iter().copied().sum::<u8>() != 13 {
             continue;

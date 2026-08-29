@@ -1,4 +1,5 @@
 use std::env;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -101,68 +102,112 @@ pub fn serve() {
         } else {
             String::new()
         };
-        let payload: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
 
-        let route = path.strip_prefix("/api/system").unwrap_or(path);
-
-        match (method, route) {
-            (Method::Get, "/health" | "/health/") => {
-                respond(
-                    request,
-                    200,
-                    serde_json::json!({ "ok": true, "system": crate::system::SYSTEM_ID })
-                        .to_string(),
-                );
-            }
-            (Method::Get, "/catalog" | "/catalog/") => {
-                respond(request, 200, crate::api::catalog_json());
-            }
-            (Method::Post, "/next-drill" | "/next-drill/") => {
-                let json = crate::api::next_drill_json(
-                    &progress_from(&payload),
-                    seed_from(&payload),
-                    &family_from(&payload),
-                );
-                let status = if is_error_json(&json) { 400 } else { 200 };
-                respond(request, status, json);
-            }
-            (Method::Post, "/apply" | "/apply/" | "/apply-result" | "/apply-result/") => {
-                let parsed: ApplyBody =
-                    serde_json::from_value(payload.clone()).unwrap_or(ApplyBody {
-                        leaf_id: None,
-                        correct: None,
-                    });
-                let Some(leaf_id) = parsed.leaf_id.filter(|s| !s.is_empty()) else {
-                    respond(request, 400, r#"{"error":"missing leaf_id"}"#.into());
-                    continue;
-                };
-                let json = crate::api::apply_result_json(
-                    &progress_from(&payload),
-                    &leaf_id,
-                    parsed.correct.unwrap_or(false),
-                );
-                let status = if is_error_json(&json) { 400 } else { 200 };
-                respond(request, status, json);
-            }
-            (Method::Post, "/weights" | "/weights/") => {
-                respond(
-                    request,
-                    200,
-                    crate::api::weights_json(&progress_from(&payload), &family_from(&payload)),
-                );
-            }
-            (Method::Post, "/decide" | "/decide/") => {
-                let json = crate::api::decide_json(&body, "[]");
-                let status = if is_error_json(&json) { 400 } else { 200 };
-                respond(request, status, json);
-            }
-            _ => {
-                respond(
-                    request,
-                    404,
-                    serde_json::json!({ "error": format!("no route {path}") }).to_string(),
-                );
+        let outcome = catch_unwind(AssertUnwindSafe(|| dispatch(&method, path, &body)));
+        match outcome {
+            Ok((status, json)) => respond(request, status, json),
+            Err(_) => {
+                eprintln!("bridge-system: handler panicked on {path}");
+                respond(request, 500, r#"{"error":"internal error"}"#.into());
             }
         }
+    }
+}
+
+fn dispatch(method: &Method, path: &str, body: &str) -> (u16, String) {
+    let payload: Value = serde_json::from_str(body).unwrap_or(Value::Null);
+    let route = path.strip_prefix("/api/system").unwrap_or(path);
+
+    match (method, route) {
+        (&Method::Get, "/health" | "/health/") => (
+            200,
+            serde_json::json!({ "ok": true, "system": crate::system::SYSTEM_ID }).to_string(),
+        ),
+        (&Method::Get, "/catalog" | "/catalog/") => (200, crate::api::catalog_json()),
+        (&Method::Post, "/next-drill" | "/next-drill/") => {
+            let json = crate::api::next_drill_json(
+                &progress_from(&payload),
+                seed_from(&payload),
+                &family_from(&payload),
+            );
+            let status = if is_error_json(&json) { 400 } else { 200 };
+            (status, json)
+        }
+        (&Method::Post, "/apply" | "/apply/" | "/apply-result" | "/apply-result/") => {
+            let parsed: ApplyBody = serde_json::from_value(payload.clone()).unwrap_or(ApplyBody {
+                leaf_id: None,
+                correct: None,
+            });
+            let Some(leaf_id) = parsed.leaf_id.filter(|s| !s.is_empty()) else {
+                return (400, r#"{"error":"missing leaf_id"}"#.into());
+            };
+            let json = crate::api::apply_result_json(
+                &progress_from(&payload),
+                &leaf_id,
+                parsed.correct.unwrap_or(false),
+            );
+            let status = if is_error_json(&json) { 400 } else { 200 };
+            (status, json)
+        }
+        (&Method::Post, "/weights" | "/weights/") => (
+            200,
+            crate::api::weights_json(&progress_from(&payload), &family_from(&payload)),
+        ),
+        (&Method::Post, "/decide" | "/decide/") => {
+            let json = crate::api::decide_json(body, "[]");
+            let status = if is_error_json(&json) { 400 } else { 200 };
+            (status, json)
+        }
+        _ => (
+            404,
+            serde_json::json!({ "error": format!("no route {path}") }).to_string(),
+        ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+    use tiny_http::Method;
+
+    #[test]
+    fn health_and_catalog_and_404() {
+        let (st, body) = dispatch(&Method::Get, "/api/system/health", "");
+        assert_eq!(st, 200);
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["ok"], true);
+
+        let (st, body) = dispatch(&Method::Get, "/catalog", "");
+        assert_eq!(st, 200);
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert!(v["leaves"].as_array().unwrap().len() > 20);
+
+        let (st, body) = dispatch(&Method::Get, "/nope", "");
+        assert_eq!(st, 404);
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert!(v["error"].as_str().unwrap().contains("nope"));
+    }
+
+    #[test]
+    fn decide_route_uses_the_tree() {
+        let body = serde_json::json!({
+            "cards": ["SA","SJ","S2","HA","H8","H3","DA","D9","D8","D4","CA","C7","C6"],
+            "dealer": "N",
+            "auction": ["1D","Pass"]
+        })
+        .to_string();
+        let (st, json) = dispatch(&Method::Post, "/api/system/decide", &body);
+        assert_eq!(st, 200);
+        let v: Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["bid"], "3NT");
+    }
+
+    #[test]
+    fn apply_requires_leaf_id() {
+        let (st, json) = dispatch(&Method::Post, "/apply", "{}");
+        assert_eq!(st, 400);
+        let v: Value = serde_json::from_str(&json).unwrap();
+        assert!(v["error"].as_str().unwrap().contains("leaf_id"));
     }
 }
