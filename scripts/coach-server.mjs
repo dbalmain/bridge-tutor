@@ -672,10 +672,13 @@ async function runTurn(session, prompt, opts = {}) {
   });
 
   const result = await runHarnessTurn(session, prompt);
+  // Keep a thread id even when the turn failed (Codex emits thread.started
+  // then turn.failed in the same run). Dropping it forced every later
+  // /mistake to rethrow a stale error with no agent to resume.
+  if (result.sessionId) session.agentSessionId = result.sessionId;
   if (result.errors?.length) {
     throw new Error(result.errors.join("; "));
   }
-  if (result.sessionId) session.agentSessionId = result.sessionId;
 
   logLine(session.id, {
     type: "turn_end",
@@ -1078,15 +1081,9 @@ async function handle(req, res) {
         );
         session.status = "busy";
         try {
-          const reply = await enqueue(session, async () => {
-            if (session.status === "error" && !session.agentSessionId) {
-              throw new Error(session.error ?? "coach unavailable");
-            }
-            if (session.error && !session.agentSessionId) {
-              throw new Error(session.error);
-            }
-            return runTurn(session, buildMistakePrompt(session, body));
-          });
+          const reply = await enqueue(session, async () =>
+            runTurn(session, buildMistakePrompt(session, body)),
+          );
           const msg = {
             role: "coach",
             kind: "mistake",
@@ -1094,6 +1091,7 @@ async function handle(req, res) {
             at: nowIso(),
           };
           session.messages.push(msg);
+          session.error = null;
           session.status = "ready";
           sendJson(res, 200, {
             reply,
@@ -1134,6 +1132,7 @@ async function handle(req, res) {
             at: nowIso(),
           };
           session.messages.push(coachMsg);
+          session.error = null;
           session.status = "ready";
           sendJson(res, 200, {
             reply,
