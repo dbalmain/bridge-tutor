@@ -1004,7 +1004,6 @@ async function handle(req, res) {
         const harness = body.harness
           ? normalizeHarness(body.harness)
           : session.harness;
-        const meta = HARNESS_META[harness] ?? HARNESS_META.codex;
         if (!binOnPath(BINS[harness])) {
           sendJson(res, 400, {
             error: `Harness "${harness}" CLI not found on PATH (${BINS[harness]}).`,
