@@ -227,3 +227,23 @@ pub fn decide_json(hand_cards: &str, auction_json: &str) -> String {
     })
     .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+
+    #[test]
+    fn decide_json_game_values_over_diamond_is_3nt() {
+        let body = serde_json::json!({
+            "cards": ["SA","SJ","S2","HA","H8","H3","DA","D9","D8","D4","CA","C7","C6"],
+            "dealer": "N",
+            "auction": ["1D","Pass"]
+        })
+        .to_string();
+        let v: Value = serde_json::from_str(&decide_json(&body, "[]")).unwrap();
+        assert_eq!(v["bid"], "3NT");
+        assert_eq!(v["leaf_id"], "resp.1d.3nt");
+        assert_eq!(v["hcp"], 17);
+    }
+}

@@ -461,8 +461,8 @@ fn respond_major(hand: &Hand, trump: Suit) -> Decision {
         );
     }
 
-    if hcp >= 10 {
-        // 10+ but no 4-card minor (4333-ish). 2NT natural invite, no 3-card support.
+    if (10..=12).contains(&hcp) {
+        // 10–12, no 4-card minor (4333-ish). 2NT natural invite, no 3-card support.
         let id = if trump == Suit::Spade {
             "resp.1s.2nt"
         } else {
@@ -473,6 +473,19 @@ fn respond_major(hand: &Hand, trump: Suit) -> Decision {
             Call::nt(2),
             "2NT invite",
             "10–12 HCP, balanced, no fit and no long minor. Invitational, not Jacoby.",
+        );
+    }
+    if hcp >= 13 && hand.is_balanced() {
+        let id = if trump == Suit::Spade {
+            "resp.1s.3nt"
+        } else {
+            "resp.1h.3nt"
+        };
+        return dec(
+            id,
+            Call::nt(3),
+            "3NT",
+            "13+ balanced, no major fit and no long minor. Game opposite a one-level opening.",
         );
     }
 
@@ -633,7 +646,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
             "6–9 HCP, no 4-card major, no raise. Non-forcing.",
         );
     }
-    if hcp >= 10 && hand.is_balanced() {
+    if (10..=12).contains(&hcp) && hand.is_balanced() {
         let id = if minor == Suit::Club {
             "resp.1c.2nt"
         } else {
@@ -1180,5 +1193,37 @@ mod tests {
         let d = decide(&h, &auction);
         assert_eq!(d.bid, Call::suit_bid(2, Suit::Club));
         assert_eq!(d.leaf_id, "resp.1nt.stayman.54");
+    }
+
+    #[test]
+    fn game_values_over_one_diamond_bid_3nt_not_invite() {
+        // 17 HCP, 3-3-4-3. Reproduced: unbounded `hcp >= 10` invited with 2NT.
+        let h = hand(&[
+            "SA", "SJ", "S2", "HA", "H8", "H3", "DA", "D9", "D8", "D4", "CA", "C7", "C6",
+        ]);
+        assert_eq!(h.hcp(), 17);
+        assert!(h.is_balanced());
+        let auction = Auction {
+            dealer: Seat::North,
+            calls: vec![Call::suit_bid(1, Suit::Diamond), Call::Pass],
+        };
+        let d = decide(&h, &auction);
+        assert_eq!(d.bid, Call::nt(3), "got {} ({})", d.bid.to_app(), d.leaf_id);
+        assert_eq!(d.leaf_id, "resp.1d.3nt");
+    }
+
+    #[test]
+    fn invitational_balanced_over_one_diamond_still_2nt() {
+        let h = hand(&[
+            "SA", "SK", "S2", "HA", "H8", "H3", "D9", "D8", "D7", "C7", "C6", "C5", "C4",
+        ]);
+        assert_eq!(h.hcp(), 11);
+        let auction = Auction {
+            dealer: Seat::North,
+            calls: vec![Call::suit_bid(1, Suit::Diamond), Call::Pass],
+        };
+        let d = decide(&h, &auction);
+        assert_eq!(d.bid, Call::nt(2));
+        assert_eq!(d.leaf_id, "resp.1d.2nt");
     }
 }
