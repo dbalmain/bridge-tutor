@@ -378,7 +378,13 @@ mod tests {
             let mut sampled = 0;
             let mut hits = 0;
             let mut example = String::new();
-            for _ in 0..3000 {
+            // Keep drawing until the sample is big enough to mean something.
+            // 2♣ and 2NT need 20+ HCP, which turns up roughly once in a few
+            // thousand deals — a fixed budget silently skipped them.
+            for _ in 0..400_000 {
+                if sampled >= 200 {
+                    break;
+                }
                 let Some(h) = sample_hand(&mut rng, &spec.south) else {
                     continue;
                 };
@@ -399,15 +405,70 @@ mod tests {
                     );
                 }
             }
-            // 2♣ and 2NT need 20+ HCP, which random sampling rarely produces;
-            // a thin sample is a fact about the deal, not about the pattern.
-            if sampled < 30 {
-                continue;
-            }
+            assert!(
+                sampled >= 30,
+                "{}: only {sampled} hands matched its pattern — too thin to check",
+                spec.id
+            );
             let rate = f64::from(hits) / f64::from(sampled);
             if rate < MIN_HIT_RATE {
                 wrong.push(format!(
                     "{}: only {hits}/{sampled} ({:.0}%) of pattern hands are this leaf — e.g. {example}",
+                    spec.id,
+                    rate * 100.0
+                ));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "patterns that mostly describe some other leaf:\n{}",
+            wrong.join("\n")
+        );
+    }
+
+    /// The same claim for response and rebid leaves, where the pattern covers
+    /// both hands. `try_once` draws a deal matching them; `verify` then says
+    /// whether the tree agrees it is this leaf. Generation retries until it
+    /// does, so the interesting number is how often a pattern-matching deal
+    /// is *rejected* — that is the pattern being wrong, not the deal.
+    ///
+    /// The floor is much lower than the opening test's because the claim is
+    /// compound: South's pattern and North's must both land, so two
+    /// over-approximations multiply. Real patterns here measure 22–45%; a
+    /// pattern with its suits transposed measures 0%, which is the case this
+    /// is here to catch.
+    #[test]
+    fn response_and_rebid_patterns_mostly_describe_their_own_leaf() {
+        const MIN_HIT_RATE: f64 = 0.15;
+        let mut rng = SmallRng::seed_from_u64(90210);
+        let mut wrong: Vec<String> = Vec::new();
+        for spec in catalog() {
+            if spec.family == crate::leaves::Family::Open {
+                continue;
+            }
+            let mut drawn = 0;
+            let mut hits = 0;
+            for _ in 0..400_000 {
+                if drawn >= 120 {
+                    break;
+                }
+                let Some(deal) = try_once(&mut rng, spec) else {
+                    continue;
+                };
+                drawn += 1;
+                if verify(&deal, spec) {
+                    hits += 1;
+                }
+            }
+            assert!(
+                drawn >= 20,
+                "{}: only {drawn} deals matched its patterns — too thin to check",
+                spec.id
+            );
+            let rate = f64::from(hits) / f64::from(drawn);
+            if rate < MIN_HIT_RATE {
+                wrong.push(format!(
+                    "{}: only {hits}/{drawn} ({:.0}%) of pattern deals are this leaf",
                     spec.id,
                     rate * 100.0
                 ));

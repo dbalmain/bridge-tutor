@@ -820,7 +820,10 @@ fn build() -> Vec<LeafSpec> {
         "2NT – 3♣ with 5–4 majors",
         Call::suit_bid(3, Suit::Club),
         Call::nt(2),
-        HandPat::hcp(4, 11).lens((0, 3), (0, 3), (5, 5), (4, 4)),
+        // Both orientations: 5♥–4♠ and 4♥–5♠ are equally this leaf.
+        HandPat::hcp(4, 11)
+            .lens((0, 3), (0, 3), (4, 5), (4, 5))
+            .five_four(),
         two_nt_opener(),
     ));
     v.push(resp(
@@ -942,7 +945,8 @@ fn build() -> Vec<LeafSpec> {
         HandPat::hcp(20, 21)
             .lens((2, 4), (2, 4), (2, 4), (2, 4))
             .bal(true),
-        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 4)),
+        // Spades capped at 3: 5–4 majors bid 3♣ Stayman, not this transfer.
+        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 3)),
     ));
     v.push(rebid(
         "rebid.preempt.pass",

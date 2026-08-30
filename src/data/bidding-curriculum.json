@@ -109,13 +109,13 @@
       "id": "bid-ch9",
       "number": 9,
       "title": "Answering the big and the weak openings",
-      "summary": "2♣, 2NT and the preempts each tell you almost everything in one bid. What you say back depends on which: 2♣ you may never pass, 2NT you treat like a bigger 1NT, and a preempt you either raise, bid game, or leave alone.",
+      "summary": "2♣, 2NT and the preempts each tell you almost everything in one bid. What you say back depends on which: 2♣ you may never pass, 2NT you treat like a bigger 1NT, and a weak two you raise, pass, or drive to game — while over a three-level preempt it is game or nothing.",
       "concepts": [
         "2♣ is game-forcing. Pass is never legal: 2♦ is the waiting bid with 0–7.",
         "8+ with a five-card suit is a positive response to 2♣ — name the suit.",
         "2NT (20–21) takes Stayman and transfers a level higher: 3♣ asks, 3♦ → hearts, 3♥ → spades.",
         "Over 2NT the bar drops: 5+ HCP is 3NT, because partner has 20.",
-        "A weak two or a preempt is limited, so responder is the captain: raise, bid game with 16+, or pass.",
+        "A weak two or a preempt is limited, so responder is the captain: bid game with 16+, raise a weak two to obstruct, or pass.",
         "Opener does not bid again over a limited opening unless partner bids a new suit."
       ]
     }
@@ -1056,7 +1056,7 @@
       "chapterNumber": 9,
       "lessonNumber": 23,
       "title": "Responding to a weak two or a preempt",
-      "tip": "Partner told you the hand exactly. Raise to obstruct, bid game with 16+, or pass and believe them.",
+      "tip": "Partner told you the hand exactly. Over a weak two: raise to obstruct, or bid game with 16+. Over a preempt: game or pass.",
       "newHere": "Captaincy: partner has described the hand almost exactly, so the whole decision is yours — and a raise here obstructs rather than invites.",
       "revisits": [
         {
@@ -1072,16 +1072,17 @@
       ],
       "teaching": [
         "A weak two says six cards and 5–10 HCP. A three-level preempt says seven or more and 5–10. Either way partner has spent one bid describing the hand almost exactly, which puts the whole decision on you — that is what being the captain means, and it is the opposite of Lesson 10, where partner's 1♥ or 1♠ left the strength open.",
-        "Add your hand to what partner promised. With 16 or more and three-card support for the major, that is roughly 25 combined: bid the game. With 16+ and no fit, bid 3NT — partner's long suit supplies the tricks once your stoppers hold, and there is no room to hunt for anything better.",
-        "Below that, with support, raise anyway — but understand what the raise is doing. It is not an invitation, and partner must not take it as one. Raising takes another level away from the opponents while your extra trump makes the higher contract safe. Partner has already told you their range, so there is nothing left to invite.",
+        "Add your hand to what partner promised. With 16 or more and three-card support for the major, that is roughly 25 combined: bid the game. With 16+ and no fit, you still have game values — over a weak two, bid a five-card suit of your own if you have one, which is forcing and leaves room to find the right game; otherwise bid 3NT, because partner's long suit supplies the tricks once your stoppers hold.",
+        "Below that, with support, raise anyway — but only over a weak two, and understand what the raise is doing. It is not an invitation, and partner must not take it as one. Raising 2♠ to 3♠ takes another level away from the opponents while your extra trump makes the higher contract safe. Over a three-level preempt there is no such bid: the next level up is already game, so there is nothing to obstruct with. You either have game values or you pass.",
         "With no fit and no game, pass. This is the hardest one, because a 12-count feels like too much to give up on. It is not: partner's 5–10 plus your 12 is nowhere near game, and moving only tells the opponents where the cards are.",
         "From the opener's chair the rule is even simpler. You already described the hand, so you do not bid again — whatever partner chooses is the contract. The one exception is a new suit from partner, which is forcing; then you raise their major with three-card support, or repeat your own suit."
       ],
       "rules": [
         "Weak two = 6 cards, 5–10. Preempt = 7+, 5–10. You are the captain (Lesson 6).",
         "16+ with 3-card support for the major: bid game.",
-        "16+ with no fit: 3NT.",
-        "Support but no game values: raise to obstruct — it is not an invitation.",
+        "16+ with no fit: over a weak two, a 5-card suit of your own (forcing); otherwise 3NT.",
+        "Over a weak two only, support without game values raises to obstruct — it is not an invitation.",
+        "Over a 3-level preempt there is no obstructive raise: the next level up is already game.",
         "No fit, no game: pass and believe partner.",
         "As opener: do not bid again — unless partner bids a new suit, which is forcing."
       ],
