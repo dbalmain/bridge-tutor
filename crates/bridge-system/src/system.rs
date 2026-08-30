@@ -110,9 +110,11 @@ Responder's second call, and opener's answer
 • After a completed transfer: opener promised only two cards, so five of the
   major is seven, not a fit. With exactly five, 8–9 invites with 2NT and 10+
   bids 3NT, leaving opener to convert holding three. With six the fit is
-  known: 8–9 raises to three, 10+ bids the game. Five-five shows the OTHER
-  major at the three level instead — notrump would bury a five-three fit in
-  the suit never named.
+  known: 8–9 raises to three, 10+ bids the game. Five-five with game values
+  shows the OTHER major instead, at whatever level is cheapest — the three
+  level over 1NT, the four level over 2NT — because notrump would bury a
+  five-three fit in the suit never named. Where that lands in the higher
+  major, opener corrects the strain rather than the level.
 • After Stayman: 4+ of the major partner showed is a fit (invite at three,
   game at four). No fit, but a five-card major of our own that partner has
   not heard about: name it. Otherwise back to the notrump ladder, 2NT on 8–9
@@ -151,8 +153,8 @@ Responder's second call, and opener's answer
   OPENING promised, counting HIGH CARDS — 16+ over a 1NT, 14+ over a suit,
   and 18+ when partner's call was FORCED out of them by our reverse and so
   showed nothing (a chosen floor: 16+ opposite 6–9 is 22 to 27 and no single
-  number separates those — this one errs towards bidding)
-  opening. Length points are tricks in a suit we may not be playing, and
+  number separates those — this one errs towards bidding).
+  Length points are tricks in a suit we may not be playing, and
   accepting on them reached game with nineteen HCP between the hands. Over a
   2NT opening there is nothing to decline: 20 opposite the 5 responder needs
   to bid at all is already game. A rebid that was itself a TRY already showed
@@ -3156,9 +3158,10 @@ fn answer_invitation(
         AnswerKind::GameForce => take_the_game(
             "resp3.forced.game",
             "Bid the game",
-            "Partner jumped, which insists on game whatever you hold. The only decision left is \
-             the strain: four of the major when the pair is known to hold eight, otherwise the \
-             notrump game.",
+            "Partner's sequence has established game values — sometimes by jumping, sometimes \
+             just by bidding at all where only a game-going hand could. Either way the level is \
+             settled and the only decision left is the strain: four of the major when the pair \
+             is known to hold eight, otherwise the notrump game.",
         ),
         // Compulsory, so it added nothing to what partner had already shown.
         // Bidding on needs the extras to be OURS: a reverse promised 16+, so
@@ -3771,15 +3774,41 @@ mod tests {
         let d = decide_for(&minimum, &raise_invite, Seat::North);
         assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
 
-        // ...and a real maximum still accepts, so this is a threshold and not
-        // a blanket refusal.
-        let maximum = hand(&[
-            "SK", "SQ", "HA", "HQ", "H4", "H3", "DA", "D7", "D6", "D5", "CK", "C8", "C6",
+        // ...and 14 accepts, so this is a threshold and not a blanket
+        // refusal. The hands are EXACTLY 13 and 14 and each is consistent
+        // with the auction it is in — an earlier version used an 18-count and
+        // tested only the notrump invitation, which an implementation
+        // accepting from 15 or 18 would also have passed.
+        let notrump_max = hand(&[
+            "SK", "S5", "HA", "HQ", "H4", "H3", "DK", "D7", "D6", "D5", "CQ", "C8", "C6",
         ]);
-        assert!(maximum.hcp() >= 14);
-        assert_ne!(
-            decide_for(&maximum, &notrump_invite, Seat::North).bid,
-            Call::Pass
+        assert_eq!(notrump_max.hcp(), 14, "one more than the minimum above");
+        assert_eq!(notrump_max.len_of(Suit::Heart), 4, "consistent with 1♥");
+        assert_eq!(
+            decide_for(&notrump_max, &notrump_invite, Seat::North).bid,
+            Call::nt(3),
+            "no major fit, so the notrump game"
+        );
+
+        // The raise auction has its own hands, because opener's rebid there
+        // was 1♠ and so the hand must hold four spades.
+        let spade_min = hand(&[
+            "SA", "SQ", "S4", "S3", "HK", "H5", "DK", "D7", "D6", "CJ", "C8", "C6", "C5",
+        ]);
+        assert_eq!(spade_min.hcp(), 13);
+        let spade_max = hand(&[
+            "SA", "SQ", "S4", "S3", "HK", "H5", "DK", "D7", "D6", "CQ", "C8", "C6", "C5",
+        ]);
+        assert_eq!(spade_max.hcp(), 14);
+        assert_eq!(
+            decide_for(&spade_min, &raise_invite, Seat::North).bid,
+            Call::Pass,
+            "13 declines"
+        );
+        assert_eq!(
+            decide_for(&spade_max, &raise_invite, Seat::North).bid,
+            Call::suit_bid(4, Suit::Spade),
+            "14 accepts, and the fit is spades"
         );
     }
 
