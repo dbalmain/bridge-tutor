@@ -8,6 +8,13 @@ export interface BidChapter {
   concepts: string[];
 }
 
+/** A rule taught in an earlier lesson that this one leans on. */
+export interface BidRevisit {
+  lessonId: string;
+  lessonNumber: number;
+  what: string;
+}
+
 export interface BidLesson {
   id: string;
   chapterId: string;
@@ -15,6 +22,9 @@ export interface BidLesson {
   lessonNumber: number;
   title: string;
   tip: string;
+  /** The one thing this lesson adds that no earlier lesson taught. */
+  newHere?: string;
+  revisits?: BidRevisit[];
   teaching: string[];
   rules: string[];
   leaves: string[];
@@ -50,4 +60,16 @@ export function nextBidLesson(lesson: BidLesson): BidLesson | undefined {
       (l.chapterNumber === lesson.chapterNumber &&
         l.lessonNumber > lesson.lessonNumber),
   );
+}
+
+/**
+ * Opening-family lessons stop the student after the opening; the rest of
+ * the uncontested auction plays itself. Later lessons bid every in-tree
+ * South call through to pass-out.
+ */
+export function lessonStudentBids(lesson: BidLesson): number | undefined {
+  if (lesson.leaves.length > 0 && lesson.leaves.every((id) => id.startsWith("open."))) {
+    return 1;
+  }
+  return undefined;
 }

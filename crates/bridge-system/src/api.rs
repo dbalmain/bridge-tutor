@@ -346,6 +346,167 @@ mod tests {
         assert!(missing.is_empty(), "unknown curriculum leaves: {missing:?}");
     }
 
+    /// Every leaf the drills can deal is taught by some lesson, and no lesson
+    /// claims a leaf twice. Without this, adding a branch to the tree silently
+    /// creates a drill for a rule the course never explains.
+    #[test]
+    fn every_catalogue_leaf_is_taught_by_a_lesson() {
+        let raw = include_str!("../../../src/data/bidding-curriculum.json");
+        let v: Value = serde_json::from_str(raw).unwrap();
+
+        let mut taught: std::collections::HashMap<&str, Vec<u64>> = Default::default();
+        for l in v["lessons"].as_array().unwrap() {
+            let n = l["lessonNumber"].as_u64().unwrap();
+            for id in l["leaves"].as_array().unwrap() {
+                taught.entry(id.as_str().unwrap()).or_default().push(n);
+            }
+        }
+
+        let untaught: Vec<&str> = catalog()
+            .iter()
+            .map(|l| l.id)
+            .filter(|id| !taught.contains_key(id))
+            .collect();
+        assert!(
+            untaught.is_empty(),
+            "leaves the drills can deal but no lesson teaches: {untaught:?}"
+        );
+
+        let duplicated: Vec<String> = taught
+            .iter()
+            .filter(|(_, ls)| ls.len() > 1)
+            .map(|(id, ls)| format!("{id} in lessons {ls:?}"))
+            .collect();
+        assert!(duplicated.is_empty(), "leaves taught twice: {duplicated:?}");
+    }
+
+    /// The course promises: every lesson names what it adds, links back to
+    /// the lessons its rules came from, and never points at a lesson that
+    /// does not exist. Backward links are structural (`revisits`); a forward
+    /// mention in prose is allowed only when it states the rule too, so all
+    /// this can check is that the number resolves.
+    #[test]
+    fn bidding_curriculum_lesson_links_resolve_and_revisits_go_backwards() {
+        let raw = include_str!("../../../src/data/bidding-curriculum.json");
+        let v: Value = serde_json::from_str(raw).unwrap();
+        let lessons = v["lessons"].as_array().expect("lessons");
+
+        let mut order = std::collections::HashMap::new();
+        let mut numbers = std::collections::HashSet::new();
+        for l in lessons {
+            let id = l["id"].as_str().unwrap();
+            let ch = l["chapterNumber"].as_u64().unwrap();
+            let n = l["lessonNumber"].as_u64().unwrap();
+            order.insert(id, (ch, n));
+            numbers.insert(n);
+        }
+
+        let mut problems = Vec::new();
+        for l in lessons {
+            let id = l["id"].as_str().unwrap();
+            let here = order[id];
+
+            match l["newHere"].as_str() {
+                Some(s) if !s.trim().is_empty() => {}
+                _ => problems.push(format!("{id}: no newHere — what does it add?")),
+            }
+
+            let revisits = l["revisits"].as_array();
+            match revisits {
+                None => problems.push(format!("{id}: no revisits list")),
+                Some(rs) => {
+                    if rs.is_empty() && here != (1, 1) {
+                        problems.push(format!(
+                            "{id}: revisits is empty but it is not the first lesson"
+                        ));
+                    }
+                    for r in rs {
+                        let target = r["lessonId"].as_str().unwrap_or("");
+                        match order.get(target) {
+                            None => {
+                                problems.push(format!("{id}: revisits unknown lesson {target}"))
+                            }
+                            Some(&there) => {
+                                if there >= here {
+                                    problems.push(format!(
+                                        "{id}: revisits {target}, which is not earlier"
+                                    ));
+                                }
+                                if r["lessonNumber"].as_u64() != Some(there.1) {
+                                    problems.push(format!(
+                                        "{id}: revisits {target} with a stale lessonNumber"
+                                    ));
+                                }
+                            }
+                        }
+                        if r["what"].as_str().unwrap_or("").trim().is_empty() {
+                            problems.push(format!("{id}: revisits {target} without saying what"));
+                        }
+                    }
+                }
+            }
+
+            // Every "Lesson N" / "Lessons N and M" in the prose must exist.
+            let prose: Vec<&str> = ["tip", "newHere"]
+                .iter()
+                .filter_map(|k| l[*k].as_str())
+                .chain(
+                    ["teaching", "rules"]
+                        .iter()
+                        .flat_map(|k| l[*k].as_array().into_iter().flatten())
+                        .filter_map(|x| x.as_str()),
+                )
+                .collect();
+            for text in prose {
+                for cited in cited_lesson_numbers(text) {
+                    if !numbers.contains(&cited) {
+                        problems.push(format!("{id}: cites Lesson {cited}, which does not exist"));
+                    }
+                }
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "curriculum links:\n{}",
+            problems.join("\n")
+        );
+    }
+
+    /// Lesson numbers named in prose: "Lesson 4", "Lessons 2 and 3".
+    fn cited_lesson_numbers(text: &str) -> Vec<u64> {
+        let mut out = Vec::new();
+        let mut rest = text;
+        while let Some(at) = rest.find("Lesson") {
+            rest = &rest[at + "Lesson".len()..];
+            let plural = rest.starts_with('s');
+            if plural {
+                rest = &rest[1..];
+            }
+            let mut tail = rest;
+            loop {
+                let digits: String = tail
+                    .trim_start()
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect();
+                if digits.is_empty() {
+                    break;
+                }
+                out.push(digits.parse().unwrap());
+                let consumed = tail.len() - tail.trim_start().len() + digits.len();
+                tail = &tail[consumed..];
+                // "Lessons 2 and 3" — keep reading the conjunction.
+                if let Some(after) = tail.strip_prefix(" and") {
+                    tail = after;
+                } else {
+                    break;
+                }
+            }
+            rest = tail;
+        }
+        out
+    }
+
     #[test]
     fn decide_json_game_values_over_diamond_is_3nt() {
         let body = serde_json::json!({

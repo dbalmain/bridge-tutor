@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 1
+    "version": 6
   },
   "chapters": [
     {
@@ -12,8 +12,11 @@
       "title": "Opening the bidding",
       "summary": "Count your points, decide whether to open, then pick the right suit. 5-card majors, minors by length.",
       "concepts": [
-        "HCP (A=4 K=3 Q=2 J=1) plus length: 5-card +1, 6-card +2, 7-card +3.",
-        "Open with 13+ of those points, or Rule of 20 (HCP + two longest suits ≥ 20) with at least 10 HCP.",
+        "Suits rank low to high: ♣ clubs, ♦ diamonds, ♥ hearts, ♠ spades — then notrump above all four.",
+        "♥ and ♠ are the major suits; ♣ and ♦ are the minors. Game is 4♥/4♠ (ten tricks) but 5♣/5♦ (eleven), so the system hunts for a major fit first and treats the minors as a starting bid.",
+        "Step 1 — count HCP: A=4, K=3, Q=2, J=1.",
+        "Step 2 — add length: +1 for a five-card suit, +2 for a six, +3 for a seven. HCP + length = your opening points.",
+        "Step 3 — 13+ opening points: open. Otherwise Step 4 — Rule of 20: HCP + your longest suit + your second-longest suit ≥ 20, with at least 10 HCP.",
         "1♥/1♠ promise 5+ cards. 1♦ is 4+; 1♣ is 3+.",
         "5–5 or 6–6: higher ranking. 6–5: the six. 4–4 minors: 1♦. 3–3 minors: 1♣."
       ]
@@ -33,45 +36,47 @@
       "id": "bid-ch3",
       "number": 3,
       "title": "Preempts",
-      "summary": "With a long suit and a weak hand that cannot open at the one-level, get in the way: weak two or a three-level preempt.",
+      "summary": "With a long suit and a weak hand that cannot open at the one-level, get in the way: weak two or a three-level preempt — except in fourth seat, where there is no room left to steal.",
       "concepts": [
         "Weak 2♦/♥/♠ = exactly 6 cards, 5–10 HCP, cannot open one-level. No weak 2♣.",
-        "7+ cards, 5–10 HCP, cannot open: preempt at the 3-level in any suit."
+        "7+ cards, 5–10 HCP, cannot open: preempt at the 3-level in any suit.",
+        "Fourth seat: no preempt — three passes in front means there is nobody left to shut out."
       ]
     },
     {
       "id": "bid-ch4",
       "number": 4,
       "title": "Responding to 1NT",
-      "summary": "After partner’s strong 1NT, count HCP only. Transfers with a 6-card (or 5-card) major; Stayman with a 4-card major and 8+; otherwise Pass / 2NT / 3NT.",
+      "summary": "After partner's strong 1NT, count HCP only. Transfer with a six-card major; Stayman with a four-card major and 8+; otherwise Pass / 2NT / 3NT.",
       "concepts": [
         "HCP only — no length points as responder to 1NT.",
+        "10+ and no 4-card major: 3NT. 8–9: 2NT (invitational). Else Pass.",
         "6+ major: transfer (2♦ → hearts, 2♥ → spades). 5–5 majors: transfer to spades.",
-        "5–4 majors and 8+: Stayman, not a transfer. 4-card major, no 5-card major, 8+: Stayman.",
-        "10+ no 4-card major: 3NT. 8–9 no 4-card major: 2NT. Else Pass. Garbage Stayman is off."
+        "4-card major (or 5–4 majors) and 8+, no 6-card major: Stayman. Garbage Stayman is off."
       ]
     },
     {
       "id": "bid-ch5",
       "number": 5,
       "title": "Responding to 1♥ or 1♠",
-      "summary": "Fit first. With 3+ support, limit-raise using HCP + shortage. Without a fit, bid a new suit or 1NT.",
+      "summary": "Fit first. With 3+ support, limit-raise using HCP + shortage. Without a fit, bid a suit if you can afford it, else 1NT or pass.",
       "concepts": [
         "3+ support: 0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game.",
         "Shortage points with a fit: doubleton +1, singleton +3, void +5.",
-        "No fit: a new suit at the one-level is 6+; at the two-level is 10+ (5+ for a new major).",
-        "6–9, no fit, no four-card major at the one-level: 1NT."
+        "No fit: a new suit at the one-level is 6+ HCP; at the two-level, 10+ (5+ cards for a new major).",
+        "6–9, no fit, nothing biddable: 1NT. 0–5: Pass."
       ]
     },
     {
       "id": "bid-ch6",
       "number": 6,
       "title": "Responding to 1♣ or 1♦",
-      "summary": "Show a major if you have one. Raise the minor only with a real fit. Otherwise 1NT or pass.",
+      "summary": "Partner's minor may be short, so a major of your own comes first. No major: 1♦ over 1♣, 2♣ on six clubs over 1♦, else notrump or pass.",
       "concepts": [
-        "Majors first (4+), cheaper of 4–4 majors.",
-        "New suit at the one-level = 6+ HCP.",
-        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds.",
+        "Majors first (4+ cards, 6+ HCP), cheaper of 4–4 majors.",
+        "1♣–1♦ = 4+ diamonds, 6+ HCP, no 4-card major.",
+        "1♦–2♣ = 6+ clubs and 10+ HCP — a two-level new suit.",
+        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds. Prefer 3NT to five of a minor.",
         "6–9 balanced, no major: 1NT. 0–5: Pass."
       ]
     },
@@ -86,6 +91,19 @@
         "After Stayman: 2♥ with 4 hearts (even with 4 spades), 2♠ with 4 spades and no 4 hearts, else 2♦.",
         "After a transfer: always complete. No super-accept in this tree."
       ]
+    },
+    {
+      "id": "bid-ch8",
+      "number": 8,
+      "title": "Opener's rebid after a new suit",
+      "summary": "A new suit from partner is forcing for one round — you must bid again. Show a fit, repeat a long suit, or fall back on notrump by strength. An invitation you may pass, but only on a minimum.",
+      "concepts": [
+        "A new suit by responder is forcing for one round. Opener may not pass it.",
+        "Priority: support partner’s suit → repeat your own 6-card suit → notrump by strength.",
+        "Over a one-level response you can still show a four-card major at the one level — do that first.",
+        "A two-level response promises 10+, so the pair is near game: minimum bids 2NT, extras bid 3NT.",
+        "An invitation (2NT, or a limited raise) may be passed — but only on a minimum, never on autopilot."
+      ]
     }
   ],
   "lessons": [
@@ -96,17 +114,27 @@
       "lessonNumber": 1,
       "title": "When you pass",
       "tip": "If you cannot open at the one-level and you do not have a weak two or a seven-card preempt, pass.",
+      "newHere": "The four suits and how they rank, majors versus minors, and the whole point count: HCP, length points, the 13-point test and the Rule of 20.",
+      "revisits": [],
       "teaching": [
-        "Count high-card points first: Ace 4, King 3, Queen 2, Jack 1. Then add length: +1 for a five-card suit, +2 for a six, +3 for a seven. That total is your opening points.",
-        "Open with 13 or more opening points. With only 10–12 HCP you may still open if the Rule of 20 applies: HCP plus the lengths of your two longest suits is at least 20.",
-        "This lesson is the other side of that coin. Below opening values, and without a six-card weak two or a seven-card three-level preempt, you pass. Passing is a bid — it tells partner you do not have an opening hand."
+        "First, the suits. They rank low to high: ♣ clubs, ♦ diamonds, ♥ hearts, ♠ spades, and notrump sits above all four. Hearts and spades are the major suits; clubs and diamonds are the minor suits. The names matter because game in a major is 4♥ or 4♠ — ten tricks — while game in a minor is 5♣ or 5♦, eleven tricks. A major game is a whole trick cheaper, so this system spends its energy looking for an eight-card major fit, and opens a minor mostly to get the auction started.",
+        "An opening bid is the first real bid of the auction: the first call that is not Pass. It is not “the first time you speak.” If you are dealer and you pass, you have not opened — you have said you do not have an opening hand. If everyone passes, the deal is passed out and nobody opened.",
+        "Now count, in this order, every single hand. Step 1: high-card points — Ace 4, King 3, Queen 2, Jack 1. Step 2: length points — add one for every card past the fourth in a suit, so a five-card suit is +1, a six is +2, a seven is +3. HCP plus length is your opening points.",
+        "Step 3: if that total is 13 or more, you have an opening hand. Step 4: if it is not, and you hold at least 10 HCP, try the Rule of 20 — add your HCP to the length of your longest suit and the length of your second-longest suit. Reach 20 and you may open; fall short and you pass.",
+        "Step 5: with neither, pass. One exception exists and it is worth knowing the shape of now: a very long suit with a weak hand bids anyway, to get in the way — exactly six diamonds, hearts or spades with 5–10 HCP, or seven or more cards in any suit with 5–10 HCP. Lesson 6 drills those. Every hand in this lesson fails that test too, so here the answer is always Pass."
       ],
       "rules": [
-        "Opening points = HCP + length (5-card +1, 6-card +2, 7-card +3).",
-        "Open 13+, or Rule of 20 with ≥ 10 HCP.",
-        "Else pass — unless the next lessons’ preempts apply."
+        "Majors = ♥ ♠ (game is 10 tricks). Minors = ♣ ♦ (game is 11). Suit rank: ♣ < ♦ < ♥ < ♠ < NT.",
+        "Opening bid = the first non-pass call of the auction, whoever makes it.",
+        "Step 1: HCP — A=4, K=3, Q=2, J=1.",
+        "Step 2: length — +1 for a 5-card suit, +2 for a 6, +3 for a 7. HCP + length = opening points.",
+        "Step 3: 13+ opening points → open.",
+        "Step 4: 10–12 HCP → Rule of 20. HCP + longest suit + second-longest suit ≥ 20 → open.",
+        "Step 5: neither → pass, unless the hand is a six-card weak two or a seven-card preempt (Lesson 6)."
       ],
-      "leaves": ["open.pass"],
+      "leaves": [
+        "open.pass"
+      ],
       "quizCount": 3
     },
     {
@@ -116,13 +144,21 @@
       "lessonNumber": 2,
       "title": "Opening 1♥ or 1♠",
       "tip": "A one-level major promises five or more cards. Equal length: higher ranking. 6–5: bid the six.",
+      "newHere": "1♥ and 1♠ promise five or more cards — and which suit to open when you are long in two.",
+      "revisits": [
+        {
+          "lessonId": "bid-pass",
+          "what": "opening points, the Rule of 20, and majors versus minors",
+          "lessonNumber": 1
+        }
+      ],
       "teaching": [
-        "In this system a 1♥ or 1♠ opening promises at least five cards in that major. Partner can raise with three-card support. That is the whole point of five-card majors.",
-        "Open your longest suit. With 5–5 or 6–6 in the majors, open the higher-ranking suit (spades), then bid hearts next. With 6–5, open the six — even if the five is the other major.",
-        "You still need opening values (13+ opening points, or Rule of 20 with at least 10 HCP). A five-card major with a bust is a pass or a preempt, not 1♥/1♠."
+        "The hand passed the strength test from Lesson 1 — 13+ opening points, or the Rule of 20 with at least 10 HCP. Now you pick a suit. In this system a 1♥ or 1♠ opening promises at least five cards in that major. Partner can raise with three-card support. That is the whole point of five-card majors.",
+        "Open your longest suit. With 5–5 or 6–6 in the majors, open the higher-ranking suit (spades), then bid hearts next — the suit rank order from Lesson 1 decides it. With 6–5, open the six, even if the five is the other major.",
+        "Strength first, always. Re-run Lesson 1's count before you look at the shape: a five-card major on a bust is a pass, not 1♥/1♠."
       ],
       "rules": [
-        "1♥ / 1♠ = 5+ cards and opening values.",
+        "1♥ / 1♠ = 5+ cards and opening values (Lesson 1).",
         "5–5 or 6–6: higher ranking (1♠).",
         "6–5: the six."
       ],
@@ -142,15 +178,28 @@
       "lessonNumber": 3,
       "title": "Opening 1♣ or 1♦",
       "tip": "No five-card major: open a minor. 1♦ is 4+; 1♣ can be three. 4–4 minors: 1♦. 3–3 minors: 1♣.",
+      "newHere": "With no five-card major, open a minor: 1♦ on four or more, 1♣ on as few as three.",
+      "revisits": [
+        {
+          "lessonId": "bid-pass",
+          "what": "opening points and the Rule of 20",
+          "lessonNumber": 1
+        },
+        {
+          "lessonId": "bid-open-major",
+          "what": "the five-card promise that these hands cannot make",
+          "lessonNumber": 2
+        }
+      ],
       "teaching": [
-        "With opening values and no five-card major, open a minor. 1♦ promises four diamonds except in shapes this course never deals (we never open 1♦ on three). 1♣ is the catch-all: it can be three clubs.",
-        "Equal minors: 4–4 opens 1♦; 3–3 opens 1♣. With 4–4 in the majors you still open a minor (there is no five-card major), then bid hearts cheaper later as responder — not as opener.",
-        "Longer minor wins when the lengths differ. Do not open 1NT on these hands: they are below 15 HCP or they are unbalanced."
+        "Opening values, but no five-card major, so Lesson 2's 1♥/1♠ is unavailable. Open a minor instead. 1♦ promises four diamonds (this course never opens 1♦ on three). 1♣ is the catch-all and can be as short as three clubs — it does not promise a real suit, it just starts the auction.",
+        "Equal minors: 4–4 opens 1♦; 3–3 opens 1♣. With 4–4 in the majors you still open a minor, because Lesson 2 needs five. You can show a major later.",
+        "When the minors are unequal, the longer one wins. That is the whole decision: no five-card major, then longer minor, then 1♦ on 4–4 and 1♣ on 3–3."
       ],
       "rules": [
-        "No 5-card major → open a minor.",
-        "1♦ = 4+ diamonds. 1♣ = 3+ clubs.",
-        "4–4 minors: 1♦. 3–3 minors: 1♣."
+        "No 5-card major (Lesson 2) → open a minor.",
+        "1♦ = 4+ diamonds. 1♣ = 3+ clubs and may be a short suit.",
+        "Longer minor wins. 4–4 minors: 1♦. 3–3 minors: 1♣."
       ],
       "leaves": [
         "open.1d",
@@ -167,18 +216,40 @@
       "lessonNumber": 4,
       "title": "Opening 1NT",
       "tip": "15–17 balanced opens 1NT, including a five-card major. 14 with a five-card suit upgrades.",
+      "newHere": "Balanced shape — 4333, 4432, 5332 — and the 1NT opening, which jumps ahead of the suit openings you learned in Lessons 2 and 3.",
+      "revisits": [
+        {
+          "lessonId": "bid-pass",
+          "what": "HCP, and length points — which 1NT does not use",
+          "lessonNumber": 1
+        },
+        {
+          "lessonId": "bid-open-major",
+          "what": "opening a five-card major",
+          "lessonNumber": 2
+        },
+        {
+          "lessonId": "bid-open-minor",
+          "what": "opening a minor",
+          "lessonNumber": 3
+        }
+      ],
       "teaching": [
-        "A balanced hand is 4333, 4432, or 5332 — no singleton, no void, and not 5422. With 15–17 HCP, open 1NT even when the five-card suit is a major. That keeps the strong hand hidden and avoids a rebid problem.",
-        "14 HCP balanced with a five-card suit is treated as 1NT as well (the extra length is the 15th point in spirit). 12–14 balanced without that upgrade opens a suit, not 1NT.",
-        "Do not add length points for the 1NT range: it is a high-card bid. 5422 is not balanced — open a suit."
+        "A balanced hand is 4333, 4432, or 5332 — no singleton, no void, and not 5422 (two doubletons). This is the first shape test in the course that is not just “how long is my longest suit”, so learn the three patterns.",
+        "With 15–17 HCP and a balanced hand, open 1NT. This takes priority over Lessons 2 and 3: you open 1NT even when the five-card suit is a major, which is the one place the five-card-major rule is overruled. It keeps the strong hand hidden and avoids an awkward rebid.",
+        "Count HCP only for the 1NT range — no length points from Lesson 1, because 1NT is a high-card bid. One nudge upward: 14 HCP balanced with a five-card suit is treated as 1NT too. Below that, a balanced 12–14 goes back to Lessons 2 and 3 and opens a suit, and 5422 is not balanced at all, so it opens a suit as well."
       ],
       "rules": [
-        "1NT = 15–17 HCP, 4333 / 4432 / 5332.",
-        "A 5-card major is allowed — still 1NT.",
+        "Balanced = 4333 / 4432 / 5332. 5422 is not balanced.",
+        "1NT = 15–17 HCP, balanced. HCP only — no length points (Lesson 1).",
+        "1NT beats a 5-card major (Lesson 2) — still 1NT.",
         "14 HCP balanced with a 5-card suit upgrades to 1NT.",
-        "5422 is not balanced."
+        "Balanced 12–14: open a suit (Lessons 2 and 3)."
       ],
-      "leaves": ["open.1nt", "open.1nt.5major"],
+      "leaves": [
+        "open.1nt",
+        "open.1nt.5major"
+      ],
       "quizCount": 4
     },
     {
@@ -188,16 +259,33 @@
       "lessonNumber": 5,
       "title": "2NT and strong 2♣",
       "tip": "20–21 balanced: 2NT. Game-forcing strength: 2♣.",
+      "newHere": "The two openings stronger than 1NT: 2NT for 20–21 balanced, and the artificial 2♣ for everything above that.",
+      "revisits": [
+        {
+          "lessonId": "bid-open-1nt",
+          "what": "balanced shape and the 15–17 range this is too strong for",
+          "lessonNumber": 4
+        },
+        {
+          "lessonId": "bid-pass",
+          "what": "opening points, which the 2♣ test uses",
+          "lessonNumber": 1
+        }
+      ],
       "teaching": [
-        "Too strong for 1NT, not strong enough to force to game: 20–21 HCP balanced opens 2NT. Partner already knows the range.",
-        "22+ HCP, or 21+ opening points on an unbalanced hand, starts with 2♣. That is artificial and strong — not a club suit. Partner must respond, and you are in a game-forcing auction.",
-        "These hands are rare. The test is mostly: is this 2NT (balanced 20–21) or 2♣ (everything stronger)?"
+        "Same balanced shapes as Lesson 4, one range up: 20–21 HCP balanced opens 2NT. Partner reads the range straight off the bid, so there is nothing to describe later.",
+        "22+ HCP, or 21+ opening points on an unbalanced hand, starts with 2♣. It is artificial and strong — it says nothing about clubs. Partner must respond, and the pair is in a game-forcing auction.",
+        "These hands are rare, and the test is nearly always the same one: is this balanced 20–21 (2NT) or is it stronger than that (2♣)?"
       ],
       "rules": [
-        "2NT = 20–21 HCP balanced.",
-        "2♣ = 22+ HCP, or 21+ opening points unbalanced."
+        "2NT = 20–21 HCP, balanced (Lesson 4's shapes).",
+        "2♣ = 22+ HCP, or 21+ opening points unbalanced. Artificial — not a club suit.",
+        "15–17 balanced is still 1NT (Lesson 4)."
       ],
-      "leaves": ["open.2nt", "open.2c"],
+      "leaves": [
+        "open.2nt",
+        "open.2c"
+      ],
       "quizCount": 3
     },
     {
@@ -206,16 +294,33 @@
       "chapterNumber": 3,
       "lessonNumber": 6,
       "title": "Weak twos and three-level preempts",
-      "tip": "Six-card ♦/♥/♠ and 5–10 HCP: weak two. Seven-plus and 5–10: bid three. No weak 2♣.",
+      "tip": "Six-card ♦/♥/♠ and 5–10 HCP: weak two. Seven-plus and 5–10: bid three. No weak 2♣, and no preempt in fourth seat.",
+      "newHere": "Weak twos and three-level preempts: bidding on a hand Lesson 1 told you to pass, because the suit is long enough to be worth the space it steals — and the one seat where that trade stops paying.",
+      "revisits": [
+        {
+          "lessonId": "bid-pass",
+          "what": "the pass, and the exception this lesson finally drills",
+          "lessonNumber": 1
+        },
+        {
+          "lessonId": "bid-open-major",
+          "what": "1♥/1♠ on a six-card major when you do have opening values",
+          "lessonNumber": 2
+        }
+      ],
       "teaching": [
-        "If the hand is too weak to open at the one-level but has a long suit, preempt. A weak two shows exactly six diamonds, hearts, or spades and 5–10 HCP. There is no weak 2♣ — 2♣ is the strong artificial opening.",
-        "With seven or more cards in any suit, 5–10 HCP, and not enough to open one: bid three of the suit. You are stealing space, not describing a one-level opener.",
-        "A six-card major with 13 opening points is 1♥/1♠, not a weak two. Always check opening values first."
+        "This is the exception flagged in Lesson 1. The hand is too weak to open at the one-level, but it has a long suit — so bid anyway and take away the opponents' room. A weak two shows exactly six diamonds, hearts or spades with 5–10 HCP.",
+        "There is no weak 2♣: 2♣ is already the strong artificial opening from Lesson 5, so a six-card club suit on a weak hand simply passes.",
+        "With seven or more cards in any suit — clubs included — and 5–10 HCP, and still not enough to open one: bid three of the suit. You are stealing space, not describing an opening hand.",
+        "Now the limit. A preempt is a trade: you risk playing a poor contract in exchange for bidding room the opponents no longer get. In fourth seat, with three passes already in front of you, there is no room left to buy — nobody is waiting to bid. So a preempt in fourth seat is all risk and no reward: pass, and let the deal be passed out. First, second and third seat still preempt as above.",
+        "Run Lesson 1's count first, every time. A six-card major with 13 opening points is 1♥/1♠ from Lesson 2, not a weak two — the preempt is only for hands that failed the opening test. A real opening hand still opens in fourth seat; it is only the preempt that goes away."
       ],
       "rules": [
-        "Weak 2♦ / 2♥ / 2♠ = six cards, 5–10 HCP, cannot open one.",
-        "No weak 2♣.",
-        "7+ cards, 5–10 HCP, cannot open one: 3 of the suit."
+        "Weak 2♦ / 2♥ / 2♠ = exactly six cards, 5–10 HCP, cannot open one (Lesson 1).",
+        "No weak 2♣ — 2♣ is the strong opening (Lesson 5).",
+        "7+ cards in any suit, 5–10 HCP, cannot open one: bid 3 of the suit.",
+        "Fourth seat (three passes in front): no preempt. Pass and let the deal be passed out.",
+        "Opening values first: a 6-card major with 13+ is 1♥/1♠ (Lesson 2), in any seat."
       ],
       "leaves": [
         "open.2s",
@@ -235,55 +340,69 @@
       "lessonNumber": 7,
       "title": "Pass, 2NT, or 3NT",
       "tip": "No four-card major: 0–7 pass, 8–9 invite 2NT, 10+ raise to 3NT. Count HCP only.",
+      "newHere": "Your first lesson as responder: partner has already bid, you count HCP only, and with no long or four-card major you Pass, invite with 2NT, or bid 3NT.",
+      "revisits": [
+        {
+          "lessonId": "bid-open-1nt",
+          "what": "what partner's 1NT promises: 15–17 balanced",
+          "lessonNumber": 4
+        },
+        {
+          "lessonId": "bid-pass",
+          "what": "HCP — which you now count without the length points",
+          "lessonNumber": 1
+        }
+      ],
       "teaching": [
-        "Partner has 15–17. Combined, you want about 25 for 3NT. Count high-card points only — no length — as responder to 1NT.",
-        "With no four-card major (so Stayman is off) and no six-card major (so transfers are off): 0–7 pass, 8–9 bid 2NT as an invite, 10+ bid 3NT. Do not stay in 2NT with game values; 2NT is invitational, not a sign-off.",
-        "Garbage Stayman (2♣ on a bust with majors) is off in this tree. Weak hands with no long major pass 1NT."
+        "You are the responder now: partner opened 1NT, so from Lesson 4 you know they hold 15–17 HCP and a balanced hand. Add your HCP to theirs; about 25 between the two hands is enough for 3NT.",
+        "Count high-card points only. The length points from Lesson 1 were for deciding whether to open — opposite a notrump opening they do not apply.",
+        "This lesson deals only hands with no four-card major and no six-card major, because those shapes have better bids than notrump — the transfer in Lesson 8 and Stayman in Lesson 9. On the rest: 0–7 pass, 8–9 bid 2NT, 10+ bid 3NT. 2NT is an invitation, not a resting place — with 10 or more you must not park there."
       ],
       "rules": [
-        "Responding to 1NT: HCP only.",
-        "No 4-card major: 0–7 Pass, 8–9 2NT, 10+ 3NT.",
+        "Partner's 1NT = 15–17 balanced (Lesson 4).",
+        "As responder to 1NT: HCP only, no length points.",
+        "No 4-card and no 6-card major: 0–7 Pass, 8–9 2NT, 10+ 3NT.",
         "2NT is invitational. Do not park in 2NT with 10+."
       ],
-      "leaves": ["resp.1nt.pass", "resp.1nt.2nt", "resp.1nt.3nt"],
+      "leaves": [
+        "resp.1nt.pass",
+        "resp.1nt.2nt",
+        "resp.1nt.3nt"
+      ],
       "quizCount": 4
-    },
-    {
-      "id": "bid-resp-1nt-stayman",
-      "chapterId": "bid-ch4",
-      "chapterNumber": 4,
-      "lessonNumber": 8,
-      "title": "Stayman",
-      "tip": "Eight or more HCP and a four-card major, no six-card major: bid 2♣. 5–4 majors also use Stayman, not a transfer.",
-      "teaching": [
-        "Stayman (2♣) asks partner to show a four-card major. Use it with 8+ HCP and at least one four-card major, provided you do not have a six-card major (those transfer).",
-        "5–4 in the majors with 8+ is Stayman, not a transfer. You are looking for the 4–4 or 5–3 fit; transferring would bury the four-card suit.",
-        "Opener will rebid 2♥ with four hearts (even if they also have four spades), 2♠ with four spades and no four hearts, or 2♦ with no four-card major. You will practise those rebids later."
-      ],
-      "rules": [
-        "8+ HCP, 4-card major, no 6-card major → 2♣ Stayman.",
-        "5–4 majors and 8+ → Stayman, not a transfer.",
-        "0–7 with 4–4 majors: pass (garbage Stayman is off)."
-      ],
-      "leaves": ["resp.1nt.stayman", "resp.1nt.stayman.54"],
-      "quizCount": 3
     },
     {
       "id": "bid-resp-1nt-xfer",
       "chapterId": "bid-ch4",
       "chapterNumber": 4,
-      "lessonNumber": 9,
+      "lessonNumber": 8,
       "title": "Jacoby transfers",
-      "tip": "Six or more in a major: 2♦ transfers to hearts, 2♥ transfers to spades. 5–5 majors: transfer to spades.",
+      "tip": "Six or more cards in a major: 2♦ transfers to hearts, 2♥ transfers to spades. 5–5 majors: transfer to spades.",
+      "newHere": "Jacoby transfers — your first artificial bid: 2♦ makes partner bid hearts, 2♥ makes partner bid spades, so the strong hand plays the contract.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-1nt-nt",
+          "lessonNumber": 7,
+          "what": "the HCP-only count, and the Pass / 2NT / 3NT ladder this replaces"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "partner's 1NT: 15–17 HCP balanced"
+        }
+      ],
       "teaching": [
-        "With six or more hearts, bid 2♦. Partner must bid 2♥. With six or more spades, bid 2♥; partner bids 2♠. The 1NT opener becomes declarer, which is the point.",
-        "The transfer itself does not show strength. Weak, invitational, and game-going hands all start with the same transfer; you describe strength on the next round (this course tests the first call).",
-        "5–5 in the majors: transfer to spades (2♥). That is the higher-ranking major, and you can still look for hearts later. Do not transfer on 5–4 — that is Stayman."
+        "Lesson 7 kept you in notrump because you had no long major. Now you have one: six or more cards in hearts or spades. Partner's 1NT promised a balanced hand (Lesson 4), so they hold at least two of your suit — that is an eight-card fit already, and the cheaper major game from Lesson 1 is the contract you want.",
+        "So you do not bid your suit; you make partner bid it. With six or more hearts, bid 2♦ and partner must bid 2♥. With six or more spades, bid 2♥ and partner must bid 2♠. The bid is artificial — 2♦ says nothing about diamonds. Its whole purpose is to make the 1NT hand declarer, so their high cards sit behind the opening lead instead of in front of it.",
+        "The transfer says nothing about strength either. Weak, invitational and game-going hands all start with the same bid, and you describe how strong you are on the next round. That is why one bid covers so many hands.",
+        "5–5 in the majors: transfer to spades with 2♥ — the higher-ranking major, per Lesson 1's suit order — and hearts can still come out later.",
+        "Partner has no choice about completing: 2♦ is always answered 2♥, and 2♥ always 2♠. Lesson 17 puts you in that chair."
       ],
       "rules": [
-        "6+ hearts → 2♦ (transfer). 6+ spades → 2♥ (transfer).",
-        "5–5 majors → transfer to spades.",
-        "Strength is shown next round; the transfer is the same."
+        "6+ hearts → 2♦. 6+ spades → 2♥. Artificial — partner must complete.",
+        "5–5 majors → transfer to spades (2♥).",
+        "The transfer shows no strength; that comes next round.",
+        "Partner completes: 2♦ → 2♥, 2♥ → 2♠, always (Lesson 17)."
       ],
       "leaves": [
         "resp.1nt.xfer.h.weak",
@@ -296,21 +415,80 @@
       "quizCount": 4
     },
     {
+      "id": "bid-resp-1nt-stayman",
+      "chapterId": "bid-ch4",
+      "chapterNumber": 4,
+      "lessonNumber": 9,
+      "title": "Stayman",
+      "tip": "Eight or more HCP and a four-card major, with no six-card major to transfer: bid 2♣. 5–4 majors are Stayman too.",
+      "newHere": "Stayman: 2♣ asks partner to name a four-card major — for the hands with a major too short to transfer.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-1nt-xfer",
+          "lessonNumber": 8,
+          "what": "the transfer, which takes priority whenever you hold six of a major"
+        },
+        {
+          "lessonId": "bid-resp-1nt-nt",
+          "lessonNumber": 7,
+          "what": "the Pass / 2NT / 3NT ladder for hands with no major at all"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "partner's 1NT: 15–17 HCP balanced"
+        }
+      ],
+      "teaching": [
+        "Two cases are settled. No major at all: Lesson 7's ladder — Pass, 2NT or 3NT. Six or more of a major: Lesson 8's transfer. This lesson is the gap between them — a four-card major, sometimes five, which is not enough to claim the fit on your own.",
+        "With four cards you cannot know there is a fit: partner's balanced hand might hold two. So you ask. Stayman — 2♣ — is artificial like the transfer and shows no clubs; it asks whether partner holds a four-card major, so the pair can find the 4–4 or 5–3 fit and play the cheaper major game. Use it with 8+ HCP and at least one four-card major.",
+        "5–4 in the majors with 8+ is Stayman, not Lesson 8's transfer. Five is not six, and transferring would bury the four-card suit — you want to hear about both majors, not just one.",
+        "Partner's answer, so you can read it when it comes: 2♥ with four hearts (even holding four spades too), 2♠ with four spades and no four hearts, 2♦ with neither. Hearts come first so the answer is never ambiguous. Lesson 17 puts you in the opener's chair for those.",
+        "Below 8 HCP, do not use Stayman as an escape from 1NT even with 4–4 majors — garbage Stayman is off in this tree. Those hands pass, as in Lesson 7."
+      ],
+      "rules": [
+        "8+ HCP and a 4-card major, no 6-card major → 2♣ Stayman. Artificial, not clubs.",
+        "6+ major → transfer instead (Lesson 8).",
+        "5–4 majors and 8+ → Stayman, not a transfer.",
+        "Partner answers 2♥ / 2♠ / 2♦, hearts first. You bid those in Lesson 17.",
+        "0–7 with 4–4 majors: pass (Lesson 7) — garbage Stayman is off."
+      ],
+      "leaves": [
+        "resp.1nt.stayman",
+        "resp.1nt.stayman.54"
+      ],
+      "quizCount": 3
+    },
+    {
       "id": "bid-resp-major-raise",
       "chapterId": "bid-ch5",
       "chapterNumber": 5,
       "lessonNumber": 10,
       "title": "Raising 1♥ or 1♠",
       "tip": "Three-card support: add shortage. 6–9 raise to 2, 10–12 jump to 3, 13+ bid game.",
+      "newHere": "Fits and shortage points: three-card support makes a fit, and with a fit you count shortage — doubleton +1, singleton +3, void +5 — in place of length.",
+      "revisits": [
+        {
+          "lessonId": "bid-open-major",
+          "what": "the five cards partner's 1♥/1♠ promised",
+          "lessonNumber": 2
+        },
+        {
+          "lessonId": "bid-pass",
+          "what": "HCP, and the length points that shortage now replaces",
+          "lessonNumber": 1
+        }
+      ],
       "teaching": [
-        "Partner promised five. Three-card support is a fit. With a fit, count HCP plus shortage: doubleton +1, singleton +3, void +5.",
-        "0–5 pass (even with support — you are too weak). 6–9 raise to two. 10–12 is a limit raise (jump to three). 13+ raise to game (4♥ or 4♠).",
-        "Fit first: do not bid a new suit when you have a major-suit raise. The raise tells partner the strain and the range in one call."
+        "Partner opened 1♥ or 1♠, so from Lesson 2 they hold at least five. Three cards in that suit gives the pair eight — a fit — and a fit changes how you count. Add your HCP to shortage points: a doubleton +1, a singleton +3, a void +5. Short suits are worth something once you have trumps to ruff with, which is why length points from Lesson 1 step aside here.",
+        "With that total: 0–5 pass, even holding support — you are simply too weak. 6–9 raise to two. 10–12 jump to three, a limit raise. 13+ raise straight to game, 4♥ or 4♠.",
+        "Fit first. When you have a raise available, take it — the raise names the strain and the range in one call, and looking for something better only muddies it."
       ],
       "rules": [
-        "3+ support for partner’s major = a fit.",
-        "Shortage: doubleton +1, singleton +3, void +5.",
-        "0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game."
+        "3+ cards in partner's major = a fit (they promised 5 — Lesson 2).",
+        "With a fit, count HCP + shortage: doubleton +1, singleton +3, void +5.",
+        "0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game.",
+        "A raise beats any other bid you might have."
       ],
       "leaves": [
         "resp.1s.raise2",
@@ -323,61 +501,174 @@
       "quizCount": 4
     },
     {
-      "id": "bid-resp-major-shift",
+      "id": "bid-resp-major-suit",
       "chapterId": "bid-ch5",
       "chapterNumber": 5,
       "lessonNumber": 11,
-      "title": "No fit for 1♥/1♠",
-      "tip": "Without three-card support: new suit if you can, otherwise 1NT or pass.",
+      "title": "A new suit over 1♥ or 1♠",
+      "tip": "No fit? Show a suit of your own. One-level needs 6+ HCP; the two-level needs 10+.",
+      "newHere": "Bidding a suit of your own when partner opened a major and you cannot raise — and why the two-level costs more than the one-level.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-major-raise",
+          "lessonNumber": 10,
+          "what": "the raise, which comes first whenever you hold three-card support"
+        },
+        {
+          "lessonId": "bid-pass",
+          "lessonNumber": 1,
+          "what": "suit rank — it decides which bids are cheap and which are not"
+        }
+      ],
       "teaching": [
-        "No 3-card support means you do not raise. A new suit at the one-level (1♥–1♠) shows 6+ HCP and four-plus spades. A new suit at the two-level shows 10+ and a real suit (5+ for a new major).",
-        "With 6–9, no fit, and no one-level suit to bid, respond 1NT. That is not a notrump opening — it is a dustbin bid meaning “I have a few points and nowhere else to go.”",
-        "0–5 without a fit: pass. Partner may still have a playable spot, but you are not strong enough to keep the auction alive."
+        "Fewer than three cards in partner's major means Lesson 10's raise is off, and you need something else to say. The cheapest thing you can say is a suit at the one-level, and over 1♥ there is exactly one: 1♠. That shows four or more spades and 6+ HCP.",
+        "Over 1♠ there is nothing left at the one-level — spades is the top suit (Lesson 1), so any suit of yours costs a trip to the two-level. That is a real price: you are promising to make eight tricks instead of seven, and partner may have a minimum. So a new suit at the two-level needs 10+ HCP.",
+        "The two-level also wants a real suit. A new minor at the two-level needs four or more cards; a new major at the two-level needs five, because with only four you would have had the cheaper one-level bid available or a better route. 2♥ over 1♠ therefore promises five hearts and 10+.",
+        "A new suit is forcing for one round: partner must bid again. That is what makes it safe to introduce a suit rather than settle — you will get another turn."
       ],
       "rules": [
-        "New suit at the one-level = 6+ HCP.",
-        "New suit at the two-level = 10+ (5+ cards for a new major).",
-        "6–9, no fit, no one-level suit: 1NT.",
+        "No 3-card support → no raise (Lesson 10).",
+        "New suit at the one-level (1♥–1♠) = 4+ cards, 6+ HCP.",
+        "New suit at the two-level = 10+ HCP.",
+        "Two-level new minor: 4+ cards. Two-level new major (2♥ over 1♠): 5+ cards.",
+        "A new suit is forcing for one round."
+      ],
+      "leaves": [
+        "resp.1h.1s",
+        "resp.1s.2h",
+        "resp.1s.2c",
+        "resp.1s.2d"
+      ],
+      "quizCount": 4
+    },
+    {
+      "id": "bid-resp-major-nt",
+      "chapterId": "bid-ch5",
+      "chapterNumber": 5,
+      "lessonNumber": 12,
+      "title": "1NT and pass over 1♥/1♠",
+      "tip": "6–9 with nothing else to say: 1NT. 0–5: pass and let partner play it.",
+      "newHere": "The two answers left when you can neither raise nor bid a suit: the 1NT dustbin, and the pass that keeps you out of trouble.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-major-suit",
+          "lessonNumber": 11,
+          "what": "the new-suit bids you try before falling back on notrump"
+        },
+        {
+          "lessonId": "bid-resp-major-raise",
+          "lessonNumber": 10,
+          "what": "the raise, which still comes first"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "the 1NT opening, which this 1NT response is not"
+        }
+      ],
+      "teaching": [
+        "Work down the list. No three-card support, so no raise (Lesson 10). Nothing worth bidding at the one-level and not enough for the two-level (Lesson 11). With 6–9 HCP you still owe partner a call, so respond 1NT.",
+        "Be clear about what this 1NT is not. It has nothing to do with the 15–17 opening from Lesson 4. As a response it is a dustbin: it means “I have a few points and no better call.” Partner will read it that way and bid on accordingly.",
+        "With 0–5 HCP and no fit, pass. This is the hardest habit to learn, because passing feels like giving up — but partner opened on as few as 13 points, and keeping the auction alive on a bust just pushes you into a contract neither of you can make. Partner may well have a playable spot at the one-level already.",
+        "So the full order over partner's major: raise if you have a fit; bid a suit if you have one you can afford; 1NT with 6–9 and nothing else; pass with 0–5."
+      ],
+      "rules": [
+        "Order: raise (Lesson 10) → new suit (Lesson 11) → 1NT → pass.",
+        "6–9, no fit, nothing biddable: 1NT — a dustbin, not Lesson 4’s opening.",
         "0–5, no fit: Pass."
       ],
       "leaves": [
         "resp.1s.1nt",
-        "resp.1s.2h",
-        "resp.1s.2c",
-        "resp.1s.2d",
         "resp.1s.pass",
-        "resp.1h.1s",
         "resp.1h.1nt",
         "resp.1h.pass"
       ],
       "quizCount": 4
     },
     {
-      "id": "bid-resp-minor",
+      "id": "bid-resp-minor-major",
       "chapterId": "bid-ch6",
       "chapterNumber": 6,
-      "lessonNumber": 12,
-      "title": "Responding to 1♣ or 1♦",
-      "tip": "Bid a major if you have one (cheaper of 4–4). Otherwise 1♦ over 1♣, 1NT, or pass.",
+      "lessonNumber": 13,
+      "title": "Show a major over 1♣/1♦",
+      "tip": "Partner’s minor may be short. With 6+ HCP and a four-card major, bid it. 4–4 majors: the cheaper (1♥).",
+      "newHere": "Responding to an opening that may not be a real suit: with a minor opening, finding a major fit is your job, not partner’s.",
+      "revisits": [
+        {
+          "lessonId": "bid-open-minor",
+          "lessonNumber": 3,
+          "what": "1♣ on as few as three cards, 1♦ on four"
+        },
+        {
+          "lessonId": "bid-resp-major-suit",
+          "lessonNumber": 11,
+          "what": "the one-level new suit at 6+ HCP"
+        }
+      ],
       "teaching": [
-        "Partner’s 1♣ or 1♦ is often a short suit. Your job is to find a major. With 6+ HCP and a four-card major, bid it at the one-level. 4–4 majors: bid the cheaper (1♥).",
-        "Over 1♣, 1♦ shows diamonds and no four-card major (or not enough to bid a two-level suit). 6–9 balanced with no major: 1NT. 0–5: pass.",
-        "A real club raise needs five clubs; a diamond raise needs four. This lesson’s tests focus on the common one-level responses and the pass / 1NT dustbin."
+        "Everything changes when partner opens a minor. From Lesson 3, 1♣ can be three cards and 1♦ can be four — neither is a described suit, and neither is where you want to play. Compare Lesson 10, where 1♥/1♠ promised five and your first thought was whether you had a fit. Here your first thought is a major of your own.",
+        "With 6+ HCP and a four-card major, bid it at the one-level. Four is enough — you are not claiming a fit, you are asking whether partner has one, and partner can raise with four. This is how the pair reaches the cheap major game from Lesson 1 even though nobody opened a major.",
+        "4–4 in the majors: bid the cheaper one, 1♥. That keeps 1♠ available on the next round, so the pair can check both majors for the price of one. Longer major first when they are unequal; 5–5 or 6–6, bid the higher (1♠) as in Lesson 2.",
+        "A major beats a minor raise and it beats notrump, even when the minor fit is real. The major is worth more tricks and the auction is still cheap — there is time to come back to the minor."
       ],
       "rules": [
-        "4+ major, 6+ HCP: bid it. 4–4 majors: cheaper (1♥).",
-        "1♣–1♦: diamonds, no four-card major.",
-        "6–9 no major: 1NT. 0–5: Pass."
+        "Partner’s minor may be short (Lesson 3) — a major of your own comes first.",
+        "4+ major and 6+ HCP: bid it at the one-level.",
+        "4–4 majors: cheaper (1♥). Unequal: longer. 5–5: higher (1♠).",
+        "A major outranks a minor raise and outranks notrump."
       ],
       "leaves": [
         "resp.1c.1h",
         "resp.1c.1s",
+        "resp.1d.1h",
+        "resp.1d.1s"
+      ],
+      "quizCount": 4
+    },
+    {
+      "id": "bid-resp-minor-nomajor",
+      "chapterId": "bid-ch6",
+      "chapterNumber": 6,
+      "lessonNumber": 14,
+      "title": "No major over 1♣/1♦",
+      "tip": "1♦ over 1♣ with diamonds. Six clubs and 10+ over 1♦: 2♣. Otherwise 1NT or pass.",
+      "newHere": "What to bid over a minor when you have no four-card major: the 1♦ reply, the 2♣ shift on a long club suit, and the 1NT/pass floor.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-minor-major",
+          "lessonNumber": 13,
+          "what": "the major you bid first when you have one"
+        },
+        {
+          "lessonId": "bid-resp-major-suit",
+          "lessonNumber": 11,
+          "what": "the two-level new suit and its 10+ HCP price"
+        },
+        {
+          "lessonId": "bid-resp-major-nt",
+          "lessonNumber": 12,
+          "what": "the 1NT dustbin and the pass on a bust"
+        }
+      ],
+      "teaching": [
+        "No four-card major, so Lesson 13's answer is unavailable. Over 1♣ the cheapest useful call is 1♦, which shows four or more diamonds and 6+ HCP, and denies a four-card major — partner learns two things for one bid.",
+        "Over 1♦ that reply does not exist, because diamonds is partner's suit. The suit you might have instead is clubs, and clubs is a level higher: 2♣. That is a two-level new suit, so it costs 10+ HCP exactly as in Lesson 11, and it wants six or more clubs. With five clubs your hand is flat enough for notrump; with six it is worth the extra level.",
+        "Raising the minor needs real length — five clubs to raise 1♣, four diamonds to raise 1♦ — and even then it is a part-score bid, because eleven tricks is a long way. Do not chase five of a minor when notrump will do.",
+        "The floor is the same as Lesson 12: 6–9 with no major, no raise and nothing at the two-level responds 1NT, and 0–5 passes. With 10–12 balanced, invite with 2NT; with 13+ and a fit or a stopper-rich hand, 3NT is the game to aim at rather than 5♣ or 5♦."
+      ],
+      "rules": [
+        "No 4-card major (Lesson 13) → work down this list.",
+        "1♣–1♦ = 4+ diamonds, 6+ HCP, and no 4-card major.",
+        "1♦–2♣ = 6+ clubs and 10+ HCP (two-level price, Lesson 11).",
+        "Raise a minor only with real length: 5+ clubs over 1♣, 4+ diamonds over 1♦.",
+        "6–9 nothing else: 1NT. 0–5: Pass. 10–12 balanced: 2NT. 13+: prefer 3NT to 5m."
+      ],
+      "leaves": [
         "resp.1c.1d",
         "resp.1c.1nt",
         "resp.1c.pass",
-        "resp.1d.1h",
-        "resp.1d.1s",
-        "resp.1d.1nt"
+        "resp.1d.1nt",
+        "resp.1d.2c"
       ],
       "quizCount": 4
     },
@@ -385,18 +676,33 @@
       "id": "bid-rebid-raise",
       "chapterId": "bid-ch7",
       "chapterNumber": 7,
-      "lessonNumber": 13,
+      "lessonNumber": 15,
       "title": "After partner raises your major",
       "tip": "Minimum pass. Extra values invite. A big hand bids game. Same idea over a limit raise: pass or go.",
+      "newHere": "Your first lesson as opener bidding a second time: partner has limited their hand, so you decide how high — pass, invite, or bid game.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-major-raise",
+          "what": "the raise ranges partner is showing you",
+          "lessonNumber": 10
+        },
+        {
+          "lessonId": "bid-pass",
+          "what": "opening points — HCP + length, which you count again here",
+          "lessonNumber": 1
+        }
+      ],
       "teaching": [
-        "Partner raised your major, so you have a fit. Count opening points (HCP + length). A simple raise (1♠–2♠) is 6–9: with 13–15 pass, with 16–18 raise one more (invite), with 19–20 bid game.",
-        "A limit raise (1♠–3♠) is already invitational. With a minimum, pass; with extras, bid the game. Partner has asked you to decide.",
-        "Do not rebid a new suit here — the strain is settled. The only question is how high."
+        "Partner raised your major, so the fit is confirmed and the strain is settled. All that remains is the level, and you own that decision because partner's raise named a narrow range. Count your opening points again — HCP plus length, from Lesson 1.",
+        "A simple raise (1♠–2♠) was 6–9 in Lesson 10. With 13–15 pass and play there. With 16–18 raise one more as an invitation. With 19–20 bid the game yourself.",
+        "A limit raise (1♠–3♠) was 10–12, and is already an invitation — partner has handed you the decision. With a minimum, pass. With extras, bid game.",
+        "Do not introduce a new suit here. The fit is found; the only open question is how high."
       ],
       "rules": [
-        "After a simple raise: 13–15 pass, 16–18 raise one, 19–20 bid game.",
-        "After a limit raise: minimum pass, extras bid game.",
-        "Count opening points (HCP + length)."
+        "Count opening points: HCP + length (Lesson 1).",
+        "After a simple raise (partner 6–9, Lesson 10): 13–15 pass, 16–18 raise one, 19–20 bid game.",
+        "After a limit raise (partner 10–12): minimum pass, extras bid game.",
+        "No new suits — the strain is settled."
       ],
       "leaves": [
         "rebid.1s.raise.pass",
@@ -413,19 +719,34 @@
       "id": "bid-rebid-1nt",
       "chapterId": "bid-ch7",
       "chapterNumber": 7,
-      "lessonNumber": 14,
+      "lessonNumber": 16,
       "title": "After partner’s 1NT",
       "tip": "1NT is not forcing. Pass a 5332 minimum, rebid six cards, or show a four-card side suit.",
+      "newHere": "Rebidding over partner's 1NT response: it is not forcing, so pass a flat minimum, rebid a six-card suit, or show a four-card side suit.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-major-nt",
+          "lessonNumber": 12,
+          "what": "the 1NT response — 6–9 HCP with no fit for your major"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "balanced shape, which decides whether you pass here"
+        }
+      ],
       "teaching": [
-        "Partner’s 1NT said 6–9 without a fit. It is not forcing. With a 5332 minimum, pass and play 1NT. With a six-card major, rebid it (2♠ or 2♥) so partner can choose.",
-        "With a four-card side suit, bid that suit at the two-level. That is still a minimum-range shape bid, not extras.",
-        "Do not rebid a five-card suit: partner already heard it, and 5332 belongs in notrump."
+        "Partner's 1NT was the dustbin from Lesson 12: 6–9 HCP, no three-card support for your major. It is not forcing, so passing is a real option and often the right one — with a 5332 minimum, pass and play 1NT.",
+        "With a six-card major, rebid it (2♥ or 2♠). Partner holds at most two, but six against two still usually plays better than notrump, and partner can now choose.",
+        "With a four-card side suit, bid that suit at the two-level. That is a shape bid inside the minimum range, not a claim of extra strength.",
+        "Do not rebid a five-card suit. Partner already heard it and declined to support it, and a 5332 minimum belongs in notrump."
       ],
       "rules": [
-        "1NT response is not forcing.",
+        "Partner's 1NT = 6–9, no fit (Lesson 12). Not forcing.",
         "5332 minimum: pass.",
         "Six-card suit: rebid it.",
-        "Four-card side suit: bid it."
+        "Four-card side suit: bid it at the two-level.",
+        "Never rebid a five-card suit."
       ],
       "leaves": [
         "rebid.1s.1nt.pass",
@@ -438,18 +759,36 @@
       "id": "bid-rebid-nt-conv",
       "chapterId": "bid-ch7",
       "chapterNumber": 7,
-      "lessonNumber": 15,
+      "lessonNumber": 17,
       "title": "Completing Stayman and transfers",
       "tip": "Stayman: show four hearts first, else four spades, else 2♦. Transfers: always complete.",
+      "newHere": "The opener's side of transfers and Stayman — the answers to the asks you made in Lessons 8 and 9.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-1nt-xfer",
+          "lessonNumber": 8,
+          "what": "the 2♦ / 2♥ transfers you are now completing"
+        },
+        {
+          "lessonId": "bid-resp-1nt-stayman",
+          "lessonNumber": 9,
+          "what": "the 2♣ Stayman ask you are now answering"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "your own 1NT opening, 15–17 balanced"
+        }
+      ],
       "teaching": [
-        "You opened 1NT and partner bid 2♣ (Stayman). Show a four-card major: 2♥ with four hearts even if you also have four spades; 2♠ with four spades and no four hearts; 2♦ with neither.",
-        "If partner transferred (2♦ or 2♥), complete it. Bid 2♥ over 2♦, 2♠ over 2♥. No super-accept in this tree — always the same completion, regardless of extras or four-card support.",
-        "These calls are mechanical. The test is whether you remember the priority (hearts, then spades, then diamonds) and that transfers are not optional."
+        "You opened 1NT. If partner transferred (Lesson 8), complete it: 2♥ over 2♦, 2♠ over 2♥. Always, with no exceptions — there is no super-accept in this tree, so extra strength and four-card support change nothing.",
+        "If partner bid 2♣ — Stayman, from Lesson 9 — answer in strict priority: 2♥ with four hearts, even when you also hold four spades; 2♠ with four spades and no four hearts; 2♦ with neither. The hearts-first order is what lets partner read your answer without ambiguity.",
+        "These calls are mechanical, which is the point: partner is asking, and the answer never depends on how much you like your hand. The test is the priority order, and remembering that a transfer is not optional."
       ],
       "rules": [
-        "Stayman: 2♥ with 4 hearts (even with 4 spades); 2♠ with 4 spades and no 4 hearts; else 2♦.",
-        "Transfer 2♦ → always 2♥. Transfer 2♥ → always 2♠.",
-        "No super-accept."
+        "Transfer (Lesson 8): 2♦ → always 2♥. 2♥ → always 2♠.",
+        "Stayman (Lesson 9): 2♥ with 4 hearts (even with 4 spades); 2♠ with 4 spades and no 4 hearts; else 2♦.",
+        "No super-accept. Extras do not change the answer."
       ],
       "leaves": [
         "rebid.stayman.2h",
@@ -464,20 +803,187 @@
       "id": "bid-rebid-new-suit",
       "chapterId": "bid-ch7",
       "chapterNumber": 7,
-      "lessonNumber": 16,
+      "lessonNumber": 18,
       "title": "After a new suit",
       "tip": "Raise partner’s major with four-card support. Otherwise 1NT on a balanced minimum.",
+      "newHere": "Rebidding after partner's new suit: raise their major with four-card support, otherwise 1NT on a balanced minimum.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-minor-major",
+          "lessonNumber": 13,
+          "what": "partner's one-level major response over your minor"
+        },
+        {
+          "lessonId": "bid-open-minor",
+          "lessonNumber": 3,
+          "what": "your own 1♣ / 1♦ opening"
+        },
+        {
+          "lessonId": "bid-open-1nt",
+          "lessonNumber": 4,
+          "what": "the 15–17 1NT opening, which this rebid is not"
+        }
+      ],
       "teaching": [
-        "Partner responded in a new suit (often a major after your minor). With four-card support and a minimum, raise to two. That sets the fit at a safe level.",
-        "Without a fit, a balanced minimum rebids 1NT. That paints 12–14 balanced without four-card support for partner’s suit.",
-        "This is the last lesson. After it, the drills page will keep sampling the leaves you miss."
+        "You opened a minor (Lesson 3) and partner answered with a major at the one-level (Lesson 13), which promised four cards and 6+ HCP. With four-card support and a minimum, raise to two — that names the eight-card fit at a level that is safe on minimum values.",
+        "Without support, a balanced minimum rebids 1NT. Note that this shows 12–14 balanced, not the 15–17 of Lesson 4's 1NT opening — the strong hands opened 1NT in the first place, so a 1NT rebid can only be the weaker one.",
+        "Chapter 8 takes this further: partner's new suit is forcing, and there is a priority list for finding the right rebid on any hand. This lesson is the simplest case of it."
       ],
       "rules": [
-        "Four-card support for partner’s major: raise to two with a minimum.",
-        "Balanced minimum, no fit: rebid 1NT."
+        "Partner's one-level major = 4+ cards, 6+ HCP (Lesson 13).",
+        "Four-card support and a minimum: raise to two.",
+        "Balanced minimum, no fit: rebid 1NT — 12–14, not Lesson 4's 15–17."
       ],
-      "leaves": ["rebid.1m.1h.raise2", "rebid.1m.1nt"],
+      "leaves": [
+        "rebid.1m.1h.raise2",
+        "rebid.1m.1nt"
+      ],
       "quizCount": 3
+    },
+    {
+      "id": "bid-rebid-one-level",
+      "chapterId": "bid-ch8",
+      "chapterNumber": 8,
+      "lessonNumber": 19,
+      "title": "After partner's one-level suit",
+      "tip": "A new suit is forcing — you must bid. Four-card major first, then support, then 1NT.",
+      "newHere": "The first rule that takes a choice away from you: a new suit by partner is forcing for one round, so opener must bid again — and the order in which to look for something to say.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-major-suit",
+          "lessonNumber": 11,
+          "what": "the new suit partner bid, and that it is forcing"
+        },
+        {
+          "lessonId": "bid-resp-minor-nomajor",
+          "lessonNumber": 14,
+          "what": "the 1♦ response over 1♣"
+        },
+        {
+          "lessonId": "bid-pass",
+          "lessonNumber": 1,
+          "what": "opening points — the strength bands below are counted the same way"
+        }
+      ],
+      "teaching": [
+        "Lessons 11 and 14 said a new suit is forcing for one round, and this is the lesson where that matters to you. Partner has bid a suit at the one level. You may not pass — partner is entitled to another turn, and passing would strand a hand that could be worth game.",
+        "Work down a fixed list. First: can you show a four-card major at the one level? After 1♣ – 1♦ you can bid 1♥ or 1♠, and you should, because it is still the cheapest level and it is the only chance at the major game from Lesson 1. Hearts before spades when you hold both four-card majors.",
+        "Second: do you have four-card support for partner's suit? Raise it. With a minimum raise to two; with 16–18 opening points jump a level to invite; and after 1♥ – 1♠, with 19–20, bid 4♠ outright. The raise names the fit and the range in one call, exactly as partner's raise did in Lesson 10.",
+        "Third: do you have six cards in the suit you opened? Repeat it. Partner may hold a doubleton, and six against two usually plays better than notrump.",
+        "Last: notrump, by strength. A balanced minimum rebids 1NT — 12–14, since a stronger balanced hand would have opened 1NT (Lesson 4). A balanced 18–19 jumps to 2NT instead, which is how you show extras without a fit and without a long suit."
+      ],
+      "rules": [
+        "A new suit by partner is forcing for one round — never pass it.",
+        "1. Four-card major at the one level: bid it (hearts before spades).",
+        "2. Four-card support: raise. Minimum → 2, 16–18 → 3, 19–20 → 4 of a major.",
+        "3. Six cards in your own suit: rebid it.",
+        "4. Balanced minimum: 1NT (12–14). Balanced 18–19: 2NT."
+      ],
+      "leaves": [
+        "rebid.1c.1d.1h",
+        "rebid.1c.1d.raise2",
+        "rebid.1c.1d.1nt",
+        "rebid.1h.1s.raise2",
+        "rebid.1h.1s.2h",
+        "rebid.1h.1s.1nt"
+      ],
+      "quizCount": 5
+    },
+    {
+      "id": "bid-rebid-two-level",
+      "chapterId": "bid-ch8",
+      "chapterNumber": 8,
+      "lessonNumber": 20,
+      "title": "After partner's two-level suit",
+      "tip": "Partner promised 10+, so game is close. Fit first, then your own six, then 2NT on a minimum or 3NT with extras.",
+      "newHere": "Rebidding when partner has promised 10+ HCP: the same priority list as the one-level case, but every fallback moves up a level because the pair is already close to game.",
+      "revisits": [
+        {
+          "lessonId": "bid-rebid-one-level",
+          "lessonNumber": 19,
+          "what": "the priority list — support, then your own suit, then notrump"
+        },
+        {
+          "lessonId": "bid-resp-major-suit",
+          "lessonNumber": 11,
+          "what": "the two-level new suit and its 10+ HCP promise"
+        },
+        {
+          "lessonId": "bid-resp-minor-nomajor",
+          "lessonNumber": 14,
+          "what": "the 2♣ response over 1♦"
+        }
+      ],
+      "teaching": [
+        "Partner bid a new suit at the two level, which from Lesson 11 promised 10+ HCP and a real suit. Add that to your own opening 13 and the pair has around 23 — a trick or two short of game, but close enough that you must not sign off cheaply. Same priority list as Lesson 19; every rung sits a level higher.",
+        "Support first. Partner's two-level major promised five cards, so three of them is a fit: raise to three on a minimum, and bid the game with 16+ opening points. Partner's two-level minor promised four, so you need four: raise to three on a minimum, and with 16+ bid 3NT rather than chase eleven tricks in the minor.",
+        "No fit? Six cards in your own suit means you repeat it. In every one of these auctions your suit ranks above partner's — that is what made their bid a two-level bid in the first place — so repeating it costs nothing and stays a minimum action.",
+        "Otherwise notrump, and here the strength band does the talking. A minimum bids 2NT: it keeps the auction alive without promising anything, and partner with 10+ decides where to play. With 16+ opening points bid 3NT — partner's 10 plus your 16 is game, and with no fit either way notrump is where nine tricks are cheapest."
+      ],
+      "rules": [
+        "A two-level new suit promises 10+ HCP. Never pass it.",
+        "3-card support for partner’s major: raise to 3, or bid game with 16+.",
+        "4-card support for partner’s minor: raise to 3, or bid 3NT with 16+.",
+        "Six cards in your own suit: rebid it at the two level (it always outranks partner’s).",
+        "No fit: 2NT on a minimum, 3NT with 16+."
+      ],
+      "leaves": [
+        "rebid.2level.raise-major",
+        "rebid.2level.raise-minor",
+        "rebid.2level.rebid-suit",
+        "rebid.2level.2nt",
+        "rebid.2level.3nt"
+      ],
+      "quizCount": 5
+    },
+    {
+      "id": "bid-rebid-invitations",
+      "chapterId": "bid-ch8",
+      "chapterNumber": 8,
+      "lessonNumber": 21,
+      "title": "Accepting and declining invitations",
+      "tip": "An invitation you may pass — but decide on your hand, not by reflex. Top of your range: accept.",
+      "newHere": "The other half of opener’s job: when partner has limited their hand rather than forced you, passing becomes legal — and the choice between passing and accepting is a strength count, not a habit.",
+      "revisits": [
+        {
+          "lessonId": "bid-rebid-two-level",
+          "lessonNumber": 20,
+          "what": "the forcing bids you were not allowed to pass"
+        },
+        {
+          "lessonId": "bid-resp-1nt-nt",
+          "lessonNumber": 7,
+          "what": "the 2NT invitation partner is making here"
+        },
+        {
+          "lessonId": "bid-resp-minor-nomajor",
+          "lessonNumber": 14,
+          "what": "the minor raise and the 1NT response"
+        }
+      ],
+      "teaching": [
+        "Lessons 19 and 20 were about bids you may not pass. This lesson is the mirror: partner has limited their hand instead of forcing you, so passing is a legal choice — and that makes it a decision, which is the part people get wrong. A pass here must come from counting your hand, not from partner having stopped bidding.",
+        "Partner's 2NT is the invitation from Lesson 7: 8–9 HCP asking whether you have enough for game. After your 1NT opening you hold 15–17, so the arithmetic is simple — 15 is a minimum, so pass; 16 or 17 is the top of your range, so accept and bid 3NT. Over a suit opening the same question arrives from a 10–12 hand, and there you accept with 14 or more.",
+        "Partner's raise of your minor is limited too: a simple raise is 6–9 and a limit raise is 10–12. With a minimum, pass and play the part-score — five of a minor is eleven tricks and rarely worth it. With 16–18 opposite a simple raise, try 2NT. With enough for game, bid 3NT rather than 5♣ or 5♦.",
+        "Partner's 1NT response to your minor is 6–9 with no four-card major (Lesson 14), and it is not forcing. Pass it on a balanced minimum. With six or more in the suit you opened, rebid the suit — partner has denied a major and may be short in yours. With 18–19 balanced, jump to 2NT.",
+        "The habit to build: every time partner's bid could be passed, count first. The question is never “has partner stopped?” — it is “am I at the top or the bottom of what I promised?”"
+      ],
+      "rules": [
+        "An invitation may be passed — but only after counting your hand.",
+        "Partner’s 2NT over your 1NT: pass with 15, bid 3NT with 16–17.",
+        "Partner’s 2NT over your suit opening: accept with 14+.",
+        "Minor raise: minimum passes. 16–18 over a simple raise tries 2NT. Game values bid 3NT, not 5m.",
+        "Partner’s 1NT over your minor: pass a balanced minimum, rebid a 6-card suit, jump to 2NT with 18–19."
+      ],
+      "leaves": [
+        "rebid.2nt.accept",
+        "rebid.2nt.decline",
+        "rebid.minor-raise.pass",
+        "rebid.minor-raise.2nt",
+        "rebid.1m.1nt.pass",
+        "rebid.1m.1nt.rebid"
+      ],
+      "quizCount": 5
     }
   ]
 }
