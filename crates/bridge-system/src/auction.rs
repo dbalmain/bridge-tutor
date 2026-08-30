@@ -26,9 +26,17 @@ pub enum Phase {
     /// Opener answering responder's second call — almost always accepting or
     /// declining an invitation. Adding ResponderRebid alone just moved the
     /// truncation one call deeper: 1NT–2♦–2♥–3♥ was passed out.
+    ///
+    /// The whole sequence is carried, not just the last two calls. What
+    /// "accept" means depends entirely on what our opening promised: a 15-HCP
+    /// 1NT is the bottom of its range, while 15 after a minimum suit rebid is
+    /// the top of that one. Reducing this to two calls forced a single
+    /// threshold onto both and got one of them wrong every time.
     AnswerInvitation {
-        mine: Call,
-        theirs: Call,
+        open: Call,
+        response: Call,
+        rebid: Call,
+        answer: Call,
     },
     Unsupported,
 }
@@ -117,9 +125,11 @@ impl Auction {
                 response: *response,
                 rebid: *rebid,
             },
-            ([_, mine], [_, theirs]) => Phase::AnswerInvitation {
-                mine: *mine,
-                theirs: *theirs,
+            ([open, rebid], [response, answer]) => Phase::AnswerInvitation {
+                open: *open,
+                response: *response,
+                rebid: *rebid,
+                answer: *answer,
             },
             _ => Phase::Unsupported,
         }
@@ -242,6 +252,37 @@ mod tests {
             Phase::OpenerRebid {
                 open: Call::nt(1),
                 response: bid(2, Suit::Diamond),
+            }
+        );
+    }
+
+    /// Opener answering an invitation needs the whole sequence, not the last
+    /// two calls: what "accept" means depends on what the opening promised,
+    /// and 1NT–2♦–2♥–3♥ reduced to (2♥, 3♥) cannot tell a 1NT from a suit
+    /// rebid.
+    #[test]
+    fn answering_an_invitation_carries_the_whole_sequence() {
+        let after = Auction {
+            dealer: Seat::North,
+            calls: vec![
+                Call::nt(1),
+                Call::Pass,
+                bid(2, Suit::Diamond),
+                Call::Pass,
+                bid(2, Suit::Heart),
+                Call::Pass,
+                bid(3, Suit::Heart),
+                Call::Pass,
+            ],
+        };
+        assert_eq!(after.next_seat(), Seat::North);
+        assert_eq!(
+            after.phase_for(Seat::North),
+            Phase::AnswerInvitation {
+                open: Call::nt(1),
+                response: bid(2, Suit::Diamond),
+                rebid: bid(2, Suit::Heart),
+                answer: bid(3, Suit::Heart),
             }
         );
     }

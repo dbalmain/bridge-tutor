@@ -488,10 +488,19 @@ mod tests {
         );
     }
 
-    /// A game-forcing auction must actually reach game. Nothing checked this,
-    /// and the auction used to stop dead after opener's rebid: 2♣ – 2♦ – 2NT
-    /// was passed out below game, and a completed transfer sat in 2♥ with
-    /// twenty-nine points between the two hands.
+    /// A game-forcing auction must actually reach game, no auction may contain
+    /// an illegal call, and neither miss nor overshoot game by a wide margin.
+    ///
+    /// The truncation this was written for: the auction used to stop dead
+    /// after opener's rebid, so 2♣ – 2♦ – 2NT was passed out below game and a
+    /// completed transfer sat in 2♥ with twenty-nine points between the hands.
+    ///
+    /// Of the four assertions only the legality one is independent of the
+    /// system's own judgement — "strictly higher than the last bid" is a rule
+    /// of bridge, so a wrong implementation cannot agree with it by
+    /// construction. It is also the one that has caught the most: five
+    /// distinct illegal calls on its first run. The three HCP assertions are
+    /// coarse sanity bounds, not an oracle.
     #[test]
     fn forcing_auctions_reach_game_and_fits_are_not_left_in_partscore() {
         let mut rng = SmallRng::seed_from_u64(606);
@@ -503,11 +512,47 @@ mod tests {
                 };
                 let script = uncontested_script(&deal, spec.dealer);
                 let calls: Vec<Call> = script.iter().map(|s| s.bid).collect();
-                let opened_2c = calls.first() == Some(&Call::suit_bid(2, Suit::Club));
+                let shown = |label: &str| {
+                    format!(
+                        "{}: {label} — {}",
+                        spec.id,
+                        calls
+                            .iter()
+                            .map(|c| c.to_app())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    )
+                };
+
+                // Every call must be legal: a pass, or a real bid strictly
+                // above the last one.
+                let mut last: Option<(u8, u8)> = None;
+                for c in &calls {
+                    if *c == Call::Pass {
+                        continue;
+                    }
+                    let r = c.rank();
+                    if r.is_none() || (last.is_some() && r <= last) {
+                        failures.push(shown(&format!("illegal call {}", c.to_app())));
+                    }
+                    last = r;
+                }
+
+                // The side that actually bid, which is not always N/S: any
+                // seat may open, and the earlier form of this test summed
+                // North and South regardless, so a 29-point East/West 3NT
+                // read as an eleven-point overbid.
+                let Some(opener) = script.iter().find(|s| s.bid != Call::Pass) else {
+                    continue;
+                };
+                let side = deal.hand(opener.seat).hcp() + deal.hand(opener.seat.partner()).hcp();
+                let opened_2c = opener.bid == Call::suit_bid(2, Suit::Club);
                 let Some(final_bid) = calls.iter().rev().find(|c| **c != Call::Pass) else {
                     continue;
                 };
-                let (level, _) = final_bid.rank().expect("a real bid");
+                // Level alone is not game: 4♣ is a partscore. The earlier form
+                // excused every four-level contract and so counted 4♣ and 4♦
+                // as game.
                 let is_game = match *final_bid {
                     Call::Bid { level, strain } => match strain {
                         Strain::NoTrump => level >= 3,
@@ -518,31 +563,29 @@ mod tests {
                 };
 
                 if opened_2c && !is_game {
-                    failures.push(format!(
-                        "{}: 2♣ is game-forcing but the auction ended in {} — {}",
-                        spec.id,
-                        final_bid.to_app(),
-                        calls
-                            .iter()
-                            .map(|c| c.to_app())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ));
+                    failures.push(shown(&format!(
+                        "2♣ is game-forcing but the auction ended in {}",
+                        final_bid.to_app()
+                    )));
+                }
+
+                // The direction nothing checked: reaching game on values that
+                // cannot be there. Without it, "bid 3NT after every opener
+                // rebid" passes this whole test. 2♣ is exempt — it is forcing
+                // to game on trick-taking strength, not HCP.
+                if is_game && side < 20 && !opened_2c {
+                    failures.push(shown(&format!(
+                        "only {side} HCP on the bidding side but the auction reached {}",
+                        final_bid.to_app()
+                    )));
                 }
 
                 // 26+ HCP between the two hands and a partscore is a miss.
-                let ns = deal.north.hcp() + deal.south.hcp();
-                if ns >= 26 && !is_game && level < 4 {
-                    failures.push(format!(
-                        "{}: {ns} HCP between N/S but the auction ended in {} — {}",
-                        spec.id,
-                        final_bid.to_app(),
-                        calls
-                            .iter()
-                            .map(|c| c.to_app())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    ));
+                if side >= 26 && !is_game {
+                    failures.push(shown(&format!(
+                        "{side} HCP on the bidding side but the auction ended in {}",
+                        final_bid.to_app()
+                    )));
                 }
             }
         }
@@ -550,7 +593,7 @@ mod tests {
         failures.dedup();
         assert!(
             failures.is_empty(),
-            "auctions that stopped short:\n{}",
+            "auctions that went wrong:\n{}",
             failures
                 .iter()
                 .take(12)

@@ -90,6 +90,36 @@ Responding to 2♣, 2NT and preempts
     Over a 3-level preempt the next level up is already game, so there is no
     obstructive raise: it is game or pass.
 
+Responder's second call, and opener's answer
+• Partner bid game: pass. Game is 3NT, 4♥/4♠, 5♣/5♦, and not simply
+  any four-level bid: 2♣ – 3♦ – 4♣ is a partscore and the force still stands.
+• After a completed transfer: opener promised only two cards, so five of the
+  major is seven, not a fit. With exactly five, 8–9 invites with 2NT and 10+
+  bids 3NT, leaving opener to convert holding three. With six the fit is
+  known: 8–9 raises to three, 10+ bids the game.
+• After Stayman: 4+ of the major partner showed is a fit (invite at three,
+  game at four); otherwise back to the notrump ladder, 2NT on 8–9 and 3NT on
+  10+. Over 2NT there is no invitational zone at all — 0–4 pass, 5+ is game.
+• After 2♣: never pass below game. Raise partner's major on 3-card support,
+  otherwise 3NT — or five of the minor when partner's suit has already run
+  past 3NT.
+• After a one-suit opening, opener's rebid is either a JUMP or a minimum. A
+  jump is a skipped level, not merely a higher call: 1♥–1♠–2♥ is the cheapest
+  rebid available and shows nothing extra.
+  - Over a jump (16–18 in a suit, 18–19 in notrump): 9+ accepts, or 8+ over
+    the notrump jump, since 18 opposite 8 is already 26.
+  - Over a minimum (12–15): 13+ bids game, 10–12 invites — three of the fit,
+    else 2NT.
+  - Three cards support the suit partner OPENED, which promised five. A
+    second suit shown on the rebid is only four, so raising that one needs
+    four of your own.
+  - Where partner's minimum rebid already reached the invitational step there
+    is nothing left to ask: 11+ bids the game, 10 passes.
+• Opener answering an invitation: accept only at the top of the range the
+  OPENING promised — 16+ HCP for a 1NT, 14+ opening points after a suit
+  opening. A jump rebid already showed the extras, so it declines. Accepting
+  is four of the major when the pair is known to hold eight, else 3NT.
+
 Rebids after 2♣, 2NT and preempts
 • After 2♣ – 2♦: 2NT with 22–24 balanced, 3NT with 25+, else name the longest
   suit at the cheapest level. Raise a positive major to game with 3+ support.
@@ -178,7 +208,12 @@ pub fn decide_for(hand: &Hand, auction: &Auction, seat: Seat) -> Decision {
             response,
             rebid: opener_rebid,
         } => responder_rebid(hand, open, response, opener_rebid),
-        Phase::AnswerInvitation { mine, theirs } => answer_invitation(hand, mine, theirs),
+        Phase::AnswerInvitation {
+            open,
+            response,
+            rebid: opener_rebid,
+            answer,
+        } => answer_invitation(hand, open, response, opener_rebid, answer),
         // Shown to a learner in the end-of-hand call list, so it says what
         // happened rather than naming the tree's internals.
         Phase::Unsupported => untaught(),
@@ -2107,22 +2142,79 @@ fn after_limited_opening(hand: &Hand, open: Call, response: Call) -> Decision {
     )
 }
 
+/// Is this call a game contract? Level alone is not the test — 4♣ is a
+/// partscore and 3NT is a game — and treating every four-level bid as game
+/// let a game-forcing 2♣ auction stop in 4♣.
+fn is_game(call: Call) -> bool {
+    match call {
+        Call::Bid { level, strain } => match strain {
+            Strain::NoTrump => level >= 3,
+            Strain::Hearts | Strain::Spades => level >= 4,
+            Strain::Clubs | Strain::Diamonds => level >= 5,
+        },
+        _ => false,
+    }
+}
+
+/// Did `made` skip a level over `over`? A jump shows extras; merely being
+/// higher does not. 1♥–1♠–2♥ and 1♣–1♦–2♣ are the cheapest rebids available,
+/// and reading them as invitations drove nine-counts to 3NT opposite a
+/// minimum while declining the genuine 1♣–1♦–2NT invitation.
+fn is_jump(over: Call, made: Call) -> bool {
+    let Call::Bid { strain, .. } = made else {
+        return false;
+    };
+    match (
+        made.rank(),
+        over.cheapest_above(strain).and_then(|c| c.rank()),
+    ) {
+        (Some(m), Some(cheapest)) => m > cheapest,
+        _ => false,
+    }
+}
+
+/// The major a completed transfer showed, if this is one. Needed after the
+/// auction has moved on: partner's later 2NT still holds a five-card major,
+/// and opener answering it has to know which one.
+fn transfer_major(open: Call, response: Call, rebid: Call) -> Option<Suit> {
+    let Call::Bid {
+        level: nt_level,
+        strain: Strain::NoTrump,
+    } = open
+    else {
+        return None;
+    };
+    let target = match response {
+        Call::Bid {
+            level,
+            strain: Strain::Diamonds,
+        } if level == nt_level + 1 => Suit::Heart,
+        Call::Bid {
+            level,
+            strain: Strain::Hearts,
+        } if level == nt_level + 1 => Suit::Spade,
+        _ => return None,
+    };
+    match rebid {
+        Call::Bid { strain, .. } if strain.suit() == Some(target) => Some(target),
+        _ => None,
+    }
+}
+
 /// Responder's second call. Opener has now limited their hand, so this is
 /// where the contract is actually chosen — and until it existed the auction
 /// simply stopped, leaving completed transfers in 2♥ with game values and
 /// game-forcing 2♣ auctions in 2NT.
 fn responder_rebid(hand: &Hand, open: Call, response: Call, rebid: Call) -> Decision {
-    // Partner has already bid game or beyond: the decision is made.
-    if let Some((level, _)) = rebid.rank() {
-        if level >= 4 || rebid == Call::nt(3) {
-            return dec(
-                "resp2.pass-game",
-                Call::Pass,
-                "Pass — partner has bid the game",
-                "Partner named a game contract. You have already shown your range, so there is \
-                 nothing left to decide.",
-            );
-        }
+    // Partner has already bid game: the decision is made.
+    if is_game(rebid) {
+        return dec(
+            "resp2.pass-game",
+            Call::Pass,
+            "Pass — partner has bid the game",
+            "Partner named a game contract. You have already shown your range, so there is \
+             nothing left to decide.",
+        );
     }
 
     match open {
@@ -2146,8 +2238,11 @@ fn responder_rebid(hand: &Hand, open: Call, response: Call, rebid: Call) -> Deci
 /// throughout the notrump structure, and use the range partner promised.
 fn after_1nt_sequence(hand: &Hand, response: Call, rebid: Call, nt_level: u8) -> Decision {
     let hcp = hand.hcp();
-    // What partner's opening promised, and what the pair needs for game.
-    let (invite_from, game_from) = if nt_level == 1 { (8, 10) } else { (4, 5) };
+    // What the pair needs to invite and to bid game. Over 2NT there is no
+    // invitational zone at all — 20 opposite 5 is already game and the next
+    // step up is the game itself — so the two thresholds coincide and the
+    // invitational branches below are unreachable.
+    let (invite_from, game_from) = if nt_level == 1 { (8, 10) } else { (5, 5) };
 
     let transfer_target = match response {
         Call::Bid {
@@ -2169,25 +2264,50 @@ fn after_1nt_sequence(hand: &Hand, response: Call, rebid: Call, nt_level: u8) ->
     );
 
     if let Some(major) = transfer_target {
-        // Partner completed the transfer, so the fit is known: five from you
-        // plus at least two from a balanced hand.
-        if hcp >= game_from {
-            return dec(
-                "resp2.xfer.game",
-                Call::suit_bid(4, major),
-                "Bid the major game",
-                "You transferred, partner completed, and you have the values for game. The fit \
-                 is already known — bid it.",
-            );
-        }
-        if hcp >= invite_from {
-            return dec(
-                "resp2.xfer.invite",
-                Call::suit_bid(3, major),
-                "Invite in the major",
-                "Enough to invite but not to insist. Raising to three asks partner to bid the \
-                 game with the top of their range.",
-            );
+        // Completing a transfer promises nothing: a balanced opener may hold
+        // only two. Five of them plus two is seven, not a fit — so with
+        // exactly five, bid notrump and let opener, who knows whether the
+        // third card is there, pick the strain. Six makes it eight and the
+        // major is where the hand belongs.
+        if hand.len_of(major) >= 6 {
+            if hcp >= game_from {
+                return dec(
+                    "resp2.xfer.game",
+                    Call::suit_bid(4, major),
+                    "Bid the major game",
+                    "Six of them opposite the two a balanced hand must hold is an eight-card \
+                     fit, and you have the values. Bid the game in the major.",
+                );
+            }
+            if hcp >= invite_from {
+                return dec(
+                    "resp2.xfer.invite",
+                    Call::suit_bid(3, major),
+                    "Invite in the major",
+                    "Six-card suit, so the fit is certain, but only enough to invite. Raising \
+                     to three asks partner to bid the game with the top of their range.",
+                );
+            }
+        } else {
+            if hcp >= game_from {
+                return dec(
+                    "resp2.xfer.3nt",
+                    Call::nt(3),
+                    "Bid 3NT",
+                    "Game values, but only five of the major — partner may hold two, which is \
+                     seven, not a fit. Bid the notrump game and let partner convert to four of \
+                     the major holding three.",
+                );
+            }
+            if hcp >= invite_from {
+                return dec(
+                    "resp2.xfer.2nt",
+                    Call::nt(nt_level + 1),
+                    "Invite in notrump",
+                    "Enough to invite, but with only five of the major the fit is not known. \
+                     Inviting in notrump lets partner choose both the level and the strain.",
+                );
+            }
         }
         return dec(
             "resp2.xfer.pass",
@@ -2222,13 +2342,15 @@ fn after_1nt_sequence(hand: &Hand, response: Call, rebid: Call, nt_level: u8) ->
                          eight. With game values, bid it.",
                     );
                 }
-                return dec(
-                    "resp2.stayman.invite",
-                    Call::suit_bid(3, major),
-                    "Invite in the major",
-                    "The fit is there but the values are only invitational. Three of the major \
-                     asks partner to decide.",
-                );
+                if hcp >= invite_from {
+                    return dec(
+                        "resp2.stayman.invite",
+                        Call::suit_bid(3, major),
+                        "Invite in the major",
+                        "The fit is there but the values are only invitational. Three of the \
+                         major asks partner to decide.",
+                    );
+                }
             }
         }
         // No fit: back to notrump on the same ladder.
@@ -2240,12 +2362,21 @@ fn after_1nt_sequence(hand: &Hand, response: Call, rebid: Call, nt_level: u8) ->
                 "No major fit after all, but the values are there. Play the notrump game.",
             );
         }
+        if hcp >= invite_from {
+            return dec(
+                "resp2.stayman.2nt",
+                Call::nt(nt_level + 1),
+                "Invite in notrump",
+                "No major fit and only invitational values. Raise notrump one level and let \
+                 partner choose.",
+            );
+        }
         return dec(
-            "resp2.stayman.2nt",
-            Call::nt(nt_level + 1),
-            "Invite in notrump",
-            "No major fit and only invitational values. Raise notrump one level and let partner \
-             choose.",
+            "resp2.stayman.pass",
+            Call::Pass,
+            "Pass",
+            "You asked, partner answered, and there is no fit and no extra strength. Stop \
+             here — the ask cost nothing.",
         );
     }
 
@@ -2265,17 +2396,26 @@ fn after_2c_sequence(hand: &Hand, rebid: Call) -> Decision {
         _ => None,
     };
     if let Some(suit) = shown {
-        if hand.len_of(suit) >= 3 {
-            let major = matches!(suit, Suit::Heart | Suit::Spade);
-            if major {
-                return dec(
-                    "resp2.2c.raise",
-                    Call::suit_bid(4, suit),
-                    "Raise partner's major to game",
-                    "Three-card support opposite a hand worth 22+. The auction is forcing to \
-                     game and the fit is found — bid it.",
-                );
-            }
+        if matches!(suit, Suit::Heart | Suit::Spade) && hand.len_of(suit) >= 3 {
+            return dec(
+                "resp2.2c.raise",
+                Call::suit_bid(4, suit),
+                "Raise partner's major to game",
+                "Three-card support opposite a hand worth 22+. The auction is forcing to \
+                 game and the fit is found — bid it.",
+            );
+        }
+        // Partner's suit has already outrun 3NT — 2♣–3♦–4♣ is a real auction
+        // here. The force to game still stands, so the game is five of that
+        // minor: 4NT would be a slam ask, not a contract.
+        if rebid.rank().is_some_and(|(level, _)| level >= 4) {
+            return dec(
+                "resp2.2c.minor-game",
+                Call::suit_bid(5, suit),
+                "Raise to game in the minor",
+                "Partner's suit has already passed 3NT, and 2♣ forces to game. Five of the \
+                 minor is that game — there is nothing cheaper left to bid.",
+            );
         }
     }
     dec(
@@ -2300,23 +2440,43 @@ fn after_suit_sequence(hand: &Hand, open: Call, response: Call, rebid: Call) -> 
         _ => None,
     };
 
-    // Partner jumped, which invites. Accept at the top of what you promised.
-    let responded_level = response.rank().map_or(1, |(l, _)| l);
-    let rebid_level = rebid.rank().map_or(1, |(l, _)| l);
-    let opener_jumped = rebid_level > responded_level;
+    // Three cards are enough only for the suit partner OPENED, which promised
+    // five. A second suit shown on the rebid is four, so raising that one
+    // needs four of your own: 1♣–1♦–1♥ raised on three invented a seven-card
+    // fit, and the 1♦ response had already denied the fourth heart.
+    let is_fit = |s: Suit| {
+        matches!(s, Suit::Heart | Suit::Spade)
+            && hand.len_of(s) >= if Some(s) == opened { 3 } else { 4 }
+    };
+    let fit = rebid_suit
+        .filter(|s| is_fit(*s))
+        .or(opened.filter(|s| is_fit(*s)));
 
-    if opener_jumped {
-        if hcp >= 9 {
-            if let Some(suit) = rebid_suit {
-                if matches!(suit, Suit::Heart | Suit::Spade) && hand.len_of(suit) >= 3 {
-                    return dec(
-                        "resp2.accept.game",
-                        Call::suit_bid(4, suit),
-                        "Accept: bid the major game",
-                        "Partner jumped, which invites, and you are at the top of the range you \
-                         promised with support to match. Accept.",
-                    );
-                }
+    // Partner jumped, which invites. Accept at the top of what you promised.
+    // A jump into notrump shows 18-19 and a jump raise 16-18, so the notrump
+    // one needs a point less to reach twenty-six: declining 1♣–1♦–2NT on
+    // eight left 26 HCP in a partscore.
+    if is_jump(response, rebid) {
+        let accept_from = if matches!(
+            rebid,
+            Call::Bid {
+                strain: Strain::NoTrump,
+                ..
+            }
+        ) {
+            8
+        } else {
+            9
+        };
+        if hcp >= accept_from {
+            if let Some(major) = fit {
+                return dec(
+                    "resp2.accept.game",
+                    Call::suit_bid(4, major),
+                    "Accept: bid the major game",
+                    "Partner jumped, which invites, and you are at the top of the range you \
+                     promised with support to match. Accept.",
+                );
             }
             return dec(
                 "resp2.accept.3nt",
@@ -2338,10 +2498,6 @@ fn after_suit_sequence(hand: &Hand, open: Call, response: Call, rebid: Call) -> 
     // A minimum rebid limits partner to about 12-15. Add your own hand: with
     // game values the pair belongs in game, and passing here was how auctions
     // with 26+ HCP between the two hands ended in a partscore.
-    let fit = rebid_suit
-        .or(opened)
-        .filter(|s| matches!(s, Suit::Heart | Suit::Spade) && hand.len_of(*s) >= 3);
-
     if hcp >= 13 {
         if let Some(major) = fit {
             return dec(
@@ -2362,32 +2518,90 @@ fn after_suit_sequence(hand: &Hand, open: Call, response: Call, rebid: Call) -> 
     }
 
     if hcp >= 10 {
-        if let Some(major) = fit {
+        // The invitational step: one level up in the fit, or 2NT without one.
+        // Partner's minimum rebid may already have used it up — 1♠–2♥–3♥
+        // leaves no room to invite in hearts, and the old code bid 3♥ over
+        // 3♥. Where there is no room, eleven accepts and the bare ten a
+        // two-level response promised does not.
+        let invite = match fit {
+            Some(major) => Call::suit_bid(3, major),
+            None => Call::nt(2),
+        };
+        let room_to_invite = invite.rank() > rebid.rank();
+
+        if room_to_invite {
+            if fit.is_some() {
+                return dec(
+                    "resp2.suit.invite",
+                    invite,
+                    "Invite in the major",
+                    "Enough to invite, with a fit. Partner bids the game holding the top of a \
+                     minimum rebid.",
+                );
+            }
+            // Four-card support for a second suit partner has just shown is
+            // worth naming — but only while it stays below 3NT. Raising a
+            // three-level minor to four walks past the game everyone wants
+            // and leaves partner nothing legal to accept with.
+            if let Some(suit) = rebid_suit {
+                let level = rebid.rank().map_or(7, |(l, _)| l);
+                if hand.len_of(suit) >= 4 && Some(suit) != opened && level < 2 {
+                    return dec(
+                        "resp2.raise-second",
+                        Call::suit_bid(level + 1, suit),
+                        "Raise partner's second suit",
+                        "Four-card support for the suit partner has just shown, and enough to \
+                         want one more level. This names the fit while there is still room.",
+                    );
+                }
+            }
             return dec(
-                "resp2.suit.invite",
-                Call::suit_bid(3, major),
-                "Invite in the major",
-                "Enough to invite, with a fit. Partner bids the game holding the top of a \
-                 minimum rebid.",
+                "resp2.suit.2nt",
+                Call::nt(2),
+                "Invite in notrump",
+                "Invitational values with no fit to raise. Notrump asks partner to bid game with \
+                 the top of a minimum.",
             );
         }
-        if let Some(suit) = rebid_suit {
-            if hand.len_of(suit) >= 4 && Some(suit) != opened {
+
+        if hcp >= 11 {
+            if let Some(major) = fit {
                 return dec(
-                    "resp2.raise-second",
-                    Call::suit_bid(rebid_level + 1, suit),
-                    "Raise partner's second suit",
-                    "Four-card support for the suit partner has just shown, and enough to want \
-                     one more level. This names the fit while there is still room.",
+                    "resp2.suit.accept-raise",
+                    Call::suit_bid(4, major),
+                    "Bid the major game",
+                    "Partner's raise showed a minimum with support, and there is no room left \
+                     below game to ask. You hold more than the ten your response promised, so \
+                     take the game rather than stop one short of it.",
+                );
+            }
+            if Call::nt(3).rank() > rebid.rank() {
+                return dec(
+                    "resp2.suit.raise-2nt",
+                    Call::nt(3),
+                    "Bid 3NT",
+                    "Partner's rebid showed a balanced minimum — 12 to 15 — and there is no room \
+                     to invite below game. Your two-level response promised ten and you hold \
+                     more, so the pair has the values for the notrump game.",
+                );
+            }
+            if let Some(suit) = rebid_suit {
+                return dec(
+                    "resp2.suit.minor-game",
+                    Call::suit_bid(5, suit),
+                    "Bid game in the minor",
+                    "Partner's suit has already run past 3NT, so five of the minor is the only \
+                     game left. With more than the ten you promised, bid it.",
                 );
             }
         }
         return dec(
-            "resp2.suit.2nt",
-            Call::nt(2).cheapest_above_or_pass(rebid),
-            "Invite in notrump",
-            "Invitational values with no fit to raise. Notrump asks partner to bid game with \
-             the top of a minimum.",
+            "resp2.suit.pass-limit",
+            Call::Pass,
+            "Pass",
+            "You already showed these values with your first response, and partner answered \
+             with a minimum. There is no invitation left to make below game, and game needs \
+             more than the pair holds — pass.",
         );
     }
 
@@ -2402,28 +2616,14 @@ fn after_suit_sequence(hand: &Hand, open: Call, response: Call, rebid: Call) -> 
 
 /// Opener answering responder's second call. Responder has limited their hand
 /// twice now, so this is accept-or-decline and nothing more.
-fn answer_invitation(hand: &Hand, mine: Call, theirs: Call) -> Decision {
-    let pts = hand.opening_points();
-    // If our own last call already showed the extras — a jump — then accepting
-    // now would be bidding the same values twice.
-    let already_showed_extras = matches!(
-        (mine.rank(), theirs.rank()),
-        (Some((m, _)), Some((t, _))) if m > t
-    );
-    let their_level = theirs.rank().map_or(0, |(l, _)| l);
-    let their_suit = match theirs {
-        Call::Bid { strain, .. } => strain.suit(),
-        _ => None,
-    };
-    let is_game = match theirs {
-        Call::Bid { level, strain } => match strain {
-            Strain::NoTrump => level >= 3,
-            Strain::Hearts | Strain::Spades => level >= 4,
-            _ => level >= 5,
-        },
-        _ => false,
-    };
-    if is_game {
+fn answer_invitation(
+    hand: &Hand,
+    open: Call,
+    response: Call,
+    rebid: Call,
+    answer: Call,
+) -> Decision {
+    if is_game(answer) {
         return dec(
             "resp3.pass-game",
             Call::Pass,
@@ -2432,33 +2632,82 @@ fn answer_invitation(hand: &Hand, mine: Call, theirs: Call) -> Decision {
         );
     }
 
-    // An invitation. Accept only at the top of what you already promised.
-    if their_level >= 2 && pts >= 15 && !already_showed_extras {
-        if let Some(suit) = their_suit {
-            if matches!(suit, Suit::Heart | Suit::Spade) && hand.len_of(suit) >= 3 {
-                return dec(
-                    "resp3.accept.major",
-                    Call::suit_bid(4, suit),
-                    "Accept: bid the major game",
-                    "Partner invited and you are at the top of your range with a fit. Take the \
-                     game.",
-                );
-            }
-        }
+    // Our own jump already showed the extras, so accepting now would be
+    // bidding the same values twice.
+    if is_jump(response, rebid) {
         return dec(
-            "resp3.accept.3nt",
-            Call::nt(3),
-            "Accept: bid 3NT",
-            "Partner invited and you hold the top of the range you promised. With no major fit, \
-             take the notrump game.",
+            "resp3.decline-jumped",
+            Call::Pass,
+            "Decline — you already showed the extras",
+            "Your jump rebid was itself the strong bid; partner invited knowing it. A hand may \
+             only be bid once, so pass and play it here.",
         );
     }
+
+    // What "the top of my range" means depends entirely on what the opening
+    // promised. 15 is the BOTTOM of a 1NT and the TOP of a minimum suit
+    // rebid; a single threshold for both accepted every 15-count 1NT
+    // invitation, which is exactly the auction the written 16+ rule forbids.
+    let (strength, accept_from) = match open {
+        Call::Bid {
+            level: 1,
+            strain: Strain::NoTrump,
+        } => (hand.hcp(), 16),
+        Call::Bid {
+            level: 2,
+            strain: Strain::NoTrump,
+        } => (hand.hcp(), 21),
+        _ => (hand.opening_points(), 14),
+    };
+
+    if strength < accept_from {
+        return dec(
+            "resp3.decline",
+            Call::Pass,
+            "Decline the invitation",
+            "Partner invited and you are minimum for the calls you have already made. Pass and \
+             play the partscore.",
+        );
+    }
+
+    // Accepting. Prefer the major whenever the pair is known to hold eight.
+    let answer_major = match answer {
+        Call::Bid { strain, .. } => strain
+            .suit()
+            .filter(|s| matches!(s, Suit::Heart | Suit::Spade)),
+        _ => None,
+    };
+    if let Some(major) = transfer_major(open, response, rebid) {
+        // Partner raised the transferred major, which promises six: two is
+        // already eight. A 2NT invitation instead showed exactly five, so it
+        // takes three of them to make the fit.
+        let need = if answer_major == Some(major) { 2 } else { 3 };
+        if hand.len_of(major) >= need {
+            return dec(
+                "resp3.accept.major",
+                Call::suit_bid(4, major),
+                "Accept: bid the major game",
+                "Partner invited and you hold the top of your range, with enough of the major \
+                 they showed to make an eight-card fit. Take the game in the major.",
+            );
+        }
+    } else if let Some(major) = answer_major {
+        if hand.len_of(major) >= 3 {
+            return dec(
+                "resp3.accept.major",
+                Call::suit_bid(4, major),
+                "Accept: bid the major game",
+                "Partner invited and you hold the top of your range, with enough of the major \
+                 they showed to make an eight-card fit. Take the game in the major.",
+            );
+        }
+    }
     dec(
-        "resp3.decline",
-        Call::Pass,
-        "Decline the invitation",
-        "Partner invited and you are minimum for the calls you have already made — or you \
-         already showed the extras with a jump, and a hand may only be bid once.",
+        "resp3.accept.3nt",
+        Call::nt(3),
+        "Accept: bid 3NT",
+        "Partner invited and you hold the top of the range you promised. With no major fit, \
+         take the notrump game.",
     )
 }
 
@@ -2549,6 +2798,195 @@ mod tests {
     fn hand(codes: &[&str]) -> Hand {
         let cards: Vec<Card> = codes.iter().map(|s| Card::parse_app(s).unwrap()).collect();
         Hand::try_from_slice(&cards).unwrap()
+    }
+
+    /// The four calls of an uncontested sequence, dealer North, with the
+    /// opponents passing throughout — the shape every responder-rebid case
+    /// below needs.
+    fn seq(calls: &[Call]) -> Auction {
+        let mut out = Vec::new();
+        for c in calls {
+            out.push(*c);
+            out.push(Call::Pass);
+        }
+        Auction {
+            dealer: Seat::North,
+            calls: out,
+        }
+    }
+
+    /// Completing a transfer promises two cards, not three. Five plus two is
+    /// seven, so with exactly five the fit is NOT known and the hand belongs
+    /// in notrump until opener says otherwise; six makes it eight and the
+    /// major is right. The tree used to treat every completed transfer as a
+    /// known fit and bid 3♥/4♥ on both.
+    #[test]
+    fn a_five_card_transfer_suit_is_not_yet_a_fit() {
+        let after = seq(&[
+            Call::nt(1),
+            Call::suit_bid(2, Suit::Diamond),
+            Call::suit_bid(2, Suit::Heart),
+        ]);
+        assert_eq!(after.next_seat(), Seat::South);
+
+        // Exactly five hearts, 10 HCP: game values, but 3NT — not 4♥.
+        let five_game = hand(&[
+            "SA", "S3", "S2", "HK", "HJ", "H9", "H3", "H2", "DQ", "D5", "D4", "C3", "C2",
+        ]);
+        assert_eq!(five_game.hcp(), 10);
+        assert_eq!(five_game.len_of(Suit::Heart), 5);
+        let d = decide(&five_game, &after);
+        assert_eq!(d.bid, Call::nt(3), "{}", d.leaf_id);
+
+        // Exactly five, 8 HCP: invitational, but 2NT — not 3♥.
+        let five_invite = hand(&[
+            "SA", "S3", "S2", "HK", "HJ", "H9", "H3", "H2", "D5", "D4", "D3", "C3", "C2",
+        ]);
+        assert_eq!(five_invite.hcp(), 8);
+        let d = decide(&five_invite, &after);
+        assert_eq!(d.bid, Call::nt(2), "{}", d.leaf_id);
+
+        // Six hearts, 10 HCP: now the fit is certain, so bid the major game.
+        let six = hand(&[
+            "SA", "S3", "HK", "HJ", "H9", "H5", "H3", "H2", "DQ", "D5", "D4", "C3", "C2",
+        ]);
+        assert_eq!(six.hcp(), 10);
+        assert_eq!(six.len_of(Suit::Heart), 6);
+        let d = decide(&six, &after);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Heart), "{}", d.leaf_id);
+    }
+
+    /// A jump is a SKIPPED level, not merely a higher one. 1♥–1♠–2♥ is the
+    /// cheapest rebid there is and promises nothing extra; reading "higher
+    /// than the response" as a jump made every minimum rebid an invitation
+    /// and sent nine-counts to 3NT opposite a 12-count.
+    #[test]
+    fn a_cheapest_rebid_is_not_an_invitation() {
+        let after = seq(&[
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+            Call::suit_bid(2, Suit::Heart),
+        ]);
+        let h = hand(&[
+            "SK", "SQ", "S5", "S4", "H8", "H3", "DJ", "D9", "D6", "D2", "CK", "C7", "C3",
+        ]);
+        assert_eq!(h.hcp(), 9);
+        let d = decide(&h, &after);
+        assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
+
+        // ...while the real jump still invites, and 18-19 opposite eight is
+        // twenty-six, so eight is enough to accept a jump into notrump.
+        let after_jump = seq(&[
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::nt(2),
+        ]);
+        let eight = hand(&[
+            "SK", "S5", "S4", "HQ", "H3", "H2", "DQ", "DJ", "D9", "D6", "C7", "C6", "C3",
+        ]);
+        assert_eq!(eight.hcp(), 8);
+        let d = decide(&eight, &after_jump);
+        assert_eq!(d.bid, Call::nt(3), "{}", d.leaf_id);
+    }
+
+    /// Three-card support is enough only for the suit partner OPENED, which
+    /// promised five. A second suit shown on the rebid is four, so raising it
+    /// needs four: 1♣–1♦–1♥ reached 4♥ on three hearts — a seven-card "fit",
+    /// and the 1♦ response had already denied the fourth heart.
+    #[test]
+    fn a_second_suit_needs_four_card_support_not_three() {
+        let after = seq(&[
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+        ]);
+        let three = hand(&[
+            "SA", "S5", "HK", "H5", "H4", "DK", "DQ", "D9", "D8", "CJ", "C4", "C3", "C2",
+        ]);
+        assert_eq!(three.hcp(), 13);
+        assert_eq!(three.len_of(Suit::Heart), 3);
+        let d = decide(&three, &after);
+        assert_eq!(d.bid, Call::nt(3), "{}", d.leaf_id);
+
+        // Four of them is a real eight-card fit, so the major game is right.
+        let four = hand(&[
+            "SA", "HK", "H5", "H4", "H3", "DK", "DQ", "D9", "D8", "CJ", "C4", "C3", "C2",
+        ]);
+        assert_eq!(four.len_of(Suit::Heart), 4);
+        let d = decide(&four, &after);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Heart), "{}", d.leaf_id);
+    }
+
+    /// Accepting depends on what the OPENING promised: 15 is the bottom of a
+    /// 1NT and the top of a minimum suit rebid. One `opening_points() >= 15`
+    /// threshold for both accepted every 15-count 1NT invitation, which is
+    /// exactly what the written 16+ rule forbids.
+    #[test]
+    fn a_fifteen_count_one_notrump_declines_the_invitation() {
+        let after = seq(&[
+            Call::nt(1),
+            Call::suit_bid(2, Suit::Diamond),
+            Call::suit_bid(2, Suit::Heart),
+            Call::suit_bid(3, Suit::Heart),
+        ]);
+        assert_eq!(after.next_seat(), Seat::North);
+
+        let minimum = hand(&[
+            "SK", "SQ", "S4", "HA", "H3", "H2", "DK", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        assert_eq!(minimum.hcp(), 15);
+        let d = decide_for(&minimum, &after, Seat::North);
+        assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
+
+        let maximum = hand(&[
+            "SK", "SQ", "S4", "HA", "HQ", "H2", "DK", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        assert_eq!(maximum.hcp(), 17);
+        let d = decide_for(&maximum, &after, Seat::North);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Heart), "{}", d.leaf_id);
+    }
+
+    /// 2♣ forces to game, and game is not "level four": 2♣–3♦–4♣ used to be
+    /// passed out in a four-club partscore because every four-level contract
+    /// counted as game.
+    #[test]
+    fn a_four_level_minor_is_not_game_after_two_clubs() {
+        let after = seq(&[
+            Call::suit_bid(2, Suit::Club),
+            Call::suit_bid(3, Suit::Diamond),
+            Call::suit_bid(4, Suit::Club),
+        ]);
+        let h = hand(&[
+            "SK", "S3", "S2", "H5", "H4", "DA", "DQ", "D9", "D3", "D2", "C8", "C7", "C6",
+        ]);
+        let d = decide(&h, &after);
+        assert_eq!(d.bid, Call::suit_bid(5, Suit::Club), "{}", d.leaf_id);
+    }
+
+    /// When partner's minimum rebid has already reached 2NT there is no
+    /// invitation left to make. The old code bid 3NT anyway, forcing game on
+    /// the bare ten a two-level response promises opposite a hand that had
+    /// just said it held 12-15 — about twenty-two points.
+    #[test]
+    fn there_is_no_invitation_left_over_a_two_notrump_rebid() {
+        let after = seq(&[
+            Call::suit_bid(1, Suit::Spade),
+            Call::suit_bid(2, Suit::Diamond),
+            Call::nt(2),
+        ]);
+        let ten = hand(&[
+            "S4", "S3", "HJ", "H6", "H5", "DA", "DQ", "D9", "D3", "D2", "CK", "C5", "C4",
+        ]);
+        assert_eq!(ten.hcp(), 10);
+        let d = decide(&ten, &after);
+        assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
+
+        let eleven = hand(&[
+            "S4", "S3", "HQ", "H6", "H5", "DA", "DQ", "D9", "D3", "D2", "CK", "C5", "C4",
+        ]);
+        assert_eq!(eleven.hcp(), 11);
+        let d = decide(&eleven, &after);
+        assert_eq!(d.bid, Call::nt(3), "{}", d.leaf_id);
     }
 
     /// Opener may only fall back on a blanket pass where a pass is right in
