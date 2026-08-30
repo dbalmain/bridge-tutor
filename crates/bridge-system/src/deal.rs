@@ -301,16 +301,18 @@ pub fn uncontested_script(deal: &Deal, dealer: Seat) -> Vec<ScriptCall> {
                 leaf_id: d.leaf_id,
                 title: d.title,
                 explanation: d.explanation,
-                // Every decision the tree makes is registered, drillable or
-                // not, so the learner places their own second call and the
-                // answer to an invitation. Before the registry existed this
-                // read `leaf_by_id(...).is_some()` against the curated drill
-                // catalogue alone, and silently auto-played everything the
-                // course had no exercise for. `unsupported` is the one
-                // exclusion: it is the tree saying it has nothing to say.
+                // Only a call some lesson has TAUGHT. Registration is not
+                // the same property: cc3f5db briefly used it here, which
+                // asked the learner to place responder's second call before
+                // any lesson covered the five-versus-six continuations. Every
+                // drillable leaf is taught — `every_catalogue_leaf_is_taught_
+                // by_a_lesson` enforces that — so drillability is the right
+                // test until a lesson exists for the deeper calls.
+                //
+                // The rest of the auction still plays out and is still shown;
+                // it is graded participation that is withheld, not the calls.
                 student: seat == Seat::South
-                    && d.leaf_id != "unsupported"
-                    && leaf_by_id(d.leaf_id).is_some(),
+                    && leaf_by_id(d.leaf_id).is_some_and(|l| l.drillable()),
             }
         } else {
             ScriptCall {

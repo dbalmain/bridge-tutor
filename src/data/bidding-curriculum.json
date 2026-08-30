@@ -440,7 +440,7 @@
         {
           "lessonId": "bid-resp-1nt-xfer",
           "lessonNumber": 8,
-          "what": "the transfer, which takes priority whenever you hold six of a major"
+          "what": "the transfer, which takes priority whenever you hold five or more of a major"
         },
         {
           "lessonId": "bid-resp-1nt-nt",
@@ -675,7 +675,7 @@
         "1♣–1♦ = 4+ diamonds, 6+ HCP, and no 4-card major.",
         "1♦–2♣ = 6+ clubs and 10+ HCP (two-level price, Lesson 11).",
         "Raise a minor only with real length: 5+ clubs over 1♣, 4+ diamonds over 1♦.",
-        "6–9 nothing else: 1NT. 0–5: Pass. 10–12 balanced: 2NT. 13+: prefer 3NT to 5m."
+        "6–9 nothing else: 1NT. 0–5: Pass. 10–12 balanced: 2NT. 13+ with a fit: balanced 3NT, unbalanced 16+ 5m, 13–15 unbalanced jump to 3m and invite."
       ],
       "leaves": [
         "resp.1c.1d",

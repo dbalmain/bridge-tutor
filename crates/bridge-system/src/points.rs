@@ -48,6 +48,15 @@ pub fn point_basis(leaf_id: &str) -> PointBasis {
     }
     // Everything responder does that is not a raise, every continuation, and
     // the notrump machinery opener runs, is judged on high cards.
+    //
+    // One known imprecision, stated rather than hidden: the `resp2.suit.*`
+    // and `resp2.accept.*` continuations switch to HCP + shortage once a fit
+    // is named, so "hcp" understates them. The id cannot say which suit the
+    // fit is in, and the count is useless to the display without it. It costs
+    // nothing today because this value is only emitted for DRILLABLE leaves
+    // and no `resp2.*`/`resp3.*` decision is drillable — the assertion in
+    // `the_point_basis_matches_what_the_handler_reads` holds that true. The
+    // fix, when a lesson drills those calls, is ids that name the suit.
     if leaf_id.starts_with("resp.")
         || leaf_id.starts_with("resp2.")
         || leaf_id.starts_with("resp3.")
@@ -112,6 +121,20 @@ mod tests {
                 assert!(
                     spec.id.contains(&names_it),
                     "{} claims a {trump:?} fit but does not name that suit",
+                    spec.id
+                );
+            }
+        }
+
+        // No continuation is drillable, which is what keeps the known
+        // `resp2.*` imprecision above from reaching a learner. If this ever
+        // fails, those ids need to name their trump suit before the lesson
+        // ships.
+        for spec in crate::leaves::catalog() {
+            if spec.id.starts_with("resp2.") || spec.id.starts_with("resp3.") {
+                assert!(
+                    !spec.drillable(),
+                    "{} is drillable, so its point basis is now shown to a learner",
                     spec.id
                 );
             }

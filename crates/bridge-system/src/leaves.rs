@@ -1793,6 +1793,31 @@ fn build() -> Vec<LeafSpec> {
         Family::RespMinor,
         "Limit raise of the minor",
     ));
+    v.push(undrilled(
+        "resp2.forced.2nt",
+        Family::Continue,
+        "Bid 2NT — you may not pass",
+    ));
+    v.push(undrilled(
+        "resp2.forced.raise",
+        Family::Continue,
+        "Raise partner's second suit",
+    ));
+    v.push(undrilled(
+        "resp2.stayman.own-major",
+        Family::Continue,
+        "Show your five-card major",
+    ));
+    v.push(undrilled(
+        "resp2.xfer.other-major",
+        Family::Continue,
+        "Show the second major",
+    ));
+    v.push(undrilled(
+        "resp3.convert.major",
+        Family::Continue,
+        "Convert to the major game",
+    ));
     v
 }
 
