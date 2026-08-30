@@ -44,15 +44,25 @@ Responding to 1NT (Stayman + Jacoby transfers)
 Responding to one of a suit
 • Over 1♥/1♠, fit first: 3+ support uses limit raises
   on HCP + shortage (doubleton +1, singleton +3, void +5):
-  0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game (major)
-  or 3NT (minor, balanced 13–15) / game in the minor (rare — we bid 3NT
-  with 13+ and a minor fit if balanced, else 5m only with 16+ shapely).
+  0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game in the major.
+• With a MINOR fit and 13+ points the shape decides, because a short suit
+  is tricks in a suit contract and a hole in notrump:
+  - balanced, 13+ HCP: 3NT. Nine tricks beat eleven.
+  - unbalanced, 16+ HCP: 5♣/5♦. Enough for eleven tricks.
+  - anything else (13–15 unbalanced, or 13+ points where the extra came
+    from shortage rather than honours): jump to 3m and invite. Partner may
+    hold the stopper this hand is missing.
 • Over 1♣/1♦ a four-card major of your own comes BEFORE raising the minor:
   partner's minor may be three or four cards, and a major game is a trick
   cheaper. Minor support (5+ for 1♣, 4+ for 1♦) is reached only with no
   four-card major, and then raises on the same HCP + shortage ladder.
 • Without a fit: majors first (4+), cheaper of 4-4 majors. New suit at the
   one-level = 6+; at the two-level = 10+ (5+ for a new major).
+• 1♦ – 2♣ is that two-level new suit: 10+ points and a real suit rather
+  than a flat hand with four small ones, so the test is shape, not length. With
+  no four-card major and no diamond fit that MEANS six clubs — four or
+  five can only be 4-3-3-3 or 5-3-3-2. A balanced hand of the same
+  strength invites in notrump instead.
 • 6–9, no fit, no 4-card major at the one-level: 1NT.
 
 Opener rebids
@@ -1012,7 +1022,13 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
         // Notrump is judged on HCP, not support points. Shortage is worth
         // tricks in a suit contract and nothing in notrump, so counting it
         // here put a 9-count with a singleton into 3NT.
-        if hcp >= 13 {
+        //
+        // Balance matters just as much, and the tree used to ignore it:
+        // 13+ HCP went to 3NT on any shape, so a singleton with no stopper
+        // opposite an opening bid played nine tricks in notrump. HOUSE_RULES
+        // always said balanced 13-15 for 3NT and shapely 16+ for five of the
+        // minor; the second of those was written down and never implemented.
+        if hcp >= 13 && hand.is_balanced() {
             let id = if minor == Suit::Club {
                 "resp.1c.3nt"
             } else {
@@ -1022,24 +1038,41 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
                 id,
                 Call::nt(3),
                 "3NT over a minor",
-                "13+ HCP with a minor fit and no four-card major. Nine tricks in notrump beat \
-                 eleven in a minor, so prefer 3NT — and count HCP for it, because a singleton \
-                 wins tricks with trumps, not in notrump.",
+                "13+ HCP, balanced, with a minor fit and no four-card major. Nine tricks in \
+                 notrump beat eleven in a minor, so prefer 3NT — and count HCP for it, because \
+                 a singleton wins tricks with trumps, not in notrump.",
             );
         }
-        // 13+ support points but under 13 HCP: the extra came from shortage,
-        // which is why the limit raise and not the notrump game.
+        if hcp >= 16 {
+            let id = if minor == Suit::Club {
+                "resp.1c.game"
+            } else {
+                "resp.1d.game"
+            };
+            return dec(
+                id,
+                Call::suit_bid(5, minor),
+                "Bid game in the minor",
+                "16+ HCP with a fit and a shape that will not play in notrump — a short suit \
+                 the opponents can run. Eleven tricks is a lot, but this hand has the values \
+                 and the trumps for them.",
+            );
+        }
+        // 13+ points but not the shape or the high cards for 3NT: either the
+        // extra came from shortage rather than honours, or the hand is shapely
+        // and short of the 16 that five of a minor needs. Both invite.
         let id = if minor == Suit::Club {
-            "resp.1c.raise3"
+            "resp.1c.raise3.invite"
         } else {
-            "resp.1d.raise3"
+            "resp.1d.raise3.invite"
         };
         return dec(
             id,
             Call::suit_bid(3, minor),
             "Limit raise of the minor",
-            "A fit and 13+ support points, but the extra points are shortage rather than high \
-             cards, so this is not a notrump hand. Invite in the minor and let partner judge.",
+            "A fit and 13+ points, but not a notrump hand: either the extra points are \
+             shortage rather than high cards, or the shape has a suit nobody can stop. Invite \
+             in the minor and let partner, who may hold the stopper, choose the game.",
         );
     }
 
@@ -1056,11 +1089,15 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
             "6–9 HCP, no 4-card major, no raise. Non-forcing.",
         );
     }
-    // Over 1♦, clubs at the two level is a new suit: 10+ HCP and four or more
-    // cards, the same rule as any two-level shift — but a real suit, not a
-    // flat hand with four small ones. A balanced hand takes the notrump
-    // ladder below, which is what an invitational 4-3-3-3 belongs in. Over
-    // 1♣ the suit is partner's, so a long club hand raises instead.
+    // Over 1♦, clubs at the two level is a new suit: the rule is 10+ points
+    // and a real suit rather than a flat hand with four small ones, so the
+    // test is "unbalanced" and not a card count. That turns out to MEAN six
+    // clubs: with no four-card major and no diamond fit, four or five clubs
+    // can only be 4-3-3-3 or 5-3-3-2, both balanced. The fuzz proof is in
+    // `a_shapely_club_suit_over_one_diamond_shifts_to_two_clubs`. A balanced
+    // hand of the same strength takes the notrump ladder, which is where an
+    // invitational 4-3-3-3 belongs. Over 1♣ the suit is partner's, so a long
+    // club hand raises instead.
     if minor == Suit::Diamond && clubs >= 4 && hcp >= 10 && !hand.is_balanced() {
         return dec(
             "resp.1d.2c",
@@ -3024,8 +3061,12 @@ mod tests {
                 j += if bytes[j] == b'\\' { 2 } else { 1 };
             }
             let lit = &production[start..j.min(production.len())];
+            // A prefix like "resp." is not an id: `point_basis` matches on
+            // those, and they are production code inside the scanned region.
             let looks_like_an_id = lit == "unsupported"
                 || (lit.contains('.')
+                    && !lit.starts_with('.')
+                    && !lit.ends_with('.')
                     && !lit.contains(' ')
                     && lit
                         .chars()
@@ -3077,7 +3118,15 @@ mod tests {
     /// to pass.
     #[test]
     fn opener_only_passes_by_default_when_game_is_reached() {
-        const KNOWN: &[&str] = &["1C – 3NT", "1D – 3NT", "1NT – 3NT", "1H – 4H", "1S – 4S"];
+        const KNOWN: &[&str] = &[
+            "1C – 3NT",
+            "1D – 3NT",
+            "1NT – 3NT",
+            "1H – 4H",
+            "1S – 4S",
+            "1C – 5C",
+            "1D – 5D",
+        ];
         let (found, _) = rebid_survey();
         let known: std::collections::BTreeSet<String> =
             KNOWN.iter().map(|s| s.to_string()).collect();
@@ -3362,8 +3411,13 @@ mod tests {
         assert!(!h.is_balanced(), "2-3-1-7 — this is the case that broke");
 
         let d = respond(&h, Call::suit_bid(1, Suit::Club));
-        assert_eq!(d.bid, Call::nt(3), "14 HCP must not pass partner's opening");
-        assert_eq!(d.leaf_id, "resp.1c.3nt");
+        assert_ne!(d.bid, Call::Pass, "14 HCP must not pass partner's opening");
+        // 3NT was the first fix and it was too blunt: a singleton diamond has
+        // no stopper, and the pair can be missing the suit entirely. The
+        // limit raise invites and lets opener, who may hold the stopper,
+        // choose the game.
+        assert_eq!(d.bid, Call::suit_bid(3, Suit::Club));
+        assert_eq!(d.leaf_id, "resp.1c.raise3.invite");
     }
 
     /// Shortage points are tricks in a suit contract and nothing in notrump.
@@ -3385,16 +3439,27 @@ mod tests {
 
         let d = respond(&h, Call::suit_bid(1, Suit::Club));
         assert_ne!(d.bid, Call::nt(3), "9 HCP is not a notrump game");
-        assert_eq!(d.leaf_id, "resp.1c.raise3");
+        assert_eq!(d.leaf_id, "resp.1c.raise3.invite");
 
-        // The same shape with real high cards still belongs in 3NT.
+        // The same shape with real high cards is still not a notrump hand —
+        // the singleton diamond is the reason, not the point count — but 16+
+        // is enough to bid the eleven-trick game in the minor.
         let strong = hand(&[
-            "SK", "S9", "HA", "H8", "H3", "D2", "CA", "CK", "CQ", "C6", "C5", "C4", "C3",
+            "SK", "S9", "HA", "HQ", "H3", "D2", "CA", "CJ", "CT", "C6", "C5", "C4", "C3",
         ]);
-        assert!(strong.hcp() >= 13);
+        assert!((13..16).contains(&strong.hcp()));
         assert_eq!(
             respond(&strong, Call::suit_bid(1, Suit::Club)).leaf_id,
-            "resp.1c.3nt"
+            "resp.1c.raise3.invite"
+        );
+        let huge = hand(&[
+            "SK", "SQ", "HA", "H8", "H3", "D2", "CA", "CK", "CQ", "CJ", "C5", "C4", "C3",
+        ]);
+        assert!(huge.hcp() >= 16);
+        assert!(!huge.is_balanced());
+        assert_eq!(
+            respond(&huge, Call::suit_bid(1, Suit::Club)).bid,
+            Call::suit_bid(5, Suit::Club)
         );
     }
 

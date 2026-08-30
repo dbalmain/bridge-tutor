@@ -29,6 +29,10 @@ export interface Drill {
   south_hcp: number;
   south_opening_points?: number;
   south_shape: string;
+  /** Which count this decision is made from, straight from the tree. */
+  point_basis?: "opening" | "hcp" | "support";
+  /** Trump suit for a "support" count, as C/D/H/S. */
+  point_trump?: string | null;
   attempts: number;
   error?: string;
 }

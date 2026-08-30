@@ -76,7 +76,7 @@
         "Majors first (4+ cards, 6+ HCP), cheaper of 4–4 majors.",
         "1♣–1♦ = 4+ diamonds, 6+ HCP, no 4-card major.",
         "1♦–2♣ = 6+ clubs and 10+ HCP — a two-level new suit.",
-        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds. Prefer 3NT to five of a minor.",
+        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds. Balanced and 13+? 3NT, not five of a minor.",
         "6–9 balanced, no major: 1NT. 0–5: Pass."
       ]
     },
@@ -407,7 +407,7 @@
       ],
       "teaching": [
         "The shape Lesson 7 set aside: five or more cards in a major. Partner's 1NT promised a balanced hand (Lesson 4), so they hold at least two of your suit — that is a seven-card fit at worst and usually eight — and the cheaper major game from Lesson 1 is the contract you want.",
-        "So you do not bid your suit; you make partner bid it. With six or more hearts, bid 2♦ and partner must bid 2♥. With six or more spades, bid 2♥ and partner must bid 2♠. The bid is artificial — 2♦ says nothing about diamonds. Its whole purpose is to make the 1NT hand declarer, so their high cards sit behind the opening lead instead of in front of it.",
+        "So you do not bid your suit; you make partner bid it. With five or more hearts, bid 2♦ and partner must bid 2♥. With five or more spades, bid 2♥ and partner must bid 2♠. The bid is artificial — 2♦ says nothing about diamonds. Its whole purpose is to make the 1NT hand declarer, so their high cards sit behind the opening lead instead of in front of it.",
         "The transfer says nothing about strength either. Weak, invitational and game-going hands all start with the same bid, and you describe how strong you are on the next round. That is why one bid covers so many hands.",
         "5–5 in the majors: transfer to spades with 2♥ — the higher-ranking major, per Lesson 1's suit order — and you can still show hearts afterwards. 5–4 is not a transfer; that is Lesson 9's Stayman, because transferring would bury the four-card suit.",
         "Partner has no choice about completing: 2♦ is always answered 2♥, and 2♥ always 2♠. Lesson 17 puts you in that chair."
@@ -456,7 +456,7 @@
       "teaching": [
         "Two cases are settled. No major at all: Lesson 7's ladder — Pass, 2NT or 3NT. Five or more of a major: Lesson 8's transfer. This lesson is the gap between them — a four-card major, or five-four in the majors, which is not enough to claim the fit on your own.",
         "With four cards you cannot know there is a fit: partner's balanced hand might hold two. So you ask. Stayman — 2♣ — is artificial like the transfer and shows no clubs; it asks whether partner holds a four-card major, so the pair can find the 4–4 or 5–3 fit and play the cheaper major game. Use it with 8+ HCP and at least one four-card major.",
-        "5–4 in the majors with 8+ is Stayman, not Lesson 8's transfer. Five is not six, and transferring would bury the four-card suit — you want to hear about both majors, not just one.",
+        "5–4 in the majors with 8+ is Stayman, not Lesson 8's transfer. Both suits are worth hearing about, and transferring would bury the four-card one — you want to find either fit, not just the longer suit.",
         "Partner's answer, so you can read it when it comes: 2♥ with four hearts (even holding four spades too), 2♠ with four spades and no four hearts, 2♦ with neither. Hearts come first so the answer is never ambiguous. Lesson 17 puts you in the opener's chair for those.",
         "Below 8 HCP, do not use Stayman as an escape from 1NT even with 4–4 majors — garbage Stayman is off in this tree. Those hands pass, as in Lesson 7."
       ],
@@ -666,9 +666,9 @@
       ],
       "teaching": [
         "No four-card major, so Lesson 13's answer is unavailable. Over 1♣ the cheapest useful call is 1♦, which shows four or more diamonds and 6+ HCP, and denies a four-card major — partner learns two things for one bid.",
-        "Over 1♦ that reply does not exist, because diamonds is partner's suit. The suit you might have instead is clubs, and clubs is a level higher: 2♣. That is a two-level new suit, so it costs 10+ HCP exactly as in Lesson 11, and it wants six or more clubs. With five clubs your hand is flat enough for notrump; with six it is worth the extra level.",
+        "Over 1♦ that reply does not exist, because diamonds is partner's suit. The suit you might have instead is clubs, and clubs is a level higher: 2♣. That is a two-level new suit, so it costs 10+ HCP exactly as in Lesson 11, and it wants a real suit rather than four small ones — which here means six. Work it out: you have no four-card major and no diamond fit, so the majors hold three at most and so do the diamonds. Four or five clubs would leave you 4-3-3-3 or 5-3-3-2, and both of those are flat hands that belong in notrump. Only six clubs makes the shape worth the extra level.",
         "Raising the minor needs real length — five clubs to raise 1♣, four diamonds to raise 1♦ — and even then it is a part-score bid, because eleven tricks is a long way. Do not chase five of a minor when notrump will do.",
-        "The floor is the same as Lesson 12: 6–9 with no major, no raise and nothing at the two-level responds 1NT, and 0–5 passes. With 10–12 balanced, invite with 2NT; with 13+ and a fit or a stopper-rich hand, 3NT is the game to aim at rather than 5♣ or 5♦."
+        "The floor is the same as Lesson 12: 6–9 with no major, no raise and nothing at the two-level responds 1NT, and 0–5 passes. With 10–12 balanced, invite with 2NT. With 13+ and a minor fit the shape decides: balanced, bid 3NT, because nine tricks in notrump are far cheaper than eleven in a minor. Unbalanced, you have a short suit the opponents can run, so 13–15 jumps to three of the minor and invites — partner may hold the stopper you are missing — and only 16+ is worth bidding the eleven-trick game at 5♣ or 5♦."
       ],
       "rules": [
         "No 4-card major (Lesson 13) → work down this list.",

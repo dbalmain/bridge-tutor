@@ -326,7 +326,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
             />
             {showPoints &&
               (() => {
-                const ctx = pointContextFor(drill.family, drill.leaf_id);
+                const ctx = pointContextFor(drill.point_basis, drill.point_trump, drill.family);
                 return (
                   <PointsBreakdown
                     cards={drill.hands.S}

@@ -64,6 +64,12 @@ struct DrillJson {
     south_hcp: u8,
     south_opening_points: u8,
     south_shape: String,
+    /// Which count this decision is actually made from: "opening", "hcp" or
+    /// "support". The hand breakdown renders it, and the frontend used to
+    /// infer it from the leaf id's spelling.
+    point_basis: &'static str,
+    /// The trump suit for a "support" count, as C/D/H/S.
+    point_trump: Option<String>,
     attempts: u32,
 }
 
@@ -163,6 +169,7 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
     match generate_for_id(&mut rng, id) {
         Ok((deal, attempts)) => {
             let (spec, drill) = drill_by_id(id).expect("generate_for_id succeeded");
+            let basis = crate::points::point_basis(spec.id);
             let auction = auction_for(drill);
             let d = decide(&deal.south, &auction);
             let script = uncontested_script(&deal, drill.dealer)
@@ -184,6 +191,8 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
                 south_hcp: deal.south.hcp(),
                 south_opening_points: deal.south.opening_points(),
                 south_shape: shape_str(deal.south),
+                point_basis: basis.slug(),
+                point_trump: basis.trump().map(|s| s.letter().to_string()),
                 attempts,
             };
             serde_json::to_string(&body).unwrap()

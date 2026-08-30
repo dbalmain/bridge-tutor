@@ -103,14 +103,18 @@ impl Auction {
         }
         let ours = self.non_pass_by(seat);
         let partner = self.non_pass_by(seat.partner());
-        // This course has no competitive bidding: once the opponents have
-        // opened, our side stays out. Without this the phase was decided from
-        // our own calls alone, so a seat could be told it was "opening" after
-        // an opponent had already bid. `uncontested_script` enforced it
-        // separately; the public decide API did not.
-        let opponents_opened = !self.non_pass_by(seat.next()).is_empty()
+        // This course has no competitive bidding, in either direction. Once
+        // an opponent has bid at all, the sequences below no longer describe
+        // the auction — they read our own calls and partner's and pretend the
+        // rest were passes — so there is nothing to teach here.
+        //
+        // The first version of this only caught an opponent OPENING before
+        // our side had bid. An overcall after partner's opening still
+        // reconstructed an uncontested phase and answered as though the
+        // overcall had not happened.
+        let opponents_bid = !self.non_pass_by(seat.next()).is_empty()
             || !self.non_pass_by(seat.next().next().next()).is_empty();
-        if ours.is_empty() && partner.is_empty() && opponents_opened {
+        if opponents_bid {
             return Phase::Unsupported;
         }
         match (ours.as_slice(), partner.as_slice()) {
@@ -253,6 +257,33 @@ mod tests {
                 open: Call::nt(1),
                 response: bid(2, Suit::Diamond),
             }
+        );
+    }
+
+    /// An overcall takes our side out too, not only an opponent's opening.
+    /// The first version of this check only fired before our partnership had
+    /// bid, so 1♥ – 1♠ – (pass) left responder being told the auction was
+    /// uncontested.
+    #[test]
+    fn an_overcall_after_partners_opening_also_ends_the_taught_auction() {
+        let overcalled = Auction {
+            dealer: Seat::North,
+            calls: vec![
+                bid(1, Suit::Heart),
+                bid(1, Suit::Spade), // East overcalls
+            ],
+        };
+        assert_eq!(overcalled.next_seat(), Seat::South);
+        assert_eq!(overcalled.phase_for(Seat::South), Phase::Unsupported);
+
+        // Without the overcall the same seat is squarely in the course.
+        let quiet = Auction {
+            dealer: Seat::North,
+            calls: vec![bid(1, Suit::Heart), Call::Pass],
+        };
+        assert_eq!(
+            quiet.phase_for(Seat::South),
+            Phase::RespondTo(bid(1, Suit::Heart))
         );
     }
 

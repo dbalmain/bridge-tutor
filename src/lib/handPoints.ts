@@ -32,23 +32,28 @@ export interface HandPoints {
 }
 
 /**
- * Which count the decision actually uses, from the leaf being drilled.
- * Opening and rebid decisions use opening points; responses to a notrump
- * opening are high cards only; a raise means a fit is known, so shortage.
+ * Which count the decision actually uses.
+ *
+ * The tree tells us — `point_basis` and `point_trump` come straight from the
+ * Rust handler that made the decision. This used to infer it from the leaf
+ * id's spelling and got `rebid.2nt.accept` wrong: that handler reads HCP, but
+ * the id sits in the `rebid` family, so the app showed opening points and the
+ * Rule of 20 under a decision high cards alone settle.
+ *
+ * The fallback is for a sidecar older than the field. It is the old guess and
+ * is wrong in the same places, so it is deliberately coarse: opening
+ * decisions only, high cards for everything else.
  */
 export function pointContextFor(
+  basis: string | undefined,
+  trump: string | null | undefined,
   family: string,
-  leafId: string,
 ): { context: PointContext; trump?: Suit } {
-  if (family === "1nt" || family === "strong") return { context: "hcp" };
-  const raise = /\braise\d?\b/.test(leafId) || /\.raise/.test(leafId);
-  if (raise) {
-    const m = leafId.match(/^resp\.1([cdhs])\./);
-    const trump = m?.[1]?.toUpperCase() as Suit | undefined;
-    return { context: "support", trump };
+  if (basis === "support") {
+    return { context: "support", trump: (trump ?? undefined) as Suit | undefined };
   }
-  if (family === "major" || family === "minor") return { context: "hcp" };
-  return { context: "opening" };
+  if (basis === "opening" || basis === "hcp") return { context: basis };
+  return { context: family === "open" ? "opening" : "hcp" };
 }
 
 /** Shortage points for a known trump fit: void 5, singleton 3, doubleton 1. */

@@ -4,6 +4,7 @@ pub mod bid;
 pub mod cards;
 pub mod deal;
 pub mod leaves;
+pub mod points;
 pub mod progress;
 pub mod server;
 pub mod system;

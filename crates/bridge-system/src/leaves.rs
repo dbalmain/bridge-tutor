@@ -1773,6 +1773,26 @@ fn build() -> Vec<LeafSpec> {
         Family::RespMajor,
         "Two-level shift",
     ));
+    v.push(undrilled(
+        "resp.1c.game",
+        Family::RespMinor,
+        "Bid game in the minor",
+    ));
+    v.push(undrilled(
+        "resp.1d.game",
+        Family::RespMinor,
+        "Bid game in the minor",
+    ));
+    v.push(undrilled(
+        "resp.1c.raise3.invite",
+        Family::RespMinor,
+        "Limit raise of the minor",
+    ));
+    v.push(undrilled(
+        "resp.1d.raise3.invite",
+        Family::RespMinor,
+        "Limit raise of the minor",
+    ));
     v
 }
 
