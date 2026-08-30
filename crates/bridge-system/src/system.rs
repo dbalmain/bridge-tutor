@@ -3008,26 +3008,39 @@ fn answer_meaning(open: Call, response: Call, rebid: Call, answer: Call) -> Answ
                 return AnswerKind::GameForce;
             }
 
-            // A jump insists; anything cheaper invites.
-            if skips_a_level(rebid, answer) {
-                return AnswerKind::GameForce;
-            }
-            let accept_from = match open {
+            match open {
+                // Over a notrump opening the levels ARE the language, because
+                // responder's range is known from the start: a jump over the
+                // cheapest available call insists on game, anything cheaper
+                // invites.
                 Call::Bid {
                     level: 1,
                     strain: Strain::NoTrump,
-                } => 16,
+                } => {
+                    if skips_a_level(rebid, answer) {
+                        AnswerKind::GameForce
+                    } else {
+                        AnswerKind::Invitational { accept_from: 16 }
+                    }
+                }
                 Call::Bid {
                     level: 2,
                     strain: Strain::NoTrump,
-                } => 0,
-                // High cards, not opening points. Length points are tricks in
+                } => AnswerKind::GameForce,
+                // After a SUIT opening and a minimum rebid, responder's every
+                // non-game second call is the invite ladder: 2NT, three of
+                // the fit, or a raise of our second suit. None of them is a
+                // game force, and the skipped-level rule read all three as
+                // one — 1♣–1♦–1♥–2NT and 1♣–1♥–1♠–3♠ are both invitations
+                // that jump a level, and a minimum opener was driven to 3NT
+                // on about 22 points.
+                //
+                // High cards, not opening points: length points are tricks in
                 // a suit we may not be playing, and accepting on them reached
-                // 3NT and 4♥ with nineteen HCP between the hands. 14 is the
-                // top of the 12-15 a minimum rebid promised.
-                _ => 14,
-            };
-            AnswerKind::Invitational { accept_from }
+                // game with nineteen HCP between the hands. 14 is the top of
+                // the 12-15 a minimum rebid promised.
+                _ => AnswerKind::Invitational { accept_from: 14 },
+            }
         }
     }
 }
@@ -3693,6 +3706,80 @@ mod tests {
             decide_for(&with_two_spades, &over_2nt, Seat::North).bid,
             Call::nt(3),
             "seven spades is not a fit"
+        );
+
+        // 2NT – 3♥ (transfer to spades) – 3♠ – 4♥ (5-5). Hearts can only be
+        // shown at the four level over 2NT, so partner had to name a game in
+        // the shorter fit and opener corrects the STRAIN. This is the exact
+        // sequence that used to be passed out in a seven-card heart fit.
+        let five_five_over_2nt = seq(&[
+            Call::nt(2),
+            Call::suit_bid(3, Suit::Heart),
+            Call::suit_bid(3, Suit::Spade),
+            Call::suit_bid(4, Suit::Heart),
+        ]);
+        let three_spades_two_hearts = hand(&[
+            "SK", "SQ", "S4", "HA", "H2", "DA", "DK", "DQ", "D6", "D5", "CA", "CK", "C6",
+        ]);
+        assert_eq!(three_spades_two_hearts.len_of(Suit::Spade), 3);
+        assert_eq!(three_spades_two_hearts.len_of(Suit::Heart), 2);
+        let d = decide_for(&three_spades_two_hearts, &five_five_over_2nt, Seat::North);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Spade), "{}", d.leaf_id);
+
+        // Three hearts and two spades: 4♥ was already right, so leave it.
+        let two_spades_three_hearts = hand(&[
+            "SK", "SQ", "HA", "H4", "H2", "DA", "DK", "DQ", "D6", "D5", "CA", "CK", "C6",
+        ]);
+        assert_eq!(
+            decide_for(&two_spades_three_hearts, &five_five_over_2nt, Seat::North).bid,
+            Call::Pass,
+            "the longer fit is already the contract"
+        );
+    }
+
+    /// After a SUIT opening and a minimum rebid, every non-game second call
+    /// responder can make is the invite ladder — 2NT, three of the fit, a
+    /// raise of opener's second suit — and every one of them jumps a level.
+    /// The generic skipped-level rule read all three as game forces and drove
+    /// a minimum opener to 3NT on about twenty-two points.
+    #[test]
+    fn a_jump_by_responder_over_a_suit_opening_is_still_only_an_invitation() {
+        // 12-15 opener: minimum, so it declines both.
+        let minimum = hand(&[
+            "SK", "S5", "HA", "HQ", "H4", "H3", "DK", "D7", "D6", "D5", "CJ", "C8", "C6",
+        ]);
+        assert_eq!(minimum.hcp(), 13);
+
+        // 1♣–1♦–1♥–2NT: responder's 10-12 notrump invitation.
+        let notrump_invite = seq(&[
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+            Call::nt(2),
+        ]);
+        assert_eq!(notrump_invite.next_seat(), Seat::North);
+        let d = decide_for(&minimum, &notrump_invite, Seat::North);
+        assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
+
+        // 1♣–1♥–1♠–3♠: responder's invitational raise of our second suit.
+        let raise_invite = seq(&[
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+            Call::suit_bid(3, Suit::Spade),
+        ]);
+        let d = decide_for(&minimum, &raise_invite, Seat::North);
+        assert_eq!(d.bid, Call::Pass, "{}", d.leaf_id);
+
+        // ...and a real maximum still accepts, so this is a threshold and not
+        // a blanket refusal.
+        let maximum = hand(&[
+            "SK", "SQ", "HA", "HQ", "H4", "H3", "DA", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        assert!(maximum.hcp() >= 14);
+        assert_ne!(
+            decide_for(&maximum, &notrump_invite, Seat::North).bid,
+            Call::Pass
         );
     }
 

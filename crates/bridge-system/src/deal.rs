@@ -674,13 +674,15 @@ mod tests {
             // Six trumps plus three side suits capped at three is thirteen
             // exactly, so any cap of three silently forbids every void.
             (
-                "weak 2♠ with a void",
+                "weak 2♠ on 6-4-3-0",
                 "SK SQ S9 S8 S7 S6 H5 H4 H3 H2 D5 D4 D3",
                 "2S",
             ),
+            // 7-4-2-0, not 7-3-3-0: a side-suit cap of three permits the
+            // second, so only the first tells the old cap from the new one.
             (
-                "3♠ preempt with a void",
-                "SK SQ S9 S8 S7 S6 S5 H4 H3 H2 D5 D4 D3",
+                "3♠ preempt on 7-4-2-0",
+                "SK SQ S9 S8 S7 S6 S5 H5 H4 H3 H2 D4 D3",
                 "3S",
             ),
             // Three-level preempts: 7+ cards, 5-10 HCP. The nine-count and

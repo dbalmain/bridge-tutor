@@ -494,43 +494,43 @@ fn build() -> Vec<LeafSpec> {
         "open.2s",
         "Weak 2♠",
         Call::suit_bid(2, Suit::Spade),
-        HandPat::hcp(5, 10).lens((0, 4), (0, 4), (0, 4), (6, 6)),
+        weak_two_opener(Suit::Spade),
     ));
     v.push(open(
         "open.2h",
         "Weak 2♥",
         Call::suit_bid(2, Suit::Heart),
-        HandPat::hcp(5, 10).lens((0, 4), (0, 4), (6, 6), (0, 4)),
+        weak_two_opener(Suit::Heart),
     ));
     v.push(open(
         "open.2d",
         "Weak 2♦",
         Call::suit_bid(2, Suit::Diamond),
-        HandPat::hcp(5, 10).lens((0, 4), (6, 6), (0, 4), (0, 4)),
+        weak_two_opener(Suit::Diamond),
     ));
     v.push(open(
         "open.3s",
         "Preempt 3♠",
         Call::suit_bid(3, Suit::Spade),
-        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (0, 3), (7, 8)),
+        preempt_opener(Suit::Spade),
     ));
     v.push(open(
         "open.3h",
         "Preempt 3♥",
         Call::suit_bid(3, Suit::Heart),
-        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (7, 8), (0, 3)),
+        preempt_opener(Suit::Heart),
     ));
     v.push(open(
         "open.3d",
         "Preempt 3♦",
         Call::suit_bid(3, Suit::Diamond),
-        HandPat::hcp(5, 9).lens((0, 3), (7, 8), (0, 3), (0, 3)),
+        preempt_opener(Suit::Diamond),
     ));
     v.push(open(
         "open.3c",
         "Preempt 3♣",
         Call::suit_bid(3, Suit::Club),
-        HandPat::hcp(5, 9).lens((7, 8), (0, 3), (0, 3), (0, 3)),
+        preempt_opener(Suit::Club),
     ));
 
     // --- 1NT responses ---
