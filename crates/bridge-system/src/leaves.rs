@@ -12,9 +12,10 @@ pub enum Family {
     RespStrong,
     Rebid,
     /// Responder's second call and opener's answer to an invitation. Nothing
-    /// in this family is drilled yet — the course has no lesson for it — but
-    /// the tree makes these calls and the learner places them in a full
-    /// auction.
+    /// in this family is drilled yet, and no lesson teaches it, so the
+    /// learner does NOT place these calls — the auction plays them out and
+    /// shows them. Teaching them is the next piece of work; until then they
+    /// are registered so a new branch cannot appear unlisted.
     Continue,
 }
 
@@ -138,9 +139,13 @@ pub struct Drill {
 /// They are still registered here, and that is the point: this is ONE
 /// registry with a flag rather than a curated catalogue plus an unwritten
 /// set of everything else. A decision missing from it fails
-/// `every_decision_the_tree_makes_is_registered`, and until this existed the
-/// whole-auction UI silently auto-played every unregistered call instead of
-/// letting the learner make it.
+/// `every_decision_the_tree_makes_is_registered`.
+///
+/// Registration is NOT permission to grade: whether the learner places a
+/// call is decided by drillability, because every drillable leaf is taught by
+/// a lesson and these are not. Registration, reachability, drillability and
+/// interactivity are four separate properties, and one commit collapsed two
+/// of them.
 #[derive(Clone, Debug)]
 pub struct LeafSpec {
     pub id: &'static str,
@@ -208,8 +213,9 @@ fn leaf(
     }
 }
 
-/// A decision the tree makes but the course does not drill. Registering it
-/// here is what lets the learner place the call in a full auction.
+/// A decision the tree makes but the course does not drill: no curated hand
+/// pattern, and no lesson. It plays out in a full auction and is shown, but
+/// the learner is not asked to produce it.
 fn undrilled(id: &'static str, family: Family, title: &'static str) -> LeafSpec {
     LeafSpec {
         id,
@@ -1603,11 +1609,6 @@ fn build() -> Vec<LeafSpec> {
         "Pass the transfer",
     ));
     v.push(undrilled(
-        "resp3.accept.3nt",
-        Family::Continue,
-        "Accept: bid 3NT",
-    ));
-    v.push(undrilled(
         "resp3.accept.major",
         Family::Continue,
         "Accept: bid the major game",
@@ -1616,11 +1617,6 @@ fn build() -> Vec<LeafSpec> {
         "resp3.decline",
         Family::Continue,
         "Decline the invitation",
-    ));
-    v.push(undrilled(
-        "resp3.decline-jumped",
-        Family::Continue,
-        "Decline — you already showed the extras",
     ));
     v.push(undrilled(
         "resp3.pass-game",
@@ -1817,6 +1813,31 @@ fn build() -> Vec<LeafSpec> {
         "resp3.convert.major",
         Family::Continue,
         "Convert to the major game",
+    ));
+    v.push(undrilled(
+        "resp2.forced.game",
+        Family::Continue,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.forced.3nt",
+        Family::Continue,
+        "Bid the game",
+    ));
+    v.push(undrilled(
+        "resp2.stayman.own-major.force",
+        Family::Continue,
+        "Show your five-card major, forcing",
+    ));
+    v.push(undrilled(
+        "resp3.forced.game",
+        Family::Continue,
+        "Bid the game",
+    ));
+    v.push(undrilled(
+        "resp3.forced.accept",
+        Family::Continue,
+        "Bid the game anyway",
     ));
     v
 }
