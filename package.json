@@ -12,6 +12,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:engine": "tsx scripts/smoke-engine.ts",
+    "test:points": "tsx scripts/check-points.ts",
     "test:dds": "tsx scripts/test-dds-equals.ts"
   },
   "dependencies": {
