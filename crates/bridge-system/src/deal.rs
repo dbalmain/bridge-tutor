@@ -96,6 +96,16 @@ fn deal_matching<R: Rng>(rng: &mut R, piles: &mut [Vec<Card>; 4], pat: &HandPat)
     Some(hand)
 }
 
+/// One hand matching `pat`, drawn the way the deal generator draws it. Tests
+/// use this to check a pattern describes the hands it claims: `generate` +
+/// `verify` cannot, because they retry until something fits and so report
+/// success on a pattern that is mostly wrong.
+#[cfg(test)]
+pub(crate) fn sample_hand<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<Hand> {
+    let mut piles = piles_from_shuffled(rng);
+    deal_matching(rng, &mut piles, pat)
+}
+
 fn take_random_13<R: Rng>(rng: &mut R, piles: &mut [Vec<Card>; 4]) -> Option<Hand> {
     let mut all: Vec<Card> = piles.iter_mut().flat_map(|p| p.drain(..)).collect();
     if all.len() < 13 {
@@ -348,6 +358,67 @@ mod tests {
     use crate::leaves::catalog;
     use rand::rngs::SmallRng;
     use rand::SeedableRng;
+
+    /// A leaf's HandPat is deliberately over-approximate — the evaluator is
+    /// the filter — so it is allowed to admit hands that turn out to be a
+    /// different leaf. What it may not be is *mostly* wrong: a pattern with
+    /// the suits transposed, or one that admits hands the leaf can never
+    /// contain, still generates fine because `verify` retries until something
+    /// fits. This samples straight from each opening pattern and asks the tree
+    /// what it would bid, which is the claim the pattern is making.
+    #[test]
+    fn opening_leaf_patterns_mostly_describe_their_own_leaf() {
+        const MIN_HIT_RATE: f64 = 0.6;
+        let mut rng = SmallRng::seed_from_u64(31337);
+        let mut wrong: Vec<String> = Vec::new();
+        for spec in catalog() {
+            if spec.family != crate::leaves::Family::Open {
+                continue;
+            }
+            let mut sampled = 0;
+            let mut hits = 0;
+            let mut example = String::new();
+            for _ in 0..3000 {
+                let Some(h) = sample_hand(&mut rng, &spec.south) else {
+                    continue;
+                };
+                sampled += 1;
+                let d = opening(&h);
+                if d.leaf_id == spec.id {
+                    hits += 1;
+                } else if example.is_empty() {
+                    let sh = h.shape();
+                    example = format!(
+                        "{} HCP {}-{}-{}-{} bids {}",
+                        h.hcp(),
+                        sh[3],
+                        sh[2],
+                        sh[1],
+                        sh[0],
+                        d.leaf_id
+                    );
+                }
+            }
+            // 2♣ and 2NT need 20+ HCP, which random sampling rarely produces;
+            // a thin sample is a fact about the deal, not about the pattern.
+            if sampled < 30 {
+                continue;
+            }
+            let rate = f64::from(hits) / f64::from(sampled);
+            if rate < MIN_HIT_RATE {
+                wrong.push(format!(
+                    "{}: only {hits}/{sampled} ({:.0}%) of pattern hands are this leaf — e.g. {example}",
+                    spec.id,
+                    rate * 100.0
+                ));
+            }
+        }
+        assert!(
+            wrong.is_empty(),
+            "patterns that mostly describe some other leaf:\n{}",
+            wrong.join("\n")
+        );
+    }
 
     #[test]
     fn every_leaf_generates() {

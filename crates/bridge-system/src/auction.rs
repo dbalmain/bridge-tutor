@@ -87,11 +87,6 @@ impl Auction {
             _ => Phase::Unsupported,
         }
     }
-
-    /// South is the student. Kept for the existing decide path.
-    pub fn phase_for_south(&self) -> Phase {
-        self.phase_for(Seat::South)
-    }
 }
 
 #[cfg(test)]

@@ -268,11 +268,12 @@ fn weak_two_opener(suit: Suit) -> HandPat {
     }
 }
 
-/// Seven or more cards, 5–10 HCP. Eight-card suits qualify too, so the range
-/// is 7–8 rather than exactly seven — a tighter bound would silently stop
-/// sampling half the hands the rule covers.
+/// Seven or eight cards, and few enough points that the hand genuinely cannot
+/// open at the one level: eight cards with 9 HCP is 13 opening points, which
+/// opens 1♠, not 3♠. `verify()` would filter those out by retrying, which
+/// hides the fact that the pattern describes the wrong hands.
 fn preempt_opener(suit: Suit) -> HandPat {
-    let p = HandPat::hcp(5, 10);
+    let p = HandPat::hcp(5, 8);
     match suit {
         Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 8)),
         Suit::Heart => p.lens((0, 3), (0, 3), (7, 8), (0, 3)),
@@ -433,25 +434,25 @@ fn build() -> Vec<LeafSpec> {
         "open.3s",
         "Preempt 3♠",
         Call::suit_bid(3, Suit::Spade),
-        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (0, 3), (7, 8)),
+        HandPat::hcp(5, 8).lens((0, 3), (0, 3), (0, 3), (7, 8)),
     ));
     v.push(open(
         "open.3h",
         "Preempt 3♥",
         Call::suit_bid(3, Suit::Heart),
-        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (7, 8), (0, 3)),
+        HandPat::hcp(5, 8).lens((0, 3), (0, 3), (7, 8), (0, 3)),
     ));
     v.push(open(
         "open.3d",
         "Preempt 3♦",
         Call::suit_bid(3, Suit::Diamond),
-        HandPat::hcp(5, 9).lens((0, 3), (7, 8), (0, 3), (0, 3)),
+        HandPat::hcp(5, 8).lens((0, 3), (7, 8), (0, 3), (0, 3)),
     ));
     v.push(open(
         "open.3c",
         "Preempt 3♣",
         Call::suit_bid(3, Suit::Club),
-        HandPat::hcp(5, 9).lens((7, 8), (0, 3), (0, 3), (0, 3)),
+        HandPat::hcp(5, 8).lens((7, 8), (0, 3), (0, 3), (0, 3)),
     ));
 
     // --- 1NT responses ---
@@ -811,6 +812,15 @@ fn build() -> Vec<LeafSpec> {
         Call::suit_bid(3, Suit::Club),
         Call::nt(2),
         HandPat::hcp(4, 11).lens((1, 4), (1, 4), (4, 4), (0, 3)),
+        two_nt_opener(),
+    ));
+    v.push(resp(
+        "resp.2nt.stayman.54",
+        Family::RespStrong,
+        "2NT – 3♣ with 5–4 majors",
+        Call::suit_bid(3, Suit::Club),
+        Call::nt(2),
+        HandPat::hcp(4, 11).lens((0, 3), (0, 3), (5, 5), (4, 4)),
         two_nt_opener(),
     ));
     v.push(resp(

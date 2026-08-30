@@ -1028,7 +1028,7 @@
         "Lesson 5 taught you to open 2♣ on 22+ HCP or 21+ opening points unbalanced. This is the other side of it, and it comes with a rule the course has not needed until now: 2♣ is game-forcing, so you may not pass it. Not on 5 HCP, not on nothing. Partner has a hand that can make game opposite a blank, and passing throws it away.",
         "So there must be a bid that means “I have nothing”, and that is 2♦. It says nothing whatever about diamonds — it is a waiting bid, keeping the auction as low as possible so partner has room to describe the monster. Bid it on 0–7 HCP whatever your shape.",
         "With 8 or more you make a positive response: name a five-card suit if you have one (2♥, 2♠, 3♣ or 3♦), or bid 2NT with no five-card suit. A positive tells partner the pair is looking at a slam, not just a game, so it is worth showing straight away.",
-        "2NT is a different animal — it is natural and limited, 20–21 balanced, so you are allowed to pass it. Everything you learned over 1NT applies one level up: 3♣ is Stayman, 3♦ transfers to hearts and 3♥ to spades, exactly as in Lessons 8 and 9.",
+        "2NT is a different animal — it is natural and limited, 20–21 balanced, so you are allowed to pass it. Everything you learned over 1NT applies one level up: 3♣ is Stayman, 3♦ transfers to hearts and 3♥ to spades, exactly as in Lessons 8 and 9 — including the exception, that 5–4 in the majors is Stayman rather than a transfer, so the four-card suit is not buried.",
         "What changes over 2NT is the arithmetic. Partner holds 20–21 rather than 15–17, so game needs far less from you: 5 HCP with no four-card major is already 3NT, and 4 HCP is enough to use Stayman. Only 0–4 with no long major passes."
       ],
       "rules": [
@@ -1036,6 +1036,7 @@
         "0–7 over 2♣: bid 2♦ — waiting, and nothing to do with diamonds.",
         "8+ with a 5-card suit: name it. 8+ without one: 2NT.",
         "Over 2NT: 3♣ Stayman, 3♦ → hearts, 3♥ → spades (Lessons 8 and 9).",
+        "Over 2NT: 5–4 majors is 3♣ Stayman, not a transfer (as over 1NT).",
         "Over 2NT: 5+ HCP is 3NT. 0–4 with no long major passes."
       ],
       "leaves": [
@@ -1043,10 +1044,11 @@
         "resp.2c.2h",
         "resp.2nt.3nt",
         "resp.2nt.stayman",
+        "resp.2nt.stayman.54",
         "resp.2nt.xfer.h",
         "resp.2nt.pass"
       ],
-      "quizCount": 5
+      "quizCount": 6
     },
     {
       "id": "bid-resp-preempt",

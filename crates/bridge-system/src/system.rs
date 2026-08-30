@@ -41,11 +41,15 @@ Responding to 1NT (Stayman + Jacoby transfers)
 • Garbage Stayman is off: 0–7 with 4-4 majors passes.
 
 Responding to one of a suit
-• Fit first: 3+ support for a major (5+ for 1♣, 4+ for 1♦) uses limit raises
+• Over 1♥/1♠, fit first: 3+ support uses limit raises
   on HCP + shortage (doubleton +1, singleton +3, void +5):
   0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game (major)
   or 3NT (minor, balanced 13–15) / game in the minor (rare — we bid 3NT
   with 13+ and a minor fit if balanced, else 5m only with 16+ shapely).
+• Over 1♣/1♦ a four-card major of your own comes BEFORE raising the minor:
+  partner's minor may be three or four cards, and a major game is a trick
+  cheaper. Minor support (5+ for 1♣, 4+ for 1♦) is reached only with no
+  four-card major, and then raises on the same HCP + shortage ladder.
 • Without a fit: majors first (4+), cheaper of 4-4 majors. New suit at the
   one-level = 6+; at the two-level = 10+ (5+ for a new major).
 • 6–9, no fit, no 4-card major at the one-level: 1NT.
@@ -74,10 +78,13 @@ Responding to 2♣, 2NT and preempts
   5-card suit (2♥/2♠/3♣/3♦), or bid 2NT without one.
 • 2NT (20–21): 3♣ Stayman, 3♦→♥, 3♥→♠, as over 1NT. 5-4 majors and 4+ is
   Stayman, not a transfer. 5+ HCP is 3NT; 0–4 with no long major passes.
-• Weak two / preempt: responder is the captain. 16+ with 3-card support for
-  the major bids game; 16+ without a fit bids 3NT, or a 5-card suit of its
-  own over a weak two (forcing). Support without game values raises to
-  obstruct, not to invite. Otherwise pass.
+• Weak two: responder is the captain. 16+ with 3-card support bids the major
+  game (3NT over 2♦); 16+ without a fit bids a 5-card suit of its own
+  (forcing) or 3NT. Support without game values raises to obstruct, not to
+  invite. Otherwise pass.
+• 3-level preempt: 16+ with 3-card support for the major bids game, 16+
+  otherwise bids 3NT, everything else passes. There is no obstructive raise —
+  the next level up is already game.
 
 Rebids after 2♣, 2NT and preempts
 • After 2♣ – 2♦: 2NT with 22–24 balanced, 3NT with 25+, else name the longest
@@ -576,12 +583,12 @@ fn respond_preempt(hand: &Hand, trump: Suit) -> Decision {
     let support = hand.len_of(trump);
     let major = trump == Suit::Heart || trump == Suit::Spade;
 
-    if support >= 2 && hcp >= 16 && major {
+    if support >= 3 && hcp >= 16 && major {
         return dec(
             "resp.preempt.game",
             Call::suit_bid(4, trump),
             "Raise to game",
-            "Two-card support for a seven-card suit is a nine-card fit, and 16+ opposite 5–10 \
+            "Three-card support for a seven-card suit is a ten-card fit, and 16+ opposite 5–10 \
              is game. Bid it.",
         );
     }
@@ -602,7 +609,8 @@ fn respond_preempt(hand: &Hand, trump: Suit) -> Decision {
         Call::Pass,
         "Pass the preempt",
         "Partner bid three of a suit to take away the opponents' room, not to invite you. \
-         Without game values, pass and let the preempt do its work.",
+         Without game values, pass and let the preempt do its work — unlike a weak two there \
+         is no obstructive raise here, because the next level up is already game.",
     )
 }
 

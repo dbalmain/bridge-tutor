@@ -70,10 +70,11 @@ impl Call {
     }
 
     /// Auction rank: level, then strain. `None` for Pass/X/XX, which do not
-    /// take part in the ordering.
+    /// take part in the ordering, and for any level outside 1-7 — a `Bid` can
+    /// be constructed with any level, and an eighth one is not a call.
     pub fn rank(self) -> Option<(u8, u8)> {
         match self {
-            Call::Bid { level, strain } => Some((
+            Call::Bid { level, strain } if (1..=7).contains(&level) => Some((
                 level,
                 match strain {
                     Strain::Clubs => 0,
@@ -135,26 +136,6 @@ impl Call {
                 Some(Call::Bid { level, strain })
             }
         }
-    }
-
-    pub fn is_one_of_a_suit(self) -> bool {
-        matches!(
-            self,
-            Call::Bid {
-                level: 1,
-                strain: Strain::Clubs | Strain::Diamonds | Strain::Hearts | Strain::Spades
-            }
-        )
-    }
-
-    pub fn is_major_one(self) -> bool {
-        matches!(
-            self,
-            Call::Bid {
-                level: 1,
-                strain: Strain::Hearts | Strain::Spades
-            }
-        )
     }
 }
 

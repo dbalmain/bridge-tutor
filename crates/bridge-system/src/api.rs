@@ -397,6 +397,20 @@ mod tests {
             readme.contains(&format!("{} lessons", words[lessons])),
             "README does not say the course has {lessons} lessons"
         );
+
+        // The headline count and the chapter table drifted apart once already:
+        // the headline was updated and the table was not.
+        for ch in v["chapters"].as_array().unwrap() {
+            let row = format!(
+                "| {} | {} |",
+                ch["number"].as_u64().unwrap(),
+                ch["title"].as_str().unwrap().to_lowercase()
+            );
+            assert!(
+                readme.contains(&row),
+                "README's learning-path table is missing the row {row:?}"
+            );
+        }
     }
 
     /// Every leaf the drills can deal is taught by some lesson, and no lesson

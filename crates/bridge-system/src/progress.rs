@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::leaves::{catalog, leaf_by_id, leaves_in_family, Family, LeafSpec};
+use crate::leaves::{leaf_by_id, leaves_in_family, Family, LeafSpec};
 use crate::system::SYSTEM_ID;
 
 const UNIFORM_MIX: f64 = 0.15;
@@ -177,10 +177,6 @@ pub fn weight_table(progress: &Progress, family: Option<Family>) -> Vec<LeafWeig
             }
         })
         .collect()
-}
-
-pub fn known_leaf(id: &str) -> bool {
-    leaf_by_id(id).is_some() || catalog().iter().any(|l| l.id == id)
 }
 
 #[cfg(test)]

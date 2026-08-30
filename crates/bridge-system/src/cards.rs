@@ -1,8 +1,5 @@
 //! Cards, hands, and the evaluation numbers the system uses.
 
-use rand::seq::SliceRandom;
-use rand::Rng;
-
 pub const HCP_ACE: u8 = 4;
 pub const HCP_KING: u8 = 3;
 pub const HCP_QUEEN: u8 = 2;
@@ -52,19 +49,6 @@ impl Suit {
             _ => None,
         }
     }
-
-    pub fn symbol(self) -> char {
-        match self {
-            Self::Club => '♣',
-            Self::Diamond => '♦',
-            Self::Heart => '♥',
-            Self::Spade => '♠',
-        }
-    }
-
-    pub fn is_major(self) -> bool {
-        matches!(self, Self::Heart | Self::Spade)
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -73,10 +57,6 @@ pub struct Rank(u8);
 impl Rank {
     pub const TWO: Rank = Rank(0);
     pub const ACE: Rank = Rank(12);
-
-    pub fn from_u8(v: u8) -> Option<Self> {
-        (v <= 12).then_some(Rank(v))
-    }
 
     pub fn value(self) -> u8 {
         self.0
@@ -357,12 +337,6 @@ pub fn is_balanced_shape(shape: [u8; 4]) -> bool {
 
 pub fn full_deck() -> Vec<Card> {
     (0..52).map(Card).collect()
-}
-
-pub fn shuffled_deck<R: Rng + ?Sized>(rng: &mut R) -> Vec<Card> {
-    let mut d = full_deck();
-    d.shuffle(rng);
-    d
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

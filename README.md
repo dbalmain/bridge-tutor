@@ -78,13 +78,15 @@ cargo run -p bridge-system -- serve   # bidding drills, default :8788
 
 | Chapter | Topic |
 |--------:|-------|
-| 1 | Opening the bidding (pass, majors, minors) |
-| 2 | 1NT and strong openings |
-| 3 | Weak twos and preempts |
-| 4 | Responding to 1NT (2NT/3NT, Stayman, transfers) |
-| 5 | Responding to 1♥ / 1♠ |
-| 6 | Responding to 1♣ / 1♦ |
+| 1 | Opening the bidding |
+| 2 | Notrump and strong openings |
+| 3 | Preempts |
+| 4 | Responding to 1NT |
+| 5 | Responding to 1♥ or 1♠ |
+| 6 | Responding to 1♣ or 1♦ |
 | 7 | Opener’s rebid |
+| 8 | Opener's rebid after a new suit |
+| 9 | Answering the big and the weak openings |
 
 The play course will reuse this tree: each leaf becomes a full deal you bid,
 then play.
