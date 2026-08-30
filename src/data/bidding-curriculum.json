@@ -76,7 +76,7 @@
         "Majors first (4+ cards, 6+ HCP), cheaper of 4–4 majors.",
         "1♣–1♦ = 4+ diamonds, 6+ HCP, no 4-card major.",
         "1♦–2♣ = 6+ clubs and 10+ HCP — a two-level new suit.",
-        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds. Balanced and 13+? 3NT, not five of a minor.",
+        "Raise 1♣ with 5+ clubs, 1♦ with 4+ diamonds. 13+ HCP? 3NT, not five of a minor — unless you are unbalanced with 16+.",
         "6–9 balanced, no major: 1NT. 0–5: Pass."
       ]
     },
@@ -668,14 +668,14 @@
         "No four-card major, so Lesson 13's answer is unavailable. Over 1♣ the cheapest useful call is 1♦, which shows four or more diamonds and 6+ HCP, and denies a four-card major — partner learns two things for one bid.",
         "Over 1♦ that reply does not exist, because diamonds is partner's suit. The suit you might have instead is clubs, and clubs is a level higher: 2♣. That is a two-level new suit, so it costs 10+ HCP exactly as in Lesson 11, and it wants a real suit rather than four small ones — which here means six. Work it out: you have no four-card major and no diamond fit, so the majors hold three at most and so do the diamonds. Four or five clubs would leave you 4-3-3-3 or 5-3-3-2, and both of those are flat hands that belong in notrump. Only six clubs makes the shape worth the extra level.",
         "Raising the minor needs real length — five clubs to raise 1♣, four diamonds to raise 1♦ — and even then it is a part-score bid, because eleven tricks is a long way. Do not chase five of a minor when notrump will do.",
-        "The floor is the same as Lesson 12: 6–9 with no major, no raise and nothing at the two-level responds 1NT, and 0–5 passes. With 10–12 balanced, invite with 2NT. With 13+ and a minor fit the shape decides: balanced, bid 3NT, because nine tricks in notrump are far cheaper than eleven in a minor. Unbalanced, you have a short suit the opponents can run, so 13–15 jumps to three of the minor and invites — partner may hold the stopper you are missing — and only 16+ is worth bidding the eleven-trick game at 5♣ or 5♦."
+        "The floor is the same as Lesson 12: 6–9 with no major, no raise and nothing at the two-level responds 1NT, and 0–5 passes. With 10–12 balanced, invite with 2NT. With 13+ HCP and a minor fit, bid 3NT: nine tricks in notrump are far cheaper than eleven in a minor, and that stays true even when your shape is a little awkward. Only an unbalanced 16+ is worth the eleven-trick game at 5♣ or 5♦. A jump to three of the minor therefore means 10–12 — or 13 points that came from a short suit rather than from honours — and never more, so partner can read it."
       ],
       "rules": [
         "No 4-card major (Lesson 13) → work down this list.",
         "1♣–1♦ = 4+ diamonds, 6+ HCP, and no 4-card major.",
         "1♦–2♣ = 6+ clubs and 10+ HCP (two-level price, Lesson 11).",
         "Raise a minor only with real length: 5+ clubs over 1♣, 4+ diamonds over 1♦.",
-        "6–9 nothing else: 1NT. 0–5: Pass. 10–12 balanced: 2NT. 13+ with a fit: balanced 3NT, unbalanced 16+ 5m, 13–15 unbalanced jump to 3m and invite."
+        "6–9 nothing else: 1NT. 0–5: Pass. 10–12 balanced: 2NT. 13+ HCP with a fit: 3NT, or 5m when unbalanced with 16+. A jump to 3m means 10–12."
       ],
       "leaves": [
         "resp.1c.1d",

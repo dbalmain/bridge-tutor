@@ -219,7 +219,7 @@ fn constructive_shape<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<[u8; 4]> {
     Some(l)
 }
 
-fn hand_fits_pat(hand: &Hand, pat: &HandPat) -> bool {
+pub(crate) fn hand_fits_pat(hand: &Hand, pat: &HandPat) -> bool {
     let hcp = hand.hcp();
     if hcp < pat.min_hcp || hcp > pat.max_hcp {
         return false;
@@ -621,6 +621,126 @@ mod tests {
                 .cloned()
                 .collect::<Vec<_>>()
                 .join("\n")
+        );
+    }
+
+    /// BOUNDARY COVERAGE, which nothing else measures.
+    ///
+    /// Every other generator test looks at deals a pattern already accepted,
+    /// so a pattern that quietly excludes a class of valid hands looks
+    /// perfect: the generator never proposes them and every assertion is
+    /// about what it did propose. Codex named the 5-9 HCP, seven-or-eight
+    /// card preempt approximation as the least-verified thing in the system
+    /// across four rounds, twice, for exactly that reason.
+    ///
+    /// Sampling recall is the wrong shape for the answer, and worth saying
+    /// why: these patterns are deliberately NARROW slices, not complete
+    /// descriptions of their class, so a random hand the tree opens 1♣ will
+    /// usually fail the `open.1c` pattern by design. There is no defensible
+    /// threshold on that number.
+    ///
+    /// So instead: hands written to sit ON the boundaries HOUSE_RULES states,
+    /// not sampled from the implementation. Each must (a) be opened the way
+    /// the rules say and (b) be accepted by that leaf's pattern, so a drill
+    /// for it can actually deal the edge of its own class.
+    #[test]
+    fn the_patterns_cover_the_boundaries_the_rules_state() {
+        use crate::leaves::leaf_by_id;
+        use crate::system::opening;
+
+        // (what the rules say, the hand, the call they say it makes)
+        let cases: &[(&str, &str, &str)] = &[
+            // Weak twos: exactly six cards, 5-10 HCP, both ends.
+            (
+                "weak 2♠, bottom of 5-10",
+                "SK SQ S9 S8 S7 S6 H4 H3 D4 D3 D2 C3 C2",
+                "2S",
+            ),
+            (
+                "weak 2♠, top of 5-10",
+                "SA SK SQ SJ S8 S7 H4 H3 D4 D3 D2 C3 C2",
+                "2S",
+            ),
+            // Three-level preempts: 7+ cards, 5-10 HCP. The nine-count and
+            // the eight-card suit are the two codex called out.
+            (
+                "3♠ preempt on seven, 5 HCP",
+                "SK SQ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3 C2",
+                "3S",
+            ),
+            (
+                "3♠ preempt on seven, 9 HCP",
+                "SA SK SQ S9 S8 S7 S6 H4 H3 D3 D2 C3 C2",
+                "3S",
+            ),
+            (
+                "3♠ preempt on eight cards",
+                "SK SQ SJ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3",
+                "3S",
+            ),
+            // 1NT: both ends of 15-17, and the 14-HCP five-card-major upgrade.
+            (
+                "1NT, bottom of 15-17",
+                "SK SQ S4 HQ H3 H2 DA DJ D5 D4 CK C3 C2",
+                "1NT",
+            ),
+            (
+                "1NT, top of 15-17",
+                "SA SQ S4 HA HQ H2 DQ D5 D4 D3 CK C3 C2",
+                "1NT",
+            ),
+            (
+                "14 HCP with a five-card major upgrades to 1NT",
+                "SK SQ SJ S4 S3 HA H3 H2 DK DJ D4 C3 C2",
+                "1NT",
+            ),
+            // The Rule of 20 boundary: 10 HCP and two five-card suits.
+            (
+                "Rule of 20 on the nose",
+                "SK SQ SJ S4 S3 HA H5 H4 H3 H2 D4 C3 C2",
+                "1S",
+            ),
+            // 2♣: the bottom of 22+ balanced.
+            (
+                "2♣, bottom of 22+ balanced",
+                "SA SK SQ S4 HA HK H2 DA DQ D5 C4 C3 C2",
+                "2C",
+            ),
+        ];
+
+        let mut failures = Vec::new();
+        for (what, cards, expected) in cases {
+            let h = hand(cards);
+            let d = opening(&h);
+            if d.bid.to_app() != *expected {
+                failures.push(format!(
+                    "{what}: the tree opens {} ({}), not {expected}",
+                    d.bid.to_app(),
+                    d.leaf_id
+                ));
+                continue;
+            }
+            let Some(spec) = leaf_by_id(d.leaf_id) else {
+                failures.push(format!("{what}: {} is not registered", d.leaf_id));
+                continue;
+            };
+            let Some(drill) = spec.drill.as_ref() else {
+                // Not drillable, so no pattern to cover it. That is a
+                // curriculum gap, not a pattern gap, and other tests own it.
+                continue;
+            };
+            if !hand_fits_pat(&h, &drill.south) {
+                failures.push(format!(
+                    "{what}: {} accepts this hand from the tree but its drill pattern rejects \
+                     it, so no drill can ever deal this edge of the class",
+                    d.leaf_id
+                ));
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "boundaries the patterns do not cover:\n{}",
+            failures.join("\n")
         );
     }
 

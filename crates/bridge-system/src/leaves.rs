@@ -389,7 +389,10 @@ fn build() -> Vec<LeafSpec> {
         "open.1nt.5major",
         "Open 1NT with a 5-card major",
         Call::nt(1),
-        HandPat::hcp(15, 17)
+        // From fourteen: the upgrade the rules describe IS the 14-count with
+        // a five-card suit, and the pattern started at fifteen, so no drill
+        // could ever deal the case the lesson is about.
+        HandPat::hcp(14, 17)
             .lens((2, 3), (2, 3), (2, 5), (2, 5))
             .bal(true)
             .five_major(),
@@ -428,7 +431,9 @@ fn build() -> Vec<LeafSpec> {
         "open.1s.equal-majors",
         "5–5 majors: open 1♠",
         Call::suit_bid(1, Suit::Spade),
-        HandPat::hcp(12, 16)
+        // Ten, not twelve: the Rule of 20 is exactly what lets a 5-5 ten-count
+        // open, and the pattern excluded the boundary the lesson teaches.
+        HandPat::hcp(10, 16)
             .lens((0, 3), (0, 3), (5, 6), (5, 6))
             .eq_maj(),
     ));
@@ -482,19 +487,19 @@ fn build() -> Vec<LeafSpec> {
         "open.2s",
         "Weak 2♠",
         Call::suit_bid(2, Suit::Spade),
-        HandPat::hcp(6, 9).lens((1, 3), (1, 3), (1, 3), (6, 6)),
+        HandPat::hcp(5, 10).lens((0, 3), (0, 3), (0, 3), (6, 6)),
     ));
     v.push(open(
         "open.2h",
         "Weak 2♥",
         Call::suit_bid(2, Suit::Heart),
-        HandPat::hcp(6, 9).lens((1, 3), (1, 3), (6, 6), (1, 3)),
+        HandPat::hcp(5, 10).lens((0, 3), (0, 3), (6, 6), (0, 3)),
     ));
     v.push(open(
         "open.2d",
         "Weak 2♦",
         Call::suit_bid(2, Suit::Diamond),
-        HandPat::hcp(6, 9).lens((1, 3), (6, 6), (1, 3), (1, 3)),
+        HandPat::hcp(5, 10).lens((0, 3), (6, 6), (0, 3), (0, 3)),
     ));
     v.push(open(
         "open.3s",

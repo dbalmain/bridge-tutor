@@ -45,13 +45,15 @@ Responding to one of a suit
 • Over 1♥/1♠, fit first: 3+ support uses limit raises
   on HCP + shortage (doubleton +1, singleton +3, void +5):
   0–5 pass, 6–9 raise to 2, 10–12 jump to 3, 13+ raise to game in the major.
-• With a MINOR fit and 13+ points the shape decides, because a short suit
-  is tricks in a suit contract and a hole in notrump:
-  - balanced, 13+ HCP: 3NT. Nine tricks beat eleven.
-  - unbalanced, 16+ HCP: 5♣/5♦. Enough for eleven tricks.
-  - anything else (13–15 unbalanced, or 13+ points where the extra came
-    from shortage rather than honours): jump to 3m and invite. Partner may
-    hold the stopper this hand is missing.
+• With a MINOR fit, 13+ HCP is game and the game is 3NT: nine tricks beat
+  eleven. Shape decides only whether eleven is worth chasing, and that
+  takes 16+ HCP unbalanced, which bids 5♣/5♦.
+  A jump to 3m therefore means 10–12, or 13+ points that came from shortage
+  rather than honours — never more. That is deliberate: 3m spanning 10 to 15
+  is a range opener cannot read, and a 15-count opposite a 13-count sat in
+  3♣ with 28 points between the hands. The cost is that 3NT is sometimes
+  bid with a singleton and no stopper: a known simplification of this
+  course, and the smaller of the two errors.
 • Over 1♣/1♦ a four-card major of your own comes BEFORE raising the minor:
   partner's minor may be three or four cards, and a major game is a trick
   cheaper. Minor support (5+ for 1♣, 4+ for 1♦) is reached only with no
@@ -1058,7 +1060,20 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
         // opposite an opening bid played nine tricks in notrump. HOUSE_RULES
         // always said balanced 13-15 for 3NT and shapely 16+ for five of the
         // minor; the second of those was written down and never implemented.
-        if hcp >= 13 && hand.is_balanced() {
+        // 13+ high cards with a fit is game, and the game is 3NT: nine tricks
+        // beat eleven. Balance decides only whether eleven is worth chasing,
+        // and it takes 16 to justify that.
+        //
+        // An earlier round had 13-15 unbalanced INVITE at three of the minor
+        // instead, on the sound objection that a singleton is no stopper.
+        // That made responder's 3m mean anything from 10 to 15, which opener
+        // cannot read: a 15-count opposite a 13-count sat in 3♣ with 28 HCP
+        // between the hands. One call may not span two decisions, so 3m is
+        // back to meaning 10-12 (or 13+ points that came from shortage rather
+        // than honours) and nothing else. The missing stopper is a known
+        // simplification of this course; the unreadable auction was a bug.
+        let chasing_eleven = !hand.is_balanced() && hcp >= 16;
+        if hcp >= 13 && !chasing_eleven {
             let id = if minor == Suit::Club {
                 "resp.1c.3nt"
             } else {
@@ -4058,8 +4073,8 @@ mod tests {
         // no stopper, and the pair can be missing the suit entirely. The
         // limit raise invites and lets opener, who may hold the stopper,
         // choose the game.
-        assert_eq!(d.bid, Call::suit_bid(3, Suit::Club));
-        assert_eq!(d.leaf_id, "resp.1c.raise3.invite");
+        assert_eq!(d.bid, Call::nt(3));
+        assert_eq!(d.leaf_id, "resp.1c.3nt");
     }
 
     /// Shortage points are tricks in a suit contract and nothing in notrump.
@@ -4083,16 +4098,15 @@ mod tests {
         assert_ne!(d.bid, Call::nt(3), "9 HCP is not a notrump game");
         assert_eq!(d.leaf_id, "resp.1c.raise3.invite");
 
-        // The same shape with real high cards is still not a notrump hand —
-        // the singleton diamond is the reason, not the point count — but 16+
-        // is enough to bid the eleven-trick game in the minor.
+        // The same shape with real high cards IS a game — 3NT, because nine
+        // tricks beat eleven — until 16 makes eleven worth chasing.
         let strong = hand(&[
             "SK", "S9", "HA", "HQ", "H3", "D2", "CA", "CJ", "CT", "C6", "C5", "C4", "C3",
         ]);
         assert!((13..16).contains(&strong.hcp()));
         assert_eq!(
             respond(&strong, Call::suit_bid(1, Suit::Club)).leaf_id,
-            "resp.1c.raise3.invite"
+            "resp.1c.3nt"
         );
         let huge = hand(&[
             "SK", "SQ", "HA", "H8", "H3", "D2", "CA", "CK", "CQ", "CJ", "C5", "C4", "C3",
