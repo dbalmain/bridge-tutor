@@ -9,7 +9,7 @@ export function Layout() {
         </NavLink>
         <nav className="nav">
           <NavLink to="/" end>
-            Play
+            Home
           </NavLink>
           <NavLink to="/bid">Bidding</NavLink>
           <NavLink to="/drill">Drills</NavLink>

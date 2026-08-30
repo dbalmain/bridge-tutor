@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import curriculum from "../data/curriculum.json";
 import { biddingCurriculum } from "../lib/biddingCurriculum";
+import { playCurriculum } from "../lib/playCurriculum";
 import { fetchWeights, type LeafWeight } from "../lib/bridgeSystem";
 import {
   clearProgress,
@@ -14,13 +14,11 @@ import {
   clearSystemProgress,
   loadSystemProgressJson,
 } from "../lib/systemProgress";
-import type { Curriculum, ProgressState } from "../lib/types";
-
-const data = curriculum as Curriculum;
+import type { ProgressState } from "../lib/types";
 
 export function ProgressPage() {
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
-  const playDone = data.lessons.filter(
+  const playDone = playCurriculum.lessons.filter(
     (l) => getLessonProgress(progress, l.id).completed,
   ).length;
   const bidDone = biddingCurriculum.lessons.filter(
@@ -28,8 +26,9 @@ export function ProgressPage() {
   ).length;
   const completed = playDone + bidDone;
   const optimal =
-    data.lessons.filter((l) => getLessonProgress(progress, l.id).optimal)
-      .length +
+    playCurriculum.lessons.filter(
+      (l) => getLessonProgress(progress, l.id).optimal,
+    ).length +
     biddingCurriculum.lessons.filter(
       (l) => getLessonProgress(progress, l.id).optimal,
     ).length;
@@ -185,43 +184,45 @@ export function ProgressPage() {
         </table>
       </section>
 
-      <section className="panel">
-        <h2>Play course</h2>
-        <p className="muted small">
-          {playDone}/{data.lessons.length} hands complete.
-        </p>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Hand</th>
-              <th>Attempts</th>
-              <th>Best mistakes</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.lessons.map((l) => {
-              const lp = getLessonProgress(progress, l.id);
-              return (
-                <tr key={l.id}>
-                  <td>
-                    <Link to={`/play/${l.id}`}>{l.title}</Link>
-                  </td>
-                  <td>{lp.attempts}</td>
-                  <td>{lp.bestMistakes ?? "—"}</td>
-                  <td>
-                    {lp.optimal
-                      ? "Optimal ★"
-                      : lp.completed
-                        ? "Done"
-                        : "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
+      {playCurriculum.lessons.length > 0 && (
+        <section className="panel">
+          <h2>Play course</h2>
+          <p className="muted small">
+            {playDone}/{playCurriculum.lessons.length} hands complete.
+          </p>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Hand</th>
+                <th>Attempts</th>
+                <th>Best mistakes</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {playCurriculum.lessons.map((l) => {
+                const lp = getLessonProgress(progress, l.id);
+                return (
+                  <tr key={l.id}>
+                    <td>
+                      <Link to={`/play/${l.id}`}>{l.title}</Link>
+                    </td>
+                    <td>{lp.attempts}</td>
+                    <td>{lp.bestMistakes ?? "—"}</td>
+                    <td>
+                      {lp.optimal
+                        ? "Optimal ★"
+                        : lp.completed
+                          ? "Done"
+                          : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <div className="btn-row">
         <button type="button" className="btn" onClick={download}>

@@ -11,6 +11,7 @@ interface Props {
   label?: string;
   hcp?: number;
   size?: "sm" | "md" | "lg";
+  align?: "start" | "center";
 }
 
 export function HandRow({
@@ -22,13 +23,14 @@ export function HandRow({
   label,
   hcp,
   size = "md",
+  align = "center",
 }: Props) {
   const sorted = sortHand(cards);
   return (
-    <div className="hand-row">
+    <div className={"hand-row" + (align === "start" ? " hand-row--start" : "")}>
       {(label || hcp != null) && (
         <div className="hand-row__meta">
-          {label && <span>{label}</span>}
+          {label && <span className="hand-row__name">{label}</span>}
           {hcp != null && <span className="hand-row__hcp">{hcp} HCP</span>}
         </div>
       )}

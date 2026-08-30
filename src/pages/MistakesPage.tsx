@@ -1,11 +1,9 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import curriculum from "../data/curriculum.json";
+import { biddingCurriculum } from "../lib/biddingCurriculum";
+import { playCurriculum } from "../lib/playCurriculum";
 import { loadProgress } from "../lib/progress";
-import type { Curriculum } from "../lib/types";
 import { bidDisplay, cardLabel } from "../lib/cards";
-
-const data = curriculum as Curriculum;
 
 function pretty(phase: string, value: string): string {
   if (phase === "play" && value.length === 2) return cardLabel(value);
@@ -13,12 +11,22 @@ function pretty(phase: string, value: string): string {
   return value;
 }
 
+function lessonHref(id: string): string | null {
+  if (biddingCurriculum.lessons.some((l) => l.id === id)) return `/bid/${id}`;
+  if (playCurriculum.lessons.some((l) => l.id === id)) return `/play/${id}`;
+  return null;
+}
+
+function lessonTitle(id: string): string {
+  return (
+    biddingCurriculum.lessons.find((l) => l.id === id)?.title ??
+    playCurriculum.lessons.find((l) => l.id === id)?.title ??
+    id
+  );
+}
+
 export function MistakesPage() {
   const progress = useMemo(() => loadProgress(), []);
-  const lessonsById = useMemo(
-    () => Object.fromEntries(data.lessons.map((l) => [l.id, l])),
-    [],
-  );
 
   return (
     <div className="page">
@@ -33,13 +41,16 @@ export function MistakesPage() {
       ) : (
         <ul className="mistake-list">
           {progress.mistakes.map((m) => {
-            const lesson = lessonsById[m.lessonId];
+            const href = lessonHref(m.lessonId);
+            const title = lessonTitle(m.lessonId);
             return (
               <li key={m.id} className="mistake-item">
                 <div className="mistake-item__top">
-                  <Link to={`/play/${m.lessonId}`}>
-                    Hand {lesson?.title ?? m.lessonId}
-                  </Link>
+                  {href ? (
+                    <Link to={href}>{title}</Link>
+                  ) : (
+                    <span>{title}</span>
+                  )}
                   <time dateTime={m.at}>
                     {new Date(m.at).toLocaleString()}
                   </time>

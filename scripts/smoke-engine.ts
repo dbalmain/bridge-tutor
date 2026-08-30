@@ -1,4 +1,3 @@
-import curriculum from "../src/data/curriculum.json";
 import {
   advanceAutoBids,
   advanceAutoPlaysDds,
@@ -9,7 +8,38 @@ import {
   submitCardDds,
 } from "../src/lib/engine";
 import { cardSuit, legalCards } from "../src/lib/cards";
-import type { Curriculum, Lesson } from "../src/lib/types";
+import type { Lesson } from "../src/lib/types";
+
+/** Original 3NT fixture — not a published teaching deal. */
+const sample: Lesson = {
+  id: "smoke-3nt",
+  chapterId: "smoke",
+  chapterNumber: 1,
+  handNumber: 1,
+  title: "smoke",
+  board: 1,
+  dealer: "S",
+  vulnerability: "None",
+  hands: {
+    S: ["SA", "SK", "S5", "HA", "HK", "H4", "DA", "DK", "D3", "CA", "C9", "C6", "C2"],
+    W: ["SQ", "SJ", "S8", "HQ", "H9", "H6", "DQ", "D8", "D5", "CQ", "C8", "C4", "C3"],
+    N: ["ST", "S7", "S4", "S3", "HT", "H8", "H5", "H2", "DJ", "DT", "D7", "D2", "CJ"],
+    E: ["S9", "S6", "S2", "HJ", "H7", "H3", "D9", "D6", "D4", "CK", "CT", "C7", "C5"],
+  },
+  auction: [
+    { type: "bid", seat: "S", bid: "1NT" },
+    { type: "bid", seat: "W", bid: "Pass" },
+    { type: "bid", seat: "N", bid: "3NT" },
+    { type: "bid", seat: "E", bid: "Pass" },
+    { type: "bid", seat: "S", bid: "Pass" },
+    { type: "bid", seat: "W", bid: "Pass" },
+  ],
+  play: [],
+  contract: "3NT",
+  declarer: "S",
+  leadSeat: "W",
+  tip: "Smoke: bid the script, then play with DDS.",
+};
 
 async function playThrough(lesson: Lesson) {
   let s = startBidding(initialEngine(lesson));
@@ -45,9 +75,6 @@ async function playThrough(lesson: Lesson) {
   return s;
 }
 
-const data = curriculum as Curriculum;
-// Smoke one hand deeply (DDS is slower than pure script)
-const sample = data.lessons[0];
 playThrough(sample)
   .then((s) => {
     console.log(

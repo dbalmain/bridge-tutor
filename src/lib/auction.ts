@@ -24,3 +24,14 @@ export function padAuction(
   for (const ev of log) cells.push(bidDisplay(ev.bid));
   return cells;
 }
+
+/** Last real call, for the “ends at” line. Not full declarer logic. */
+export function auctionEndedAt(
+  log: { seat: Seat; bid: string }[],
+): { seat: Seat; bid: string } | null {
+  for (let i = log.length - 1; i >= 0; i--) {
+    const ev = log[i]!;
+    if (ev.bid !== "Pass" && ev.bid !== "X" && ev.bid !== "XX") return ev;
+  }
+  return null;
+}

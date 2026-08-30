@@ -5,7 +5,7 @@
 import { evaluatePlay } from "../src/lib/ddsEval";
 
 async function main() {
-  // Hand 1.4 mid-trick: W led Q♦, N 2♦, E A♦, S to follow with 8/9♦.
+  // Mid-trick follow: W led Q♦, N 2♦, E A♦, S holds 8♦ and 9♦.
   // Current-trick cards already removed from hands (as in the live engine).
   const hands = {
     S: [

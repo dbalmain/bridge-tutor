@@ -1,34 +1,37 @@
 # Bridge Tutor
 
-Progressive bridge tutor for Linux (and tablets via browser). Two tracks:
+Progressive bridge tutor for Linux (and tablets via browser).
 
-- **Play course** — [Will Jenner-O’Shea / Derrick Browne Beginners’ Bridge](https://www.willjenneroshea.com/wp/beginners-bridge/) hands.
 - **Bidding course** — ABF / Joan Butts Standard Five-Card Majors. Sixteen
-  lessons (teach, then a few live tests on that branch). Miss a call and the
-  system explainer stays up until you bid the right one.
-- **Bidding drills** — the same decision tree, sampled by weakness. Deals come
-  from a local Rust sidecar (`crates/bridge-system`, port 8788).
+  lessons (teach, then live auctions you bid from the start). Partner and the
+  opponents bid the system. Miss a call and the explainer stays up until you
+  bid the right one.
+- **Bidding drills** — the same tree, sampled by weakness, still bid from
+  dealer rather than skipping to the hard call. Deals come from a local Rust
+  sidecar (`crates/bridge-system`, port 8788).
+- **Play course** — forthcoming. Same 5CM tree, full deals: bid the system
+  line, then play. Card play scored by DDS.
 
 ## What the MVP does
 
-1. **Concept first** — each chapter has a short explanation. The bidding
-   course interleaves that with live tests on the same branch.
-2. **Full hand** — on the play course you bid (South) and play (South + dummy).
-3. **Bidding feedback** — play course follows the scripted line; bidding
-   course and drills follow the ABF 5CM tree, with the explainer on a miss.
-4. **Card play via DDS** — [Bo Haglund’s double-dummy solver](https://github.com/dds-bridge/dds)
+1. **Concept first** — each bidding lesson has a short explanation, then live
+   auctions on that branch of the tree, bid from the start.
+2. **Bidding feedback** — course and drills follow the ABF 5CM tree, with the
+   explainer on a miss. You still see partner’s system continuation.
+3. **Card play via DDS** — [Bo Haglund’s double-dummy solver](https://github.com/dds-bridge/dds)
    (WASM) scores every card. You are only called out when a play costs
    **≥1 trick** versus optimal. Spot cards that score the same are fine.
-   Opponents autoplay double-dummy best.
-5. **Until clean** — replay for ★ with zero significant DDS errors.
-6. **Mistake journal** — local history with tags for later AI coaching.
-7. **Sol coach** — each hand opens a **standby** coach session: auction/play notes
+   Opponents autoplay double-dummy best. (Wired and waiting for the play
+   course.)
+4. **Until clean** — replay for ★ with zero significant errors.
+5. **Mistake journal** — local history with tags for later AI coaching.
+6. **Sol coach** — each hand opens a **standby** coach session: auction/play notes
    are queued locally (no model calls). The coach harness (Codex, Grok Build,
    OpenCode, or Claude Code) only runs when you make a mistake or chat.
    Choose harness, model, and thinking level in the commentary panel.
    Explanations appear there; transcripts persist in `localStorage` and
    `.coach-sessions/`.
-8. **Export** — download progress JSON to paste into an AI tutor.
+7. **Export** — download progress JSON to paste into an AI tutor.
 
 ## Run
 
@@ -40,7 +43,7 @@ npm run dev
 That starts **Vite**, the **Sol coach server** (`scripts/coach-server.mjs` on
 port 8787), and the **bidding sidecar** (`cargo run -p bridge-system -- serve`
 on port 8788). Open the URL Vite prints (usually `http://localhost:5173`).
-Drills need that sidecar; `npm run dev:ui` is the play course only.
+Bidding course and drills need that sidecar; `npm run dev:ui` is the UI only.
 
 Install and log in to whichever harness CLI(s) you want on your `PATH`
 (`codex`, `grok`, `opencode`, `claude`). Defaults and env overrides:
@@ -68,12 +71,6 @@ cargo run -p bridge-system -- prove-leaves
 cargo run -p bridge-system -- serve   # bidding drills, default :8788
 ```
 
-Regenerate lesson data from the course LIN files:
-
-```bash
-node scripts/parse-lin.mjs
-```
-
 ## Learning path
 
 **Bidding course** (ABF Standard 5CM) — `/bid`
@@ -88,20 +85,8 @@ node scripts/parse-lin.mjs
 | 6 | Responding to 1♣ / 1♦ |
 | 7 | Opener’s rebid |
 
-**Play course** (Jenner-O’Shea) — `/`
-
-| Chapter | Topic |
-|--------:|-------|
-| 1 | Basics |
-| 2 | Early bidding |
-| 3 | Game plan |
-| 4 | Responder shifts |
-| 5 | Opening 1NT |
-| 6 | Overcalls and doubles |
-
-Play-course hands are the official deals. Bidding follows those scripts; card
-play is free and scored by DDS. The bidding course uses generated deals
-against the tree.
+The play course will reuse this tree: each leaf becomes a full deal you bid,
+then play.
 
 ## Roadmap (agile)
 
@@ -110,9 +95,9 @@ against the tree.
 - [x] Lazy Sol coach (mistake/chat only) + harness/model/thinking selector
 - [ ] Hint / “show best card” without spoiling ★
 - [x] Weighted bidding drills against the 5-card-majors tree
-- [x] Bidding course: teach, then test, with the explainer on a miss
+- [x] Bidding course: teach, then bid the auction through, explainer on a miss
+- [ ] Play course on the same 5CM tree (full deals, DDS scoring)
 - [ ] Weekly AI coaching from exported mistake tags
-- [ ] More hands beyond the 24 beginners set
 - [ ] Optional softer threshold / matchpoint-style scoring
 
 ## Stack

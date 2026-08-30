@@ -18,6 +18,8 @@ export default defineConfig({
     // http://127.0.0.1:5173 failed while localhost worked (or vice versa).
     host: true,
     port: 5173,
+    // Tailscale Serve / MagicDNS (e.g. msa2.tail4561de.ts.net).
+    allowedHosts: [".ts.net"],
     proxy: {
       // Sol coach (scripts/coach-server.mjs) — long-running codex turns.
       "/api/coach": {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import curriculum from "../data/curriculum.json";
+import { playCurriculum } from "../lib/playCurriculum";
 import { BiddingBox } from "../components/BiddingBox";
 import { CardView } from "../components/CardView";
 import { CommentaryLog } from "../components/CommentaryLog";
@@ -39,12 +39,11 @@ import { useSolCoach } from "../lib/useSolCoach";
 import type {
   Card,
   CommentaryEntry,
-  Curriculum,
   Lesson,
   Mistake,
 } from "../lib/types";
 
-const data = curriculum as Curriculum;
+const data = playCurriculum;
 
 function findLesson(id: string | undefined): Lesson | undefined {
   return data.lessons.find((l) => l.id === id);
@@ -309,7 +308,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
     return (
       <div className="page play-page">
         <div className="breadcrumb">
-          <Link to="/">Play course</Link>
+          <Link to="/">Home</Link>
           <span>·</span>
           <span>
             Ch {chapter.number}: {chapter.title}
@@ -352,14 +351,16 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
           >
             {busy ? "Loading engine…" : "Start hand"}
           </button>
-          <a
-            className="btn"
-            href={lesson.external?.tutorialLin}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Course tutorial (BBO)
-          </a>
+          {lesson.external?.tutorialLin && (
+            <a
+              className="btn"
+              href={lesson.external.tutorialLin}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Course tutorial
+            </a>
+          )}
         </div>
       </div>
     );
@@ -370,7 +371,7 @@ function PlayLessonInner({ lesson }: { lesson: Lesson }) {
       <div className="play-header">
         <div>
           <div className="breadcrumb">
-            <Link to="/">Play course</Link>
+            <Link to="/">Home</Link>
             <span>·</span>
             <span>
               Hand {lesson.title}
