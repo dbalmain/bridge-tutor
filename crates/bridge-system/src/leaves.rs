@@ -9,6 +9,7 @@ pub enum Family {
     Resp1NT,
     RespMajor,
     RespMinor,
+    RespStrong,
     Rebid,
 }
 
@@ -19,6 +20,7 @@ impl Family {
             Family::Resp1NT => "1nt",
             Family::RespMajor => "major",
             Family::RespMinor => "minor",
+            Family::RespStrong => "strong",
             Family::Rebid => "rebid",
         }
     }
@@ -29,6 +31,7 @@ impl Family {
             Family::Resp1NT => "Respond to 1NT",
             Family::RespMajor => "Respond to 1♥/1♠",
             Family::RespMinor => "Respond to 1♣/1♦",
+            Family::RespStrong => "Respond to 2♣/2NT/preempts",
             Family::Rebid => "Opener’s rebid",
         }
     }
@@ -40,6 +43,7 @@ impl Family {
             "1nt" | "nt" => Some(Family::Resp1NT),
             "major" | "majors" | "1M" => Some(Family::RespMajor),
             "minor" | "minors" | "1m" => Some(Family::RespMinor),
+            "strong" | "preempt" | "preempts" => Some(Family::RespStrong),
             "rebid" | "rebids" => Some(Family::Rebid),
             _ => None,
         }
@@ -241,6 +245,38 @@ fn one_diamond_opener() -> HandPat {
     HandPat::hcp(12, 14)
         .lens((0, 3), (4, 6), (0, 4), (0, 4))
         .bal(false)
+}
+
+fn strong_2c_opener() -> HandPat {
+    HandPat::hcp(22, 25).lens((1, 5), (1, 5), (1, 5), (1, 5))
+}
+
+fn two_nt_opener() -> HandPat {
+    HandPat::hcp(20, 21)
+        .lens((2, 5), (2, 5), (2, 5), (2, 5))
+        .bal(true)
+}
+
+/// Exactly six cards, 5–10 HCP, below a one-level opening.
+fn weak_two_opener(suit: Suit) -> HandPat {
+    let p = HandPat::hcp(5, 10);
+    match suit {
+        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (6, 6)),
+        Suit::Heart => p.lens((0, 3), (0, 3), (6, 6), (0, 3)),
+        Suit::Diamond => p.lens((0, 3), (6, 6), (0, 3), (0, 3)),
+        Suit::Club => p.lens((6, 6), (0, 3), (0, 3), (0, 3)),
+    }
+}
+
+/// Seven or more cards, 5–10 HCP.
+fn preempt_opener(suit: Suit) -> HandPat {
+    let p = HandPat::hcp(5, 10);
+    match suit {
+        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 7)),
+        Suit::Heart => p.lens((0, 3), (0, 3), (7, 7), (0, 3)),
+        Suit::Diamond => p.lens((0, 3), (7, 7), (0, 3), (0, 3)),
+        Suit::Club => p.lens((7, 7), (0, 3), (0, 3), (0, 3)),
+    }
 }
 
 /// North responds 1♦ to 1♣: 6+ HCP, 4+ diamonds, no four-card major, and
@@ -736,6 +772,173 @@ fn build() -> Vec<LeafSpec> {
             .lens((2, 5), (2, 3), (2, 3), (2, 3))
             .bal(true),
         one_diamond_opener(),
+    ));
+
+    // --- Chapter 9: strong and preemptive openings, both sides ---
+    v.push(resp(
+        "resp.2c.2d",
+        Family::RespStrong,
+        "2♣ – 2♦ waiting",
+        Call::suit_bid(2, Suit::Diamond),
+        Call::suit_bid(2, Suit::Club),
+        HandPat::hcp(0, 7).lens((0, 5), (0, 5), (0, 5), (0, 5)),
+        strong_2c_opener(),
+    ));
+    v.push(resp(
+        "resp.2c.2h",
+        Family::RespStrong,
+        "2♣ – 2♥ positive",
+        Call::suit_bid(2, Suit::Heart),
+        Call::suit_bid(2, Suit::Club),
+        HandPat::hcp(8, 11).lens((0, 3), (0, 3), (5, 6), (0, 4)),
+        strong_2c_opener(),
+    ));
+    v.push(resp(
+        "resp.2nt.3nt",
+        Family::RespStrong,
+        "2NT – 3NT",
+        Call::nt(3),
+        Call::nt(2),
+        HandPat::hcp(5, 11).lens((2, 5), (2, 5), (0, 3), (0, 3)),
+        two_nt_opener(),
+    ));
+    v.push(resp(
+        "resp.2nt.stayman",
+        Family::RespStrong,
+        "2NT – 3♣ Stayman",
+        Call::suit_bid(3, Suit::Club),
+        Call::nt(2),
+        HandPat::hcp(4, 11).lens((1, 4), (1, 4), (4, 4), (0, 3)),
+        two_nt_opener(),
+    ));
+    v.push(resp(
+        "resp.2nt.xfer.h",
+        Family::RespStrong,
+        "2NT – 3♦ transfer",
+        Call::suit_bid(3, Suit::Diamond),
+        Call::nt(2),
+        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 4)),
+        two_nt_opener(),
+    ));
+    v.push(resp(
+        "resp.2nt.pass",
+        Family::RespStrong,
+        "2NT – Pass",
+        Call::Pass,
+        Call::nt(2),
+        HandPat::hcp(0, 4).lens((2, 4), (2, 4), (0, 3), (0, 3)),
+        two_nt_opener(),
+    ));
+    v.push(resp(
+        "resp.weak2.pass",
+        Family::RespStrong,
+        "Pass partner's weak two",
+        Call::Pass,
+        Call::suit_bid(2, Suit::Spade),
+        HandPat::hcp(6, 13).lens((2, 5), (2, 5), (2, 5), (0, 2)),
+        weak_two_opener(Suit::Spade),
+    ));
+    v.push(resp(
+        "resp.weak2.raise",
+        Family::RespStrong,
+        "Raise the weak two",
+        Call::suit_bid(3, Suit::Spade),
+        Call::suit_bid(2, Suit::Spade),
+        HandPat::hcp(6, 13).lens((1, 4), (1, 4), (1, 4), (3, 4)),
+        weak_two_opener(Suit::Spade),
+    ));
+    v.push(resp(
+        "resp.weak2.game",
+        Family::RespStrong,
+        "Raise the weak two to game",
+        Call::suit_bid(4, Suit::Spade),
+        Call::suit_bid(2, Suit::Spade),
+        HandPat::hcp(16, 19).lens((1, 4), (1, 4), (1, 4), (3, 4)),
+        weak_two_opener(Suit::Spade),
+    ));
+    v.push(resp(
+        "resp.weak2.3nt",
+        Family::RespStrong,
+        "3NT over a weak two",
+        Call::nt(3),
+        Call::suit_bid(2, Suit::Spade),
+        HandPat::hcp(16, 19)
+            .lens((3, 4), (3, 4), (3, 4), (0, 2))
+            .bal(true),
+        weak_two_opener(Suit::Spade),
+    ));
+    v.push(resp(
+        "resp.preempt.pass",
+        Family::RespStrong,
+        "Pass partner's preempt",
+        Call::Pass,
+        Call::suit_bid(3, Suit::Diamond),
+        HandPat::hcp(6, 13).lens((2, 5), (0, 2), (2, 5), (2, 5)),
+        preempt_opener(Suit::Diamond),
+    ));
+    v.push(resp(
+        "resp.preempt.3nt",
+        Family::RespStrong,
+        "3NT over a preempt",
+        Call::nt(3),
+        Call::suit_bid(3, Suit::Diamond),
+        HandPat::hcp(16, 19)
+            .lens((3, 4), (2, 3), (3, 4), (3, 4))
+            .bal(true),
+        preempt_opener(Suit::Diamond),
+    ));
+    v.push(rebid(
+        "rebid.2c.2nt",
+        "Show the balanced monster",
+        Call::nt(2),
+        Call::suit_bid(2, Suit::Club),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(22, 24)
+            .lens((2, 5), (2, 5), (2, 5), (2, 5))
+            .bal(true),
+        HandPat::hcp(0, 7).lens((0, 5), (0, 5), (0, 5), (0, 5)),
+    ));
+    v.push(rebid(
+        "rebid.2c.suit",
+        "Name your suit after 2♣",
+        Call::suit_bid(2, Suit::Spade),
+        Call::suit_bid(2, Suit::Club),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(22, 24)
+            .lens((0, 3), (0, 3), (0, 4), (5, 7))
+            .bal(false),
+        HandPat::hcp(0, 7).lens((0, 5), (0, 5), (0, 5), (0, 5)),
+    ));
+    v.push(rebid(
+        "rebid.2nt.stayman.3h",
+        "Show hearts over 3♣ Stayman",
+        Call::suit_bid(3, Suit::Heart),
+        Call::nt(2),
+        Call::suit_bid(3, Suit::Club),
+        HandPat::hcp(20, 21)
+            .lens((2, 4), (2, 4), (4, 5), (2, 4))
+            .bal(true),
+        HandPat::hcp(4, 11).lens((1, 4), (1, 4), (4, 4), (0, 3)),
+    ));
+    v.push(rebid(
+        "rebid.2nt.xfer.h",
+        "Complete the 3♦ transfer",
+        Call::suit_bid(3, Suit::Heart),
+        Call::nt(2),
+        Call::suit_bid(3, Suit::Diamond),
+        HandPat::hcp(20, 21)
+            .lens((2, 4), (2, 4), (2, 4), (2, 4))
+            .bal(true),
+        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 4)),
+    ));
+    v.push(rebid(
+        "rebid.preempt.pass",
+        "Pass — partner is the captain",
+        Call::Pass,
+        Call::suit_bid(2, Suit::Spade),
+        Call::suit_bid(3, Suit::Spade),
+        weak_two_opener(Suit::Spade),
+        HandPat::hcp(6, 13).lens((1, 4), (1, 4), (1, 4), (3, 4)),
     ));
 
     // --- Chapter 8: opener's rebid after a new suit ---

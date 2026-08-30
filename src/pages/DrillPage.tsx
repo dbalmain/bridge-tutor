@@ -30,6 +30,7 @@ const FAMILIES: { id: string; label: string }[] = [
   { id: "1nt", label: "1NT" },
   { id: "major", label: "1♥ / 1♠" },
   { id: "minor", label: "1♣ / 1♦" },
+  { id: "strong", label: "2♣ / 2NT / preempts" },
   { id: "rebid", label: "Rebids" },
 ];
 

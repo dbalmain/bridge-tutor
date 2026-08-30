@@ -69,6 +69,34 @@ impl Call {
         }
     }
 
+    /// Auction rank: level, then strain. `None` for Pass/X/XX, which do not
+    /// take part in the ordering.
+    pub fn rank(self) -> Option<(u8, u8)> {
+        match self {
+            Call::Bid { level, strain } => Some((
+                level,
+                match strain {
+                    Strain::Clubs => 0,
+                    Strain::Diamonds => 1,
+                    Strain::Hearts => 2,
+                    Strain::Spades => 3,
+                    Strain::NoTrump => 4,
+                },
+            )),
+            _ => None,
+        }
+    }
+
+    /// The cheapest legal bid in `strain` above `self`.
+    pub fn cheapest_above(self, strain: Strain) -> Call {
+        let (level, rank) = self.rank().unwrap_or((0, 0));
+        let want = Call::Bid { level: 1, strain }.rank().expect("a bid").1;
+        Call::Bid {
+            level: if want > rank { level.max(1) } else { level + 1 },
+            strain,
+        }
+    }
+
     pub fn to_app(self) -> String {
         match self {
             Call::Pass => "Pass".to_string(),

@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 6
+    "version": 7
   },
   "chapters": [
     {
@@ -103,6 +103,20 @@
         "Over a one-level response you can still show a four-card major at the one level — do that first.",
         "A two-level response promises 10+, so the pair is near game: minimum bids 2NT, extras bid 3NT.",
         "An invitation (2NT, or a limited raise) may be passed — but only on a minimum, never on autopilot."
+      ]
+    },
+    {
+      "id": "bid-ch9",
+      "number": 9,
+      "title": "Answering the big and the weak openings",
+      "summary": "2♣, 2NT and the preempts each tell you almost everything in one bid. What you say back depends on which: 2♣ you may never pass, 2NT you treat like a bigger 1NT, and a preempt you either raise, bid game, or leave alone.",
+      "concepts": [
+        "2♣ is game-forcing. Pass is never legal: 2♦ is the waiting bid with 0–7.",
+        "8+ with a five-card suit is a positive response to 2♣ — name the suit.",
+        "2NT (20–21) takes Stayman and transfers a level higher: 3♣ asks, 3♦ → hearts, 3♥ → spades.",
+        "Over 2NT the bar drops: 5+ HCP is 3NT, because partner has 20.",
+        "A weak two or a preempt is limited, so responder is the captain: raise, bid game with 16+, or pass.",
+        "Opener does not bid again over a limited opening unless partner bids a new suit."
       ]
     }
   ],
@@ -982,6 +996,147 @@
         "rebid.minor-raise.2nt",
         "rebid.1m.1nt.pass",
         "rebid.1m.1nt.rebid"
+      ],
+      "quizCount": 5
+    },
+    {
+      "id": "bid-resp-strong",
+      "chapterId": "bid-ch9",
+      "chapterNumber": 9,
+      "lessonNumber": 22,
+      "title": "Responding to 2♣ and 2NT",
+      "tip": "2♣ can never be passed — 2♦ waits. Over 2NT: Stayman and transfers a level up, 3NT with 5+.",
+      "newHere": "The first bid in the course you are forbidden to pass, and the waiting bid that answers it — plus 2NT, where the familiar 1NT machinery moves up a level and the thresholds drop.",
+      "revisits": [
+        {
+          "lessonId": "bid-open-strong",
+          "lessonNumber": 5,
+          "what": "the 2♣ and 2NT openings you are now on the other side of"
+        },
+        {
+          "lessonId": "bid-resp-1nt-xfer",
+          "lessonNumber": 8,
+          "what": "the transfers, which work the same way one level higher"
+        },
+        {
+          "lessonId": "bid-resp-1nt-stayman",
+          "lessonNumber": 9,
+          "what": "the Stayman ask, likewise"
+        }
+      ],
+      "teaching": [
+        "Lesson 5 taught you to open 2♣ on 22+ HCP or 21+ opening points unbalanced. This is the other side of it, and it comes with a rule the course has not needed until now: 2♣ is game-forcing, so you may not pass it. Not on 5 HCP, not on nothing. Partner has a hand that can make game opposite a blank, and passing throws it away.",
+        "So there must be a bid that means “I have nothing”, and that is 2♦. It says nothing whatever about diamonds — it is a waiting bid, keeping the auction as low as possible so partner has room to describe the monster. Bid it on 0–7 HCP whatever your shape.",
+        "With 8 or more you make a positive response: name a five-card suit if you have one (2♥, 2♠, 3♣ or 3♦), or bid 2NT with no five-card suit. A positive tells partner the pair is looking at a slam, not just a game, so it is worth showing straight away.",
+        "2NT is a different animal — it is natural and limited, 20–21 balanced, so you are allowed to pass it. Everything you learned over 1NT applies one level up: 3♣ is Stayman, 3♦ transfers to hearts and 3♥ to spades, exactly as in Lessons 8 and 9.",
+        "What changes over 2NT is the arithmetic. Partner holds 20–21 rather than 15–17, so game needs far less from you: 5 HCP with no four-card major is already 3NT, and 4 HCP is enough to use Stayman. Only 0–4 with no long major passes."
+      ],
+      "rules": [
+        "2♣ is game-forcing. Never pass it.",
+        "0–7 over 2♣: bid 2♦ — waiting, and nothing to do with diamonds.",
+        "8+ with a 5-card suit: name it. 8+ without one: 2NT.",
+        "Over 2NT: 3♣ Stayman, 3♦ → hearts, 3♥ → spades (Lessons 8 and 9).",
+        "Over 2NT: 5+ HCP is 3NT. 0–4 with no long major passes."
+      ],
+      "leaves": [
+        "resp.2c.2d",
+        "resp.2c.2h",
+        "resp.2nt.3nt",
+        "resp.2nt.stayman",
+        "resp.2nt.xfer.h",
+        "resp.2nt.pass"
+      ],
+      "quizCount": 5
+    },
+    {
+      "id": "bid-resp-preempt",
+      "chapterId": "bid-ch9",
+      "chapterNumber": 9,
+      "lessonNumber": 23,
+      "title": "Responding to a weak two or a preempt",
+      "tip": "Partner told you the hand exactly. Raise to obstruct, bid game with 16+, or pass and believe them.",
+      "newHere": "Captaincy: partner has described the hand almost exactly, so the whole decision is yours — and a raise here obstructs rather than invites.",
+      "revisits": [
+        {
+          "lessonId": "bid-preempt",
+          "lessonNumber": 6,
+          "what": "the weak two and the three-level preempt you are answering"
+        },
+        {
+          "lessonId": "bid-resp-major-raise",
+          "lessonNumber": 10,
+          "what": "raising a major, which meant something quite different"
+        }
+      ],
+      "teaching": [
+        "A weak two says six cards and 5–10 HCP. A three-level preempt says seven or more and 5–10. Either way partner has spent one bid describing the hand almost exactly, which puts the whole decision on you — that is what being the captain means, and it is the opposite of Lesson 10, where partner's 1♥ or 1♠ left the strength open.",
+        "Add your hand to what partner promised. With 16 or more and three-card support for the major, that is roughly 25 combined: bid the game. With 16+ and no fit, bid 3NT — partner's long suit supplies the tricks once your stoppers hold, and there is no room to hunt for anything better.",
+        "Below that, with support, raise anyway — but understand what the raise is doing. It is not an invitation, and partner must not take it as one. Raising takes another level away from the opponents while your extra trump makes the higher contract safe. Partner has already told you their range, so there is nothing left to invite.",
+        "With no fit and no game, pass. This is the hardest one, because a 12-count feels like too much to give up on. It is not: partner's 5–10 plus your 12 is nowhere near game, and moving only tells the opponents where the cards are.",
+        "From the opener's chair the rule is even simpler. You already described the hand, so you do not bid again — whatever partner chooses is the contract. The one exception is a new suit from partner, which is forcing; then you raise their major with three-card support, or repeat your own suit."
+      ],
+      "rules": [
+        "Weak two = 6 cards, 5–10. Preempt = 7+, 5–10. You are the captain (Lesson 6).",
+        "16+ with 3-card support for the major: bid game.",
+        "16+ with no fit: 3NT.",
+        "Support but no game values: raise to obstruct — it is not an invitation.",
+        "No fit, no game: pass and believe partner.",
+        "As opener: do not bid again — unless partner bids a new suit, which is forcing."
+      ],
+      "leaves": [
+        "resp.weak2.pass",
+        "resp.weak2.raise",
+        "resp.weak2.game",
+        "resp.weak2.3nt",
+        "resp.preempt.pass",
+        "resp.preempt.3nt"
+      ],
+      "quizCount": 5
+    },
+    {
+      "id": "bid-rebid-strong",
+      "chapterId": "bid-ch9",
+      "chapterNumber": 9,
+      "lessonNumber": 24,
+      "title": "Rebidding after 2♣, 2NT or a preempt",
+      "tip": "After 2♣ describe the monster. After 2NT answer the ask. After a preempt, say nothing.",
+      "newHere": "The opener’s side of Chapter 9 — and the clearest case in the course of when to keep describing a hand and when to stop.",
+      "revisits": [
+        {
+          "lessonId": "bid-resp-strong",
+          "lessonNumber": 22,
+          "what": "the waiting bid and the positives you are answering"
+        },
+        {
+          "lessonId": "bid-resp-preempt",
+          "lessonNumber": 23,
+          "what": "the captaincy rule, from the other chair"
+        },
+        {
+          "lessonId": "bid-rebid-nt-conv",
+          "lessonNumber": 17,
+          "what": "completing Stayman and transfers over 1NT"
+        }
+      ],
+      "teaching": [
+        "Three openings, three completely different jobs, and the contrast is the lesson. After 2♣ you have told partner only that the hand is huge, so every rebid describes it further. After 2NT you have already described it, so you simply answer what partner asked. After a preempt you described it with the opening bid itself, so you say nothing more.",
+        "Over partner's 2♦ waiting bid, show your shape. Balanced 22–24 bids 2NT and balanced 25+ bids 3NT — those two calls pin the hand almost exactly. Unbalanced, name your longest suit at the cheapest level; the auction is forcing to game, so there is all the room you need.",
+        "Over 2NT, Stayman and the transfers are answered exactly as in Lesson 17, one level up. 3♥ with four hearts even holding four spades, 3♠ with four spades and no four hearts, 3♦ with neither; and a transfer is completed always, without exception.",
+        "Over a weak two or a preempt, pass whatever partner chose. Partner knows both hands better than you do, because your opening told them the shape and the range and their own hand told them the rest. Bidding again describes nothing and only raises the level. The single exception is a new suit, which is forcing: raise their major with three-card support, otherwise repeat your own suit."
+      ],
+      "rules": [
+        "After 2♣ – 2♦: 2NT with 22–24 balanced, 3NT with 25+, else name your longest suit.",
+        "After 2♣ and a positive: raise partner’s major to game with 3-card support.",
+        "After 2NT: answer Stayman hearts-first, and always complete a transfer (Lesson 17).",
+        "After a weak two or preempt: pass whatever partner chose.",
+        "The exception: partner’s new suit is forcing — raise their major, or repeat your suit."
+      ],
+      "leaves": [
+        "rebid.2c.2nt",
+        "rebid.2c.suit",
+        "rebid.2nt.stayman.3h",
+        "rebid.2nt.xfer.h",
+        "rebid.preempt.pass"
       ],
       "quizCount": 5
     }
