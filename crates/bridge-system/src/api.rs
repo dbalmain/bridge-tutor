@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::auction::Auction;
 use crate::bid::Call;
 use crate::cards::{Card, Deal, Hand, Seat};
-use crate::deal::{auction_for, generate_for_id};
+use crate::deal::{auction_for, generate_for_id, uncontested_script, ScriptCall};
 use crate::leaves::{catalog, leaf_by_id, Family};
 use crate::progress::{pick_from_ids, pick_leaf_id, weight_table, Progress};
 use crate::system::{decide, HOUSE_RULES, SYSTEM_ID};
@@ -54,13 +54,36 @@ struct DrillJson {
     explanation: String,
     expected: String,
     dealer: String,
+    /// Prefix before the target leaf (historical). The live UI plays [`script`].
     auction: Vec<String>,
+    script: Vec<ScriptJson>,
     student: &'static str,
     hands: HandsJson,
     south_hcp: u8,
     south_opening_points: u8,
     south_shape: String,
     attempts: u32,
+}
+
+#[derive(Serialize)]
+struct ScriptJson {
+    seat: String,
+    bid: String,
+    leaf_id: &'static str,
+    title: &'static str,
+    explanation: &'static str,
+    student: bool,
+}
+
+fn script_json(step: &ScriptCall) -> ScriptJson {
+    ScriptJson {
+        seat: step.seat.letter().to_string(),
+        bid: step.bid.to_app(),
+        leaf_id: step.leaf_id,
+        title: step.title,
+        explanation: step.explanation,
+        student: step.student,
+    }
 }
 
 #[derive(Serialize)]
@@ -140,6 +163,10 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
             let spec = leaf_by_id(id).unwrap();
             let auction = auction_for(spec);
             let d = decide(&deal.south, &auction);
+            let script = uncontested_script(&deal, spec.dealer)
+                .iter()
+                .map(script_json)
+                .collect();
             let body = DrillJson {
                 leaf_id: spec.id,
                 family: spec.family.slug(),
@@ -149,6 +176,7 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
                 expected: spec.expected.to_app(),
                 dealer: spec.dealer.letter().to_string(),
                 auction: spec.calls_before.iter().map(|c| c.to_app()).collect(),
+                script,
                 student: "S",
                 hands: HandsJson::from_deal(&deal),
                 south_hcp: deal.south.hcp(),
@@ -276,9 +304,28 @@ mod tests {
         assert_eq!(v["leaf_id"], "open.pass");
         assert_eq!(v["expected"], "Pass");
         assert!(v["south_opening_points"].as_u64().is_some());
+        let script = v["script"].as_array().expect("script");
+        assert_eq!(script[0]["seat"], "S");
+        assert_eq!(script[0]["bid"], "Pass");
+        assert_eq!(script[0]["student"], true);
         let empty = next_drill_json("{}", 1, "all", &["no.such".into()]);
         let e: Value = serde_json::from_str(&empty).unwrap();
         assert!(e["error"].as_str().unwrap().contains("no matching"));
+    }
+
+    #[test]
+    fn rebid_drill_script_starts_with_the_opening() {
+        let body = next_drill_json("{}", 21, "all", &["rebid.1s.raise.pass".into()]);
+        let v: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(v["leaf_id"], "rebid.1s.raise.pass");
+        let script = v["script"].as_array().unwrap();
+        assert_eq!(script[0]["seat"], "S");
+        assert_eq!(script[0]["bid"], "1S");
+        assert_eq!(script[0]["student"], true);
+        let south: Vec<&Value> = script.iter().filter(|s| s["seat"] == "S").collect();
+        assert!(south.len() >= 2, "opener should rebid");
+        assert_eq!(south[1]["leaf_id"], "rebid.1s.raise.pass");
+        assert_eq!(south[1]["student"], true);
     }
 
     #[test]

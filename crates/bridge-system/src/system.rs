@@ -5,7 +5,7 @@
 
 use crate::auction::{Auction, Phase};
 use crate::bid::{Call, Strain};
-use crate::cards::{Hand, Suit};
+use crate::cards::{Hand, Seat, Suit};
 
 pub const SYSTEM_ID: &str = "abf-5cm-v2";
 
@@ -74,16 +74,53 @@ fn dec(id: &'static str, bid: Call, title: &'static str, explanation: &'static s
 }
 
 pub fn decide(hand: &Hand, auction: &Auction) -> Decision {
-    match auction.phase_for_south() {
-        Phase::Opening => opening(hand),
+    decide_for(hand, auction, Seat::South)
+}
+
+/// No call is taught for this position. Better to say so than to return a
+/// pass carrying an explanation that is false for the hand in question.
+fn untaught() -> Decision {
+    dec(
+        "unsupported",
+        Call::Pass,
+        "Pass — nothing more to say",
+        "The course does not teach a further call in this position, so the auction stops here.",
+    )
+}
+
+/// Weak twos and three-level preempts: the openings whose whole job is to
+/// steal bidding room from the opponents.
+pub fn is_preempt(leaf_id: &str) -> bool {
+    matches!(
+        leaf_id,
+        "open.2d" | "open.2h" | "open.2s" | "open.3c" | "open.3d" | "open.3h" | "open.3s"
+    )
+}
+
+pub fn decide_for(hand: &Hand, auction: &Auction, seat: Seat) -> Decision {
+    match auction.phase_for(seat) {
+        Phase::Opening => {
+            let d = opening(hand);
+            // A preempt buys bidding room, and in fourth seat there is none
+            // left to buy: three players have already passed. Pass the deal
+            // out instead of playing a weak two nobody was going to contest.
+            if auction.in_fourth_seat() && is_preempt(d.leaf_id) {
+                return dec(
+                    "pass.fourth-seat",
+                    Call::Pass,
+                    "Pass in fourth seat",
+                    "A weak two or three-level preempt is only worth its risk when it steals \
+                     bidding room. In fourth seat there is nobody left to shut out — the other \
+                     three have passed — so pass the deal out rather than play a preempt.",
+                );
+            }
+            d
+        }
         Phase::RespondTo(open) => respond(hand, open),
         Phase::OpenerRebid { open, response } => rebid(hand, open, response),
-        Phase::Unsupported => dec(
-            "unsupported",
-            Call::Pass,
-            "Out of scope",
-            "This auction is outside the uncontested teaching tree.",
-        ),
+        // Shown to a learner in the end-of-hand call list, so it says what
+        // happened rather than naming the tree's internals.
+        Phase::Unsupported => untaught(),
     }
 }
 
@@ -169,7 +206,9 @@ pub fn opening(hand: &Hand) -> Decision {
         "open.pass",
         Call::Pass,
         "Pass",
-        "Below opening values, and not a weak two or three-level preempt.",
+        "Below opening values, and not a weak two or three-level preempt. \
+         Passing is not an opening bid: the opening is the first non-pass call \
+         of the auction, whoever makes it.",
     )
 }
 
@@ -514,17 +553,20 @@ fn respond_major(hand: &Hand, trump: Suit) -> Decision {
         );
     }
 
-    let id = if trump == Suit::Spade {
-        "resp.1s.pass"
-    } else {
-        "resp.1h.pass"
-    };
-    dec(
-        id,
-        Call::Pass,
-        "Pass",
-        "0–5 HCP and no 3-card support. Do not rescue into a new suit.",
-    )
+    if hcp <= 5 {
+        let id = if trump == Suit::Spade {
+            "resp.1s.pass"
+        } else {
+            "resp.1h.pass"
+        };
+        return dec(
+            id,
+            Call::Pass,
+            "Pass",
+            "0–5 HCP and no 3-card support. Do not rescue into a new suit.",
+        );
+    }
+    untaught()
 }
 
 fn raise_id(trump: Suit, level: &str) -> &'static str {
@@ -561,6 +603,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
     let hcp = hand.hcp();
     let hearts = hand.len_of(Suit::Heart);
     let spades = hand.len_of(Suit::Spade);
+    let clubs = hand.len_of(Suit::Club);
     let support_len = if minor == Suit::Club { 5 } else { 4 };
     let support = hand.len_of(minor) >= support_len;
     let pts = hand.support_points(minor);
@@ -642,7 +685,11 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
                 "10–12 with a minor fit and no major. Opener may try 3NT with stoppers.",
             );
         }
-        if hand.is_balanced() && (13..=15).contains(&hcp) {
+        // 13+ with a fit and no major. Shape does not change the answer: a
+        // long minor is not a reason to chase eleven tricks, so this is 3NT
+        // whether the hand is balanced or not. Leaving it gated on balance
+        // dropped strong unbalanced hands through to the pass at the bottom.
+        if pts >= 13 {
             let id = if minor == Suit::Club {
                 "resp.1c.3nt"
             } else {
@@ -652,7 +699,7 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
                 id,
                 Call::nt(3),
                 "3NT over a minor",
-                "13–15 balanced, minor fit, no 4-card major. Prefer 3NT to five of a minor.",
+                "13+ points with a minor fit and no 4-card major. Prefer 3NT to five of a minor.",
             );
         }
     }
@@ -670,6 +717,20 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
             "6–9 HCP, no 4-card major, no raise. Non-forcing.",
         );
     }
+    // Over 1♦, a six-card club suit with 10+ is a two-level new suit — the
+    // same rule as a two-level shift over a major. Six clubs is never
+    // balanced, so these hands used to match no branch at all. Over 1♣ the
+    // suit is partner's, so a long club hand raises instead.
+    if minor == Suit::Diamond && clubs >= 6 && hcp >= 10 {
+        return dec(
+            "resp.1d.2c",
+            Call::suit_bid(2, Suit::Club),
+            "Two-level shift to clubs",
+            "10+ HCP and six or more clubs, no four-card major and no diamond fit. \
+             A new suit at the two-level needs 10+; it is forcing for one round.",
+        );
+    }
+
     if (10..=12).contains(&hcp) && hand.is_balanced() {
         let id = if minor == Suit::Club {
             "resp.1c.2nt"
@@ -697,17 +758,20 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
         );
     }
 
-    let id = if minor == Suit::Club {
-        "resp.1c.pass"
-    } else {
-        "resp.1d.pass"
-    };
-    dec(
-        id,
-        Call::Pass,
-        "Pass",
-        "Fewer than 6 HCP. Do not respond on junk.",
-    )
+    if hcp <= 5 {
+        let id = if minor == Suit::Club {
+            "resp.1c.pass"
+        } else {
+            "resp.1d.pass"
+        };
+        return dec(
+            id,
+            Call::Pass,
+            "Pass",
+            "Fewer than 6 HCP. Do not respond on junk.",
+        );
+    }
+    untaught()
 }
 
 fn rebid(hand: &Hand, open: Call, response: Call) -> Decision {
@@ -852,6 +916,97 @@ fn rebid(hand: &Hand, open: Call, response: Call) -> Decision {
                 strain: Strain::Spades,
             },
         ) => after_1m_one_major(hand, Suit::Diamond, Suit::Spade),
+        // --- Opener's rebid after a new suit. A new suit is forcing for one
+        // round, so none of these may pass.
+        (
+            Call::Bid {
+                level: 1,
+                strain: Strain::Clubs,
+            },
+            Call::Bid {
+                level: 1,
+                strain: Strain::Diamonds,
+            },
+        ) => after_1c_1d(hand),
+        (
+            Call::Bid {
+                level: 1,
+                strain: Strain::Hearts,
+            },
+            Call::Bid {
+                level: 1,
+                strain: Strain::Spades,
+            },
+        ) => after_1h_1s(hand),
+        (
+            Call::Bid {
+                level: 1,
+                strain: open_strain,
+            },
+            Call::Bid {
+                level: 2,
+                strain: shown,
+            },
+        ) if open_strain.suit().is_some()
+            && shown.suit().is_some()
+            && open_strain != shown
+            && !(open_strain == Strain::Clubs && shown == Strain::Clubs) =>
+        {
+            after_two_level_shift(
+                hand,
+                open_strain.suit().expect("suit opening"),
+                shown.suit().expect("suit response"),
+            )
+        }
+
+        // --- Partner limited the hand. Minimum may pass; extras must not.
+        (
+            Call::Bid {
+                level: 1,
+                strain: Strain::NoTrump,
+            },
+            Call::Bid {
+                level: 2,
+                strain: Strain::NoTrump,
+            },
+        ) => after_two_nt_invite(hand, 16),
+        (
+            Call::Bid {
+                level: 1,
+                strain: open_strain,
+            },
+            Call::Bid {
+                level: 2,
+                strain: Strain::NoTrump,
+            },
+        ) if open_strain.suit().is_some() => after_two_nt_invite(hand, 14),
+        (
+            Call::Bid {
+                level: 1,
+                strain: open_strain,
+            },
+            Call::Bid {
+                level: raise_level @ (2 | 3),
+                strain: raise_strain,
+            },
+        ) if open_strain == raise_strain
+            && matches!(open_strain, Strain::Clubs | Strain::Diamonds) =>
+        {
+            after_minor_raise(hand, open_strain.suit().expect("minor"), raise_level == 3)
+        }
+        (
+            Call::Bid {
+                level: 1,
+                strain: open_strain,
+            },
+            Call::Bid {
+                level: 1,
+                strain: Strain::NoTrump,
+            },
+        ) if matches!(open_strain, Strain::Clubs | Strain::Diamonds) => {
+            after_minor_one_nt(hand, open_strain.suit().expect("minor"))
+        }
+
         _ => dec(
             "rebid.pass.default",
             Call::Pass,
@@ -860,6 +1015,307 @@ fn rebid(hand: &Hand, open: Call, response: Call) -> Decision {
              limited the hand and we are minimum, stop.",
         ),
     }
+}
+
+/// Opener's rebid after 1♣ – 1♦. Partner showed 4+ diamonds and 6+ HCP with
+/// no four-card major, and a new suit is forcing, so passing is not an option.
+/// Show a four-card major first — it is still the one-level and it is the
+/// cheapest way to find the major game — then support, then shape, then
+/// notrump by strength.
+fn after_1c_1d(hand: &Hand) -> Decision {
+    let pts = hand.opening_points();
+    if hand.len_of(Suit::Heart) >= 4 {
+        return dec(
+            "rebid.1c.1d.1h",
+            Call::suit_bid(1, Suit::Heart),
+            "Bid 1♥",
+            "Four hearts. Still the one-level, so any opening hand can afford it — and it is \
+             the cheapest chance at a major fit.",
+        );
+    }
+    if hand.len_of(Suit::Spade) >= 4 {
+        return dec(
+            "rebid.1c.1d.1s",
+            Call::suit_bid(1, Suit::Spade),
+            "Bid 1♠",
+            "Four spades and not four hearts. Still the one-level.",
+        );
+    }
+    if hand.len_of(Suit::Diamond) >= 4 {
+        if pts >= 16 {
+            return dec(
+                "rebid.1c.1d.raise3",
+                Call::suit_bid(3, Suit::Diamond),
+                "Jump raise the diamonds",
+                "Four-card diamond support and 16–18. Invites game with a fit in the minor.",
+            );
+        }
+        return dec(
+            "rebid.1c.1d.raise2",
+            Call::suit_bid(2, Suit::Diamond),
+            "Raise to 2♦",
+            "Four-card diamond support, minimum. Names the fit cheaply.",
+        );
+    }
+    if hand.is_balanced() && pts >= 18 {
+        return dec(
+            "rebid.1c.1d.2nt",
+            Call::nt(2),
+            "Jump to 2NT",
+            "18–19 balanced with no major and no diamond fit. Too strong for 1NT.",
+        );
+    }
+    if hand.len_of(Suit::Club) >= 6 {
+        return dec(
+            "rebid.1c.1d.2c",
+            Call::suit_bid(2, Suit::Club),
+            "Rebid 2♣",
+            "Six or more clubs, no four-card major, no diamond fit. Repeat the real suit.",
+        );
+    }
+    dec(
+        "rebid.1c.1d.1nt",
+        Call::nt(1),
+        "Rebid 1NT",
+        "Minimum with no four-card major, no diamond fit and no sixth club. 12–14 balanced.",
+    )
+}
+
+/// Opener's rebid after 1♥ – 1♠. Partner showed four or more spades and 6+
+/// HCP without three-card heart support, and a new suit is forcing.
+fn after_1h_1s(hand: &Hand) -> Decision {
+    let pts = hand.opening_points();
+    if hand.len_of(Suit::Spade) >= 4 {
+        if pts >= 19 {
+            return dec(
+                "rebid.1h.1s.game",
+                Call::suit_bid(4, Suit::Spade),
+                "Raise to 4♠",
+                "Four-card spade support and 19–20. Bid the major game.",
+            );
+        }
+        if pts >= 16 {
+            return dec(
+                "rebid.1h.1s.raise3",
+                Call::suit_bid(3, Suit::Spade),
+                "Jump raise to 3♠",
+                "Four-card spade support and 16–18. Invites the spade game.",
+            );
+        }
+        return dec(
+            "rebid.1h.1s.raise2",
+            Call::suit_bid(2, Suit::Spade),
+            "Raise to 2♠",
+            "Four-card spade support, minimum. The pair has found its eight-card fit.",
+        );
+    }
+    if hand.len_of(Suit::Heart) >= 6 {
+        return dec(
+            "rebid.1h.1s.2h",
+            Call::suit_bid(2, Suit::Heart),
+            "Rebid 2♥",
+            "Six or more hearts and no spade fit. Repeat the long suit so partner can choose.",
+        );
+    }
+    if hand.is_balanced() && pts >= 18 {
+        return dec(
+            "rebid.1h.1s.2nt",
+            Call::nt(2),
+            "Jump to 2NT",
+            "18–19 balanced, no spade fit. Too strong for a 1NT rebid.",
+        );
+    }
+    if hand.is_balanced() {
+        return dec(
+            "rebid.1h.1s.1nt",
+            Call::nt(1),
+            "Rebid 1NT",
+            "Minimum balanced with no spade support and only five hearts.",
+        );
+    }
+    let minor = if hand.len_of(Suit::Diamond) >= 4 {
+        Some(Suit::Diamond)
+    } else if hand.len_of(Suit::Club) >= 4 {
+        Some(Suit::Club)
+    } else {
+        None
+    };
+    if let Some(m) = minor {
+        return dec(
+            "rebid.1h.1s.new-minor",
+            Call::suit_bid(2, m),
+            "Show the second suit",
+            "No spade fit, no sixth heart, not balanced: bid the four-card minor. Still a \
+             minimum — it describes shape, not extra strength.",
+        );
+    }
+    dec(
+        "rebid.1h.1s.1nt",
+        Call::nt(1),
+        "Rebid 1NT",
+        "Nothing else to describe: no spade fit, no sixth heart, no four-card minor.",
+    )
+}
+
+/// Opener's rebid after a two-level new suit (1♦–2♣, 1♥–2♣/2♦, 1♠–2♣/2♦/2♥).
+/// Partner promised 10+ HCP and a real suit, so the pair is close to game and
+/// opener must bid again. In all six of these sequences opener's own suit
+/// outranks partner's, so rebidding it at the two-level is always legal.
+fn after_two_level_shift(hand: &Hand, opened: Suit, shown: Suit) -> Decision {
+    let pts = hand.opening_points();
+    let support_needed = if shown == Suit::Heart { 3 } else { 4 };
+    if hand.len_of(shown) >= support_needed {
+        if shown == Suit::Heart {
+            if pts >= 16 {
+                return dec(
+                    "rebid.2level.game",
+                    Call::suit_bid(4, shown),
+                    "Bid the major game",
+                    "Three-card support for partner's five-card major and 16+. Partner promised \
+                     10+, so the pair holds game values.",
+                );
+            }
+            return dec(
+                "rebid.2level.raise-major",
+                Call::suit_bid(3, shown),
+                "Raise partner's major",
+                "Three-card support for partner's five-card major on a minimum. Partner has \
+                 10+ and decides whether to go on.",
+            );
+        }
+        if pts >= 16 {
+            return dec(
+                "rebid.2level.3nt",
+                Call::nt(3),
+                "Bid 3NT",
+                "A minor fit and 16+ opposite partner's 10+. Nine tricks in notrump beat eleven \
+                 in a minor.",
+            );
+        }
+        return dec(
+            "rebid.2level.raise-minor",
+            Call::suit_bid(3, shown),
+            "Raise partner's minor",
+            "Four-card support for partner's minor on a minimum. Partner has 10+ and picks the \
+             final contract.",
+        );
+    }
+    if hand.len_of(opened) >= 6 {
+        return dec(
+            "rebid.2level.rebid-suit",
+            Call::suit_bid(2, opened),
+            "Rebid your suit",
+            "Six or more cards in the suit you opened and no fit for partner's. Repeating it \
+             is a minimum action — your suit ranks above partner's, so it costs nothing.",
+        );
+    }
+    if pts >= 16 {
+        return dec(
+            "rebid.2level.3nt",
+            Call::nt(3),
+            "Bid 3NT",
+            "16+ opposite partner's 10+ is game, and with no fit either way notrump is the \
+             place to play it.",
+        );
+    }
+    dec(
+        "rebid.2level.2nt",
+        Call::nt(2),
+        "Bid 2NT",
+        "Minimum with no fit and no sixth card in your own suit. 2NT keeps the auction alive \
+         without promising extras; partner has 10+ and decides.",
+    )
+}
+
+/// Partner invited with 2NT. Accept or decline on strength — never pass on
+/// autopilot, which is what the old catch-all did.
+fn after_two_nt_invite(hand: &Hand, accept_from: u8) -> Decision {
+    let hcp = hand.hcp();
+    if hcp >= accept_from {
+        return dec(
+            "rebid.2nt.accept",
+            Call::nt(3),
+            "Accept: 3NT",
+            "Partner invited with 2NT and you are at the top of your range. Accept and bid game.",
+        );
+    }
+    dec(
+        "rebid.2nt.decline",
+        Call::Pass,
+        "Decline: pass 2NT",
+        "Partner invited with 2NT and you are minimum. Pass — an invitation you decline is \
+         not a bid you have to make.",
+    )
+}
+
+/// Partner raised your minor. A minor part-score is cheap and a minor game is
+/// expensive, so extras look for 3NT rather than five of a minor.
+fn after_minor_raise(hand: &Hand, minor: Suit, limit_raise: bool) -> Decision {
+    let pts = hand.opening_points();
+    let floor = if limit_raise { 14 } else { 19 };
+    if pts >= floor {
+        return dec(
+            "rebid.minor-raise.3nt",
+            Call::nt(3),
+            "Bid 3NT",
+            "Enough combined strength for game, and nine tricks in notrump beat eleven in a \
+             minor.",
+        );
+    }
+    if !limit_raise && pts >= 16 {
+        return dec(
+            "rebid.minor-raise.2nt",
+            Call::nt(2),
+            "Try 2NT",
+            "Medium hand (16–18) opposite a 6–9 raise. Invite game; partner passes with 6–7 \
+             and bids 3NT with 8–9.",
+        );
+    }
+    let _ = minor;
+    dec(
+        "rebid.minor-raise.pass",
+        Call::Pass,
+        "Pass the raise",
+        "Minimum opposite a limited raise. The part-score is where this hand belongs — do not \
+         chase eleven tricks.",
+    )
+}
+
+/// Partner responded 1NT to your minor: 6–9 with no four-card major. Not
+/// forcing, so a minimum may pass, but extras must not.
+fn after_minor_one_nt(hand: &Hand, minor: Suit) -> Decision {
+    let pts = hand.opening_points();
+    if hand.is_balanced() && pts >= 18 {
+        return dec(
+            "rebid.1m.1nt.2nt",
+            Call::nt(2),
+            "Jump to 2NT",
+            "18–19 balanced opposite 6–9. Invite the notrump game.",
+        );
+    }
+    if hand.len_of(minor) >= 6 && pts <= 17 {
+        return dec(
+            "rebid.1m.1nt.rebid",
+            Call::suit_bid(2, minor),
+            "Rebid the minor",
+            "Six or more in the suit you opened. Partner has denied a major and may hold a \
+             doubleton — the long suit will usually play better.",
+        );
+    }
+    if pts >= 19 {
+        return dec(
+            "rebid.1m.1nt.3nt",
+            Call::nt(3),
+            "Bid 3NT",
+            "19+ opposite 6–9 is game whatever the shape.",
+        );
+    }
+    dec(
+        "rebid.1m.1nt.pass",
+        Call::Pass,
+        "Pass 1NT",
+        "Minimum, and partner's 1NT is not forcing. Play it there.",
+    )
 }
 
 fn stayman_rebid(hand: &Hand) -> Decision {
@@ -1165,10 +1621,411 @@ fn after_1m_one_major(hand: &Hand, minor: Suit, major: Suit) -> Decision {
 mod tests {
     use super::*;
     use crate::cards::{Card, Seat};
+    use rand::SeedableRng;
 
     fn hand(codes: &[&str]) -> Hand {
         let cards: Vec<Card> = codes.iter().map(|s| Card::parse_app(s).unwrap()).collect();
         Hand::try_from_slice(&cards).unwrap()
+    }
+
+    /// Opener may only fall back on a blanket pass where a pass is right in
+    /// every case: partner has already bid game. Every other sequence — a
+    /// forcing new suit, an invitation, a limited raise — must consult
+    /// opener's hand. This is what caught the eight forcing bids the tree used
+    /// to pass.
+    #[test]
+    fn opener_only_passes_by_default_when_game_is_reached() {
+        const KNOWN: &[&str] = &["1C – 3NT", "1D – 3NT", "1NT – 3NT", "1H – 4H", "1S – 4S"];
+        let (found, _) = rebid_survey();
+        let known: std::collections::BTreeSet<String> =
+            KNOWN.iter().map(|s| s.to_string()).collect();
+        let new_gaps: Vec<&String> = found.difference(&known).collect();
+        let fixed: Vec<&String> = known.difference(&found).collect();
+        assert!(
+            new_gaps.is_empty(),
+            "these sequences fall back on a blanket pass and should not: {new_gaps:?}"
+        );
+        assert!(
+            fixed.is_empty(),
+            "these no longer reach the default pass — remove them from KNOWN: {fixed:?}"
+        );
+    }
+
+    /// The rule Chapter 8 exists to teach: a new suit by responder is forcing
+    /// for one round, so no hand opener can hold may pass one. Limited bids —
+    /// raises, notrump invitations — may be passed, and are checked elsewhere.
+    #[test]
+    fn opener_never_passes_a_new_suit() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(2026);
+        let opens = [
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+        ];
+        let mut hands = Vec::new();
+        for _ in 0..400 {
+            let mut deck: Vec<Card> = (0..52).filter_map(Card::from_id).collect();
+            use rand::seq::SliceRandom;
+            deck.shuffle(&mut rng);
+            hands.push(Hand::try_from_slice(&deck[..13]).unwrap());
+        }
+        let mut passed: std::collections::BTreeSet<String> = Default::default();
+        let mut sequences = 0;
+        for open in opens {
+            let open_strain = match open {
+                Call::Bid { strain, .. } => strain,
+                _ => unreachable!(),
+            };
+            for r in &hands {
+                let resp = respond(r, open);
+                // A new suit: a suit bid in a strain opener did not name.
+                let is_new_suit = match resp.bid {
+                    Call::Bid { level, strain } => {
+                        level <= 2 && strain != open_strain && strain != Strain::NoTrump
+                    }
+                    _ => false,
+                };
+                if !is_new_suit {
+                    continue;
+                }
+                sequences += 1;
+                for o in &hands {
+                    if rebid(o, open, resp.bid).bid == Call::Pass {
+                        passed.insert(format!(
+                            "{} – {} passed with {} HCP",
+                            open.to_app(),
+                            resp.bid.to_app(),
+                            o.hcp()
+                        ));
+                    }
+                }
+            }
+        }
+        assert!(sequences > 100, "expected plenty of new-suit auctions");
+        assert!(
+            passed.is_empty(),
+            "a new suit is forcing and these were passed:\n{}",
+            passed
+                .iter()
+                .take(10)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+
+    /// Every rebid the tree makes must be a legal call: strictly higher than
+    /// the bid it follows. A handler that picks a suit ranking below partner's
+    /// response would be unbiddable at the table.
+    #[test]
+    fn every_rebid_is_a_legal_call() {
+        fn rank(c: Call) -> Option<(u8, u8)> {
+            match c {
+                Call::Bid { level, strain } => Some((
+                    level,
+                    match strain {
+                        Strain::Clubs => 0,
+                        Strain::Diamonds => 1,
+                        Strain::Hearts => 2,
+                        Strain::Spades => 3,
+                        Strain::NoTrump => 4,
+                    },
+                )),
+                _ => None,
+            }
+        }
+        let (_, illegal) = rebid_survey();
+        assert!(illegal.is_empty(), "illegal rebids: {illegal:?}");
+        // Guard the guard: the ranking must order NT above spades.
+        assert!(rank(Call::nt(2)) > rank(Call::suit_bid(2, Suit::Spade)));
+    }
+
+    /// Shared sweep: every (opening, response, opener's hand) the tree can
+    /// reach. Returns the sequences that hit the default pass, and any rebid
+    /// that was not a legal call.
+    fn rebid_survey() -> (
+        std::collections::BTreeSet<String>,
+        std::collections::BTreeSet<String>,
+    ) {
+        fn rank(c: Call) -> Option<(u8, u8)> {
+            match c {
+                Call::Bid { level, strain } => Some((
+                    level,
+                    match strain {
+                        Strain::Clubs => 0,
+                        Strain::Diamonds => 1,
+                        Strain::Hearts => 2,
+                        Strain::Spades => 3,
+                        Strain::NoTrump => 4,
+                    },
+                )),
+                _ => None,
+            }
+        }
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(99);
+        let opens = [
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+            Call::nt(1),
+        ];
+        let mut hands = Vec::new();
+        for _ in 0..300 {
+            let mut deck: Vec<Card> = (0..52).filter_map(Card::from_id).collect();
+            use rand::seq::SliceRandom;
+            deck.shuffle(&mut rng);
+            hands.push(Hand::try_from_slice(&deck[..13]).unwrap());
+        }
+        let mut defaults = std::collections::BTreeSet::new();
+        let mut illegal = std::collections::BTreeSet::new();
+        for open in opens {
+            for r in &hands {
+                let resp = respond(r, open);
+                if resp.bid == Call::Pass {
+                    continue;
+                }
+                for o in &hands {
+                    let d = rebid(o, open, resp.bid);
+                    let seq = format!("{} – {}", open.to_app(), resp.bid.to_app());
+                    if d.leaf_id == "rebid.pass.default" {
+                        defaults.insert(seq.clone());
+                    }
+                    if let Some(made) = rank(d.bid) {
+                        if Some(made) <= rank(resp.bid) {
+                            illegal.insert(format!("{seq} – {}", d.bid.to_app()));
+                        }
+                    }
+                }
+            }
+        }
+        (defaults, illegal)
+    }
+
+    /// Every hand has a taught response to every opening this course makes.
+    /// `untaught()` remains as a safety net, and this proves it is unreachable
+    /// — the check that caught the 2♣-over-1♦ hole in the first place.
+    #[test]
+    fn every_hand_has_a_taught_response_to_every_opening() {
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(4242);
+        let opens = [
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+            Call::nt(1),
+        ];
+        let mut gaps = Vec::new();
+        let mut weak_passes = 0;
+        for _ in 0..8000 {
+            let mut deck: Vec<Card> = (0..52).filter_map(Card::from_id).collect();
+            use rand::seq::SliceRandom;
+            deck.shuffle(&mut rng);
+            let h = Hand::try_from_slice(&deck[..13]).unwrap();
+            for open in opens {
+                let d = respond(&h, open);
+                if d.leaf_id == "unsupported" {
+                    let sh = h.shape();
+                    gaps.push(format!(
+                        "over {}: {} HCP {}-{}-{}-{}",
+                        open.to_app(),
+                        h.hcp(),
+                        sh[3],
+                        sh[2],
+                        sh[1],
+                        sh[0]
+                    ));
+                }
+                // A pass must only be reached by a hand actually too weak.
+                if d.leaf_id.ends_with(".pass") {
+                    assert!(
+                        h.hcp() <= 7,
+                        "{} HCP reached {} over {}",
+                        h.hcp(),
+                        d.leaf_id,
+                        open.to_app()
+                    );
+                    weak_passes += 1;
+                }
+            }
+        }
+        assert!(
+            gaps.is_empty(),
+            "{} responses have no taught call:\n{}",
+            gaps.len(),
+            gaps.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        );
+        assert!(weak_passes > 100, "expected plenty of weak hands to pass");
+    }
+
+    /// The hand class that used to have no call: six clubs over 1♦.
+    #[test]
+    fn six_clubs_over_one_diamond_shifts_to_two_clubs() {
+        let h = hand(&[
+            "SK", "S4", "S3", "HQ", "H5", "DA", "D7", "CK", "CJ", "C9", "C6", "C5", "C2",
+        ]);
+        assert_eq!(h.len_of(Suit::Club), 6);
+        assert!(h.hcp() >= 10, "{} HCP", h.hcp());
+        assert!(!h.is_balanced());
+        let d = respond(&h, Call::suit_bid(1, Suit::Diamond));
+        assert_eq!(d.bid, Call::suit_bid(2, Suit::Club));
+        assert_eq!(d.leaf_id, "resp.1d.2c");
+
+        // Over 1♣ the long suit is partner's: raise, do not shift.
+        let d = respond(&h, Call::suit_bid(1, Suit::Club));
+        assert_ne!(d.leaf_id, "resp.1d.2c");
+        assert_ne!(d.bid, Call::Pass);
+    }
+
+    /// Reported hand: 14 HCP, 2-3-1-7 with AKQJ of clubs, facing partner's
+    /// 1♣. It fell through every branch of `respond_minor` and landed on the
+    /// pass at the bottom, which told the learner "fewer than 6 HCP".
+    #[test]
+    fn a_strong_unbalanced_hand_with_a_minor_fit_bids_game_not_pass() {
+        let h = hand(&[
+            "S9", "S6", "HA", "HT", "H3", "D2", "CA", "CK", "CQ", "CJ", "C9", "C4", "C3",
+        ]);
+        assert_eq!(h.hcp(), 14);
+        assert_eq!(h.len_of(Suit::Club), 7);
+        assert!(!h.is_balanced(), "2-3-1-7 — this is the case that broke");
+
+        let d = respond(&h, Call::suit_bid(1, Suit::Club));
+        assert_eq!(d.bid, Call::nt(3), "14 HCP must not pass partner's opening");
+        assert_eq!(d.leaf_id, "resp.1c.3nt");
+    }
+
+    /// The pass at the bottom of a response must only fire on hands it has
+    /// actually established are weak — never as a catch-all.
+    #[test]
+    fn the_response_pass_only_fires_on_weak_hands() {
+        // Genuinely weak: 3 HCP, no support, nothing to bid.
+        let weak = hand(&[
+            "S9", "S6", "S5", "H9", "H8", "H3", "D9", "D8", "D3", "CJ", "C9", "C4", "C3",
+        ]);
+        assert!(weak.hcp() <= 5);
+        assert_eq!(
+            respond(&weak, Call::suit_bid(1, Suit::Club)).leaf_id,
+            "resp.1c.pass"
+        );
+
+        // No hand of 6+ HCP may reach a response pass claiming it is weak.
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(20260830);
+        let opens = [
+            Call::suit_bid(1, Suit::Club),
+            Call::suit_bid(1, Suit::Diamond),
+            Call::suit_bid(1, Suit::Heart),
+            Call::suit_bid(1, Suit::Spade),
+        ];
+        let mut checked = 0;
+        for _ in 0..4000 {
+            let mut deck: Vec<Card> = (0..52).filter_map(Card::from_id).collect();
+            use rand::seq::SliceRandom;
+            deck.shuffle(&mut rng);
+            let h = Hand::try_from_slice(&deck[..13]).unwrap();
+            if h.hcp() < 6 {
+                continue;
+            }
+            checked += 1;
+            for open in opens {
+                let d = respond(&h, open);
+                assert!(
+                    !d.leaf_id.ends_with(".pass"),
+                    "{} HCP reached {} over {:?}",
+                    h.hcp(),
+                    d.leaf_id,
+                    open
+                );
+            }
+        }
+        assert!(
+            checked > 1000,
+            "expected plenty of 6+ HCP hands, got {checked}"
+        );
+    }
+
+    /// Same hand, three positions. First and third seat preempt; fourth
+    /// seat, with nobody left to shut out, passes the deal out instead.
+    #[test]
+    fn a_weak_two_opens_in_first_and_third_seat_but_passes_in_fourth() {
+        let h = hand(&[
+            "SA", "SQ", "S8", "S7", "S6", "S5", "H7", "H6", "H5", "D7", "D6", "C7", "C6",
+        ]);
+        assert_eq!(h.hcp(), 6, "5–10 HCP");
+        assert_eq!(h.len_of(Suit::Spade), 6, "six-card major");
+        assert!(!h.can_open_one(), "must be below a one-level opening");
+
+        let first = Auction::empty(Seat::South);
+        let d = decide_for(&h, &first, Seat::South);
+        assert_eq!(
+            d.leaf_id, "open.2s",
+            "positive control: first seat preempts"
+        );
+        assert_eq!(d.bid, Call::suit_bid(2, Suit::Spade));
+
+        // Dealer North, two passes: South is third and still preempts.
+        let third = Auction {
+            dealer: Seat::North,
+            calls: vec![Call::Pass, Call::Pass],
+        };
+        assert_eq!(third.next_seat(), Seat::South);
+        assert_eq!(decide_for(&h, &third, Seat::South).leaf_id, "open.2s");
+
+        // Dealer West, three passes: South is fourth and last.
+        let fourth = Auction {
+            dealer: Seat::West,
+            calls: vec![Call::Pass, Call::Pass, Call::Pass],
+        };
+        assert_eq!(fourth.next_seat(), Seat::South);
+        let d = decide_for(&h, &fourth, Seat::South);
+        assert_eq!(d.bid, Call::Pass);
+        assert_eq!(d.leaf_id, "pass.fourth-seat");
+    }
+
+    /// A real opening hand still opens in fourth seat — the suppression is
+    /// only for preempts, not for anything that passes the strength test.
+    #[test]
+    fn a_genuine_opening_still_opens_in_fourth_seat() {
+        let h = hand(&[
+            "SA", "SK", "SQ", "S4", "S3", "HA", "H6", "H2", "D9", "D8", "D3", "C5", "C2",
+        ]);
+        let fourth = Auction {
+            dealer: Seat::West,
+            calls: vec![Call::Pass, Call::Pass, Call::Pass],
+        };
+        let d = decide_for(&h, &fourth, Seat::South);
+        assert_eq!(d.leaf_id, "open.1s");
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Spade));
+    }
+
+    /// `is_preempt` is a hand-written list of leaf ids. Cross-check it against
+    /// the *shape* of the call each opening leaf makes, so the list cannot
+    /// drift out of step with the tree.
+    #[test]
+    fn is_preempt_agrees_with_the_calls_the_tree_makes() {
+        let mut checked = 0;
+        for spec in crate::leaves::catalog() {
+            let looks_like_a_preempt = match spec.expected {
+                Call::Bid { level: 2, strain } => {
+                    strain != Strain::Clubs && strain != Strain::NoTrump
+                }
+                Call::Bid { level: 3, strain } => strain != Strain::NoTrump,
+                _ => false,
+            };
+            if spec.family == crate::leaves::Family::Open {
+                assert_eq!(
+                    is_preempt(spec.id),
+                    looks_like_a_preempt,
+                    "{} expects {:?}",
+                    spec.id,
+                    spec.expected
+                );
+                checked += 1;
+            } else {
+                assert!(!is_preempt(spec.id), "{} is not an opening", spec.id);
+            }
+        }
+        assert!(checked > 10, "expected the whole opening family");
     }
 
     #[test]

@@ -243,6 +243,17 @@ fn one_diamond_opener() -> HandPat {
         .bal(false)
 }
 
+/// North responds 1♦ to 1♣: 6+ HCP, 4+ diamonds, no four-card major, and
+/// short enough in clubs not to raise.
+fn respond_one_diamond_north() -> HandPat {
+    HandPat::hcp(6, 11).lens((0, 4), (4, 6), (0, 3), (0, 3))
+}
+
+/// North responds 1♠ to 1♥: 6+ HCP, 4+ spades, fewer than three hearts.
+fn respond_one_spade_north() -> HandPat {
+    HandPat::hcp(6, 11).lens((1, 5), (1, 5), (0, 2), (4, 5))
+}
+
 fn raise_north(trump: Suit, min_p: u8, max_p: u8, min_len: u8) -> HandPat {
     match trump {
         Suit::Spade => HandPat::hcp(min_p, max_p).lens((0, 6), (0, 6), (0, 4), (min_len, 5)),
@@ -707,6 +718,15 @@ fn build() -> Vec<LeafSpec> {
         one_diamond_opener(),
     ));
     v.push(resp(
+        "resp.1d.2c",
+        Family::RespMinor,
+        "1♦ – 2♣",
+        Call::suit_bid(2, Suit::Club),
+        Call::suit_bid(1, Suit::Diamond),
+        HandPat::hcp(10, 15).lens((6, 7), (0, 3), (0, 3), (0, 3)),
+        one_diamond_opener(),
+    ));
+    v.push(resp(
         "resp.1d.1nt",
         Family::RespMinor,
         "1♦ – 1NT",
@@ -716,6 +736,195 @@ fn build() -> Vec<LeafSpec> {
             .lens((2, 5), (2, 3), (2, 3), (2, 3))
             .bal(true),
         one_diamond_opener(),
+    ));
+
+    // --- Chapter 8: opener's rebid after a new suit ---
+    // One-level new suit: 1♣ – 1♦
+    v.push(rebid(
+        "rebid.1c.1d.1h",
+        "Show hearts after 1♣–1♦",
+        Call::suit_bid(1, Suit::Heart),
+        Call::suit_bid(1, Suit::Club),
+        Call::suit_bid(1, Suit::Diamond),
+        HandPat::hcp(12, 14).lens((3, 4), (2, 3), (4, 4), (2, 3)),
+        respond_one_diamond_north(),
+    ));
+    v.push(rebid(
+        "rebid.1c.1d.raise2",
+        "Raise 1♦ to 2♦",
+        Call::suit_bid(2, Suit::Diamond),
+        Call::suit_bid(1, Suit::Club),
+        Call::suit_bid(1, Suit::Diamond),
+        HandPat::hcp(12, 14)
+            .lens((5, 5), (4, 4), (0, 3), (0, 3))
+            .bal(false),
+        respond_one_diamond_north(),
+    ));
+    v.push(rebid(
+        "rebid.1c.1d.1nt",
+        "Rebid 1NT after 1♣–1♦",
+        Call::nt(1),
+        Call::suit_bid(1, Suit::Club),
+        Call::suit_bid(1, Suit::Diamond),
+        HandPat::hcp(12, 14).lens((4, 5), (2, 3), (2, 3), (2, 3)),
+        respond_one_diamond_north(),
+    ));
+    // One-level new suit: 1♥ – 1♠
+    v.push(rebid(
+        "rebid.1h.1s.raise2",
+        "Raise 1♠ to 2♠",
+        Call::suit_bid(2, Suit::Spade),
+        Call::suit_bid(1, Suit::Heart),
+        Call::suit_bid(1, Suit::Spade),
+        HandPat::hcp(12, 14)
+            .lens((1, 3), (1, 3), (5, 5), (4, 4))
+            .bal(false),
+        respond_one_spade_north(),
+    ));
+    v.push(rebid(
+        "rebid.1h.1s.2h",
+        "Rebid 2♥ after 1♥–1♠",
+        Call::suit_bid(2, Suit::Heart),
+        Call::suit_bid(1, Suit::Heart),
+        Call::suit_bid(1, Suit::Spade),
+        HandPat::hcp(12, 14)
+            .lens((1, 3), (1, 3), (6, 6), (0, 3))
+            .bal(false),
+        respond_one_spade_north(),
+    ));
+    v.push(rebid(
+        "rebid.1h.1s.1nt",
+        "Rebid 1NT after 1♥–1♠",
+        Call::nt(1),
+        Call::suit_bid(1, Suit::Heart),
+        Call::suit_bid(1, Suit::Spade),
+        HandPat::hcp(12, 13)
+            .lens((2, 3), (2, 3), (5, 5), (2, 3))
+            .bal(true),
+        respond_one_spade_north(),
+    ));
+    // Two-level new suit
+    v.push(rebid(
+        "rebid.2level.raise-major",
+        "Raise partner's 2♥ to 3♥",
+        Call::suit_bid(3, Suit::Heart),
+        Call::suit_bid(1, Suit::Spade),
+        Call::suit_bid(2, Suit::Heart),
+        HandPat::hcp(12, 13).lens((1, 3), (1, 3), (3, 3), (5, 5)),
+        HandPat::hcp(10, 13).lens((1, 4), (1, 4), (5, 6), (0, 2)),
+    ));
+    v.push(rebid(
+        "rebid.2level.raise-minor",
+        "Raise partner's 2♦ to 3♦",
+        Call::suit_bid(3, Suit::Diamond),
+        Call::suit_bid(1, Suit::Spade),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(12, 13)
+            .lens((0, 3), (4, 4), (1, 3), (5, 5))
+            .bal(false),
+        HandPat::hcp(10, 13).lens((1, 3), (4, 6), (0, 3), (0, 2)),
+    ));
+    v.push(rebid(
+        "rebid.2level.rebid-suit",
+        "Rebid 2♠ over partner's 2♦",
+        Call::suit_bid(2, Suit::Spade),
+        Call::suit_bid(1, Suit::Spade),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(12, 14)
+            .lens((1, 3), (1, 3), (1, 3), (6, 6))
+            .bal(false),
+        HandPat::hcp(10, 13).lens((1, 3), (4, 6), (0, 3), (0, 2)),
+    ));
+    v.push(rebid(
+        "rebid.2level.2nt",
+        "Bid 2NT over partner's 2♦",
+        Call::nt(2),
+        Call::suit_bid(1, Suit::Spade),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(12, 13).lens((2, 4), (2, 3), (2, 4), (5, 5)),
+        HandPat::hcp(10, 13).lens((1, 3), (4, 6), (0, 3), (0, 2)),
+    ));
+    v.push(rebid(
+        "rebid.2level.3nt",
+        "Bid 3NT over partner's 2♦",
+        Call::nt(3),
+        Call::suit_bid(1, Suit::Spade),
+        Call::suit_bid(2, Suit::Diamond),
+        HandPat::hcp(17, 19).lens((2, 4), (2, 3), (2, 4), (5, 5)),
+        HandPat::hcp(10, 13).lens((1, 3), (4, 6), (0, 3), (0, 2)),
+    ));
+    // Invitations and limited raises
+    v.push(rebid(
+        "rebid.2nt.accept",
+        "Accept the 2NT invitation",
+        Call::nt(3),
+        Call::nt(1),
+        Call::nt(2),
+        HandPat::hcp(16, 17)
+            .lens((2, 5), (2, 5), (2, 5), (2, 5))
+            .bal(true),
+        HandPat::hcp(8, 9)
+            .lens((2, 4), (2, 4), (2, 3), (2, 3))
+            .bal(true),
+    ));
+    v.push(rebid(
+        "rebid.2nt.decline",
+        "Decline the 2NT invitation",
+        Call::Pass,
+        Call::nt(1),
+        Call::nt(2),
+        HandPat::hcp(15, 15)
+            .lens((2, 5), (2, 5), (2, 5), (2, 5))
+            .bal(true),
+        HandPat::hcp(8, 9)
+            .lens((2, 4), (2, 4), (2, 3), (2, 3))
+            .bal(true),
+    ));
+    v.push(rebid(
+        "rebid.minor-raise.pass",
+        "Pass partner's minor raise",
+        Call::Pass,
+        Call::suit_bid(1, Suit::Club),
+        Call::suit_bid(2, Suit::Club),
+        HandPat::hcp(12, 13)
+            .lens((5, 6), (0, 3), (0, 3), (0, 3))
+            .bal(false),
+        HandPat::hcp(6, 9).lens((5, 6), (0, 3), (0, 3), (0, 3)),
+    ));
+    v.push(rebid(
+        "rebid.minor-raise.2nt",
+        "Try 2NT over a minor raise",
+        Call::nt(2),
+        Call::suit_bid(1, Suit::Club),
+        Call::suit_bid(2, Suit::Club),
+        HandPat::hcp(16, 17)
+            .lens((5, 6), (0, 3), (0, 3), (0, 3))
+            .bal(false),
+        HandPat::hcp(6, 9).lens((5, 6), (0, 3), (0, 3), (0, 3)),
+    ));
+    v.push(rebid(
+        "rebid.1m.1nt.pass",
+        "Pass partner's 1NT over a minor",
+        Call::Pass,
+        Call::suit_bid(1, Suit::Diamond),
+        Call::nt(1),
+        HandPat::hcp(12, 14).lens((0, 3), (4, 5), (2, 3), (2, 3)),
+        HandPat::hcp(6, 9)
+            .lens((2, 5), (2, 3), (2, 3), (2, 3))
+            .bal(true),
+    ));
+    v.push(rebid(
+        "rebid.1m.1nt.rebid",
+        "Rebid the minor over 1NT",
+        Call::suit_bid(2, Suit::Diamond),
+        Call::suit_bid(1, Suit::Diamond),
+        Call::nt(1),
+        HandPat::hcp(12, 14)
+            .lens((0, 3), (6, 7), (0, 3), (0, 3))
+            .bal(false),
+        HandPat::hcp(6, 9)
+            .lens((2, 5), (2, 3), (2, 3), (2, 3))
+            .bal(true),
     ));
 
     // --- Rebids ---

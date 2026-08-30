@@ -2,9 +2,10 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 
 use crate::auction::Auction;
+use crate::bid::Call;
 use crate::cards::{is_balanced_shape, Card, Deal, Hand, Seat, Suit};
 use crate::leaves::{leaf_by_id, HandPat, LeafSpec};
-use crate::system::{decide, opening};
+use crate::system::{decide, decide_for, opening};
 
 const MAX_ATTEMPTS: u32 = 80_000;
 
@@ -243,6 +244,67 @@ pub fn auction_for(spec: &LeafSpec) -> Auction {
     }
 }
 
+/// One call in the uncontested system auction, from dealer to pass-out.
+#[derive(Clone, Debug)]
+pub struct ScriptCall {
+    pub seat: Seat,
+    pub bid: Call,
+    pub leaf_id: &'static str,
+    pub title: &'static str,
+    pub explanation: &'static str,
+    /// South's in-tree turns — the student should place these.
+    pub student: bool,
+}
+
+/// The uncontested system auction, dealer to pass-out.
+///
+/// Any seat may open while the auction is still nothing but passes — without
+/// that, a deal where the dealer passes and an opponent holds 14 opening
+/// points reads as passed out, which is a lie. Once someone has opened, only
+/// their partnership keeps bidding: this course has no competitive bidding
+/// yet, so the other side stays silent.
+pub fn uncontested_script(deal: &Deal, dealer: Seat) -> Vec<ScriptCall> {
+    let mut auction = Auction::empty(dealer);
+    let mut out = Vec::with_capacity(8);
+    let mut opener: Option<Seat> = None;
+    for _ in 0..16 {
+        if auction.ended() {
+            break;
+        }
+        let seat = auction.next_seat();
+        let ours = match opener {
+            None => true,
+            Some(o) => o == seat || o == seat.partner(),
+        };
+        let step = if ours {
+            let d = decide_for(&deal.hand(seat), &auction, seat);
+            ScriptCall {
+                seat,
+                bid: d.bid,
+                leaf_id: d.leaf_id,
+                title: d.title,
+                explanation: d.explanation,
+                student: seat == Seat::South && leaf_by_id(d.leaf_id).is_some(),
+            }
+        } else {
+            ScriptCall {
+                seat,
+                bid: Call::Pass,
+                leaf_id: "pass.opponents-opened",
+                title: "Pass — the other side opened",
+                explanation: "This course does not teach bidding against an opening, so once the opponents open, your side stays out of the auction.",
+                student: false,
+            }
+        };
+        if opener.is_none() && step.bid != Call::Pass {
+            opener = Some(seat);
+        }
+        auction.calls.push(step.bid);
+        out.push(step);
+    }
+    out
+}
+
 fn verify(deal: &Deal, spec: &LeafSpec) -> bool {
     let auction = auction_for(spec);
     if auction.next_seat() != Seat::South {
@@ -302,5 +364,134 @@ mod tests {
             "leaves that would not deal:\n{}",
             failures.join("\n")
         );
+    }
+
+    #[test]
+    fn script_starts_at_dealer_and_hits_the_target_leaf() {
+        let mut rng = SmallRng::seed_from_u64(20260830);
+        let mut failures = Vec::new();
+        for spec in catalog() {
+            let Ok((deal, _)) = generate(&mut rng, spec) else {
+                failures.push(format!("{}: could not deal", spec.id));
+                continue;
+            };
+            let script = uncontested_script(&deal, spec.dealer);
+            if script.first().map(|s| s.seat) != Some(spec.dealer) {
+                failures.push(format!("{}: script did not start at dealer", spec.id));
+                continue;
+            }
+            let prefix: Vec<Call> = spec.calls_before.clone();
+            let got: Vec<Call> = script.iter().take(prefix.len()).map(|s| s.bid).collect();
+            if got != prefix {
+                failures.push(format!(
+                    "{}: script prefix {:?} != calls_before {:?}",
+                    spec.id, got, prefix
+                ));
+                continue;
+            }
+            let Some(target) = script.get(prefix.len()) else {
+                failures.push(format!("{}: script ended before the target call", spec.id));
+                continue;
+            };
+            if target.seat != Seat::South
+                || target.bid != spec.expected
+                || target.leaf_id != spec.id
+            {
+                failures.push(format!(
+                    "{}: target step seat={:?} bid={:?} leaf={} (want S / {:?} / {})",
+                    spec.id, target.seat, target.bid, target.leaf_id, spec.expected, spec.id
+                ));
+            }
+            if !script.iter().any(|s| s.seat == Seat::South && s.student) {
+                failures.push(format!("{}: no student turn", spec.id));
+            }
+            for step in &script {
+                if step.student && leaf_by_id(step.leaf_id).is_none() {
+                    failures.push(format!(
+                        "{}: student turn on unknown leaf {}",
+                        spec.id, step.leaf_id
+                    ));
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "script mismatches:\n{}",
+            failures.join("\n")
+        );
+    }
+
+    fn hand(cards: &str) -> Hand {
+        let list: Vec<String> = cards.split_whitespace().map(str::to_string).collect();
+        Hand::parse_app_list(&list).expect("13 valid cards")
+    }
+
+    /// Reported deal: South is dealer with 8 opening points and passes.
+    /// North (11 points, Rule of 20 = 19) and West (11 / 19) are right to
+    /// pass, but East has 14 opening points and 5-4-3-1 shape — this deal is
+    /// not passed out, and used to be shown as one.
+    #[test]
+    fn a_fourth_seat_opening_hand_opens_instead_of_passing_out() {
+        let deal = Deal::from_four(
+            hand("S8 S7 S6 S2 HA H9 DA D9 CQ CT C9 C5 C3"),
+            hand("SA SQ SJ S9 S3 HK HQ HT H3 DJ DT D5 C4"),
+            hand("S5 S4 H8 H7 H5 H4 H2 DK D6 D3 CA C7 C6"),
+            hand("SK ST HJ H6 DQ D8 D7 D4 D2 CK CJ C8 C2"),
+        )
+        .expect("a legal deal");
+
+        let script = uncontested_script(&deal, Seat::South);
+        let calls: Vec<(Seat, Call)> = script.iter().map(|s| (s.seat, s.bid)).collect();
+        assert_eq!(
+            &calls[..4],
+            &[
+                (Seat::South, Call::Pass),
+                (Seat::West, Call::Pass),
+                (Seat::North, Call::Pass),
+                (Seat::East, Call::suit_bid(1, Suit::Spade)),
+            ],
+            "East holds 14 opening points and must open in fourth seat"
+        );
+        assert!(script[0].student, "South's pass is still the graded call");
+        assert!(
+            script.iter().any(|s| s.bid != Call::Pass),
+            "the deal is not passed out"
+        );
+        // NS do not compete once the opponents have opened.
+        for step in &script[4..] {
+            if step.seat == Seat::North || step.seat == Seat::South {
+                assert_eq!(step.bid, Call::Pass);
+                assert_eq!(step.leaf_id, "pass.opponents-opened");
+            }
+        }
+    }
+
+    /// The other side of it: four hands that genuinely cannot open really is
+    /// a pass-out, and must still play out all four passes.
+    #[test]
+    fn four_hands_below_opening_values_pass_out() {
+        // 10 HCP and 4333-ish in every seat: 10 opening points, Rule of 20
+        // = 17. Nobody can open, so four passes is the truth.
+        let deal = Deal::from_four(
+            hand("SA ST S9 S8 HJ H7 H6 DQ D7 D6 CK C7 C6"),
+            hand("SK S7 S6 HA HT H9 H8 DJ D5 D4 CQ C5 C4"),
+            hand("SQ S5 S4 HK H5 H4 DA DT D9 D8 CJ C3 C2"),
+            hand("SJ S3 S2 HQ H3 H2 DK D3 D2 CA CT C9 C8"),
+        )
+        .expect("a legal deal");
+        let script = uncontested_script(&deal, Seat::South);
+        assert_eq!(script.len(), 4, "four passes, no more");
+        assert!(script.iter().all(|s| s.bid == Call::Pass));
+    }
+
+    #[test]
+    fn an_auction_with_a_bid_runs_to_pass_out() {
+        let mut rng = SmallRng::seed_from_u64(11);
+        let spec = leaf_by_id("open.1s").unwrap();
+        let (deal, _) = generate(&mut rng, spec).unwrap();
+        let script = uncontested_script(&deal, spec.dealer);
+        let n = script.len();
+        assert!(n >= 4);
+        assert!(script[n - 3..].iter().all(|s| s.bid == Call::Pass));
     }
 }
