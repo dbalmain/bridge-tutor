@@ -346,6 +346,59 @@ mod tests {
         assert!(missing.is_empty(), "unknown curriculum leaves: {missing:?}");
     }
 
+    /// Product copy that names the size of the course goes stale silently.
+    /// The README is prose, so this checks the numbers it commits to.
+    #[test]
+    fn the_readme_states_the_real_course_size() {
+        let raw = include_str!("../../../src/data/bidding-curriculum.json");
+        let v: Value = serde_json::from_str(raw).unwrap();
+        let lessons = v["lessons"].as_array().unwrap().len();
+        let chapters = v["chapters"].as_array().unwrap().len();
+        let words = [
+            "zero",
+            "one",
+            "two",
+            "three",
+            "four",
+            "five",
+            "six",
+            "seven",
+            "eight",
+            "nine",
+            "ten",
+            "eleven",
+            "twelve",
+            "thirteen",
+            "fourteen",
+            "fifteen",
+            "sixteen",
+            "seventeen",
+            "eighteen",
+            "nineteen",
+            "twenty",
+            "twenty-one",
+            "twenty-two",
+            "twenty-three",
+            "twenty-four",
+            "twenty-five",
+        ];
+        // Collapse whitespace: prose gets rewrapped, and "nine\n  chapters"
+        // must still count as saying nine chapters.
+        let readme = include_str!("../../../README.md")
+            .to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            readme.contains(&format!("{} chapters", words[chapters])),
+            "README does not say the course has {chapters} chapters"
+        );
+        assert!(
+            readme.contains(&format!("{} lessons", words[lessons])),
+            "README does not say the course has {lessons} lessons"
+        );
+    }
+
     /// Every leaf the drills can deal is taught by some lesson, and no lesson
     /// claims a leaf twice. Without this, adding a branch to the tree silently
     /// creates a drill for a rule the course never explains.

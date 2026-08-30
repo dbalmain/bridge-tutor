@@ -87,14 +87,17 @@ impl Call {
         }
     }
 
-    /// The cheapest legal bid in `strain` above `self`.
-    pub fn cheapest_above(self, strain: Strain) -> Call {
+    /// The cheapest legal bid in `strain` above `self`, or `None` when that
+    /// would be above 7NT — there is no eighth level, so a caller at the seven
+    /// level has nothing left to bid.
+    pub fn cheapest_above(self, strain: Strain) -> Option<Call> {
         let (level, rank) = self.rank().unwrap_or((0, 0));
         let want = Call::Bid { level: 1, strain }.rank().expect("a bid").1;
-        Call::Bid {
-            level: if want > rank { level.max(1) } else { level + 1 },
-            strain,
+        let level = if want > rank { level.max(1) } else { level + 1 };
+        if level > 7 {
+            return None;
         }
+        Some(Call::Bid { level, strain })
     }
 
     pub fn to_app(self) -> String {

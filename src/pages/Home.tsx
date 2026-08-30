@@ -56,7 +56,8 @@ export function Home() {
           </div>
           <p>{biddingCurriculum.meta.system}.</p>
           <p className="muted small">
-            Seven chapters, {biddingCurriculum.lessons.length} lessons. Teach
+            {biddingCurriculum.chapters.length} chapters,{" "}
+            {biddingCurriculum.lessons.length} lessons. Teach
             the tree, then bid those auctions through.
           </p>
           <div className="btn-row">

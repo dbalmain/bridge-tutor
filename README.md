@@ -2,10 +2,11 @@
 
 Progressive bridge tutor for Linux (and tablets via browser).
 
-- **Bidding course** — ABF / Joan Butts Standard Five-Card Majors. Sixteen
-  lessons (teach, then live auctions you bid from the start). Partner and the
-  opponents bid the system. Miss a call and the explainer stays up until you
-  bid the right one.
+- **Bidding course** — ABF / Joan Butts Standard Five-Card Majors. Nine
+  chapters, twenty-four lessons (teach, then live auctions you bid from the
+  start). Every seat bids the system, so an opponent holding an opening hand
+  opens; only the side that opened keeps bidding. Miss a call and the
+  explainer stays up until you bid the right one.
 - **Bidding drills** — the same tree, sampled by weakness, still bid from
   dealer rather than skipping to the hard call. Deals come from a local Rust
   sidecar (`crates/bridge-system`, port 8788).

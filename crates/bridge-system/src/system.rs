@@ -26,6 +26,10 @@ Opening
 • Weak 2♦/♥/♠ = exactly 6 cards, 5–10 HCP, cannot open one-level. No weak 2♣.
 • 7+ card, 5–10 HCP, cannot open: 3-level preempt (any suit).
 • 5422 is not balanced — do not open 1NT.
+• Any seat may open while the auction is still all passes; once a side has
+  opened, the other side stays silent (no competitive bidding in this tree).
+• Fourth seat (three passes in front): no preempt — pass the deal out. A
+  genuine opening hand still opens.
 
 Responding to 1NT (Stayman + Jacoby transfers)
 • HCP only (no length).
@@ -54,6 +58,34 @@ Opener rebids
 • After Stayman: 2♥ with 4 hearts (even if 4 spades), 2♠ with 4 spades
   no 4 hearts, 2♦ otherwise.
 • After a transfer: always complete (no super-accept).
+• After a new suit (forcing one round — never pass it): show a 4-card major
+  at the one-level first, then 4-card support (raise 2 / 16–18 jump 3 /
+  19–20 game), then a 6-card suit of your own, then notrump by strength
+  (1NT minimum, 2NT with 18–19).
+• After a two-level new suit (partner has 10+): 3-card support for their
+  major raises (game with 16+), 4-card support for their minor raises
+  (3NT with 16+), else a 6-card suit of your own, else 2NT minimum / 3NT 16+.
+• After an invitation you may pass, but only on a minimum: partner's 2NT is
+  accepted with 16+ over 1NT and 14+ over a suit; a minor raise is passed on
+  a minimum, tried with 2NT on 16–18, bid to 3NT with game values.
+
+Responding to 2♣, 2NT and preempts
+• 2♣ is game-forcing — never pass. 2♦ is waiting on 0–7. With 8+, name a
+  5-card suit (2♥/2♠/3♣/3♦), or bid 2NT without one.
+• 2NT (20–21): 3♣ Stayman, 3♦→♥, 3♥→♠, as over 1NT. 5-4 majors and 4+ is
+  Stayman, not a transfer. 5+ HCP is 3NT; 0–4 with no long major passes.
+• Weak two / preempt: responder is the captain. 16+ with 3-card support for
+  the major bids game; 16+ without a fit bids 3NT, or a 5-card suit of its
+  own over a weak two (forcing). Support without game values raises to
+  obstruct, not to invite. Otherwise pass.
+
+Rebids after 2♣, 2NT and preempts
+• After 2♣ – 2♦: 2NT with 22–24 balanced, 3NT with 25+, else name the longest
+  suit at the cheapest level. Raise a positive major to game with 3+ support.
+• After 2NT: answer 3♣ Stayman hearts-first; always complete a transfer.
+• After a weak two or preempt: pass whatever partner chose — you already
+  described the hand. Exception: partner's new suit is forcing, so raise
+  their major with 3-card support or repeat your own suit.
 ";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,6 +107,18 @@ fn dec(id: &'static str, bid: Call, title: &'static str, explanation: &'static s
 
 pub fn decide(hand: &Hand, auction: &Auction) -> Decision {
     decide_for(hand, auction, Seat::South)
+}
+
+/// The cheapest bid in `suit` above `last`. Above 7NT there is nothing left to
+/// bid, which no auction this tree produces can reach — pass rather than
+/// inventing an eighth level.
+fn suit_or_pass(last: Call, suit: Suit) -> Call {
+    last.cheapest_above(Strain::from_suit(suit))
+        .unwrap_or(Call::Pass)
+}
+
+fn notrump_or_pass(last: Call) -> Call {
+    last.cheapest_above(Strain::NoTrump).unwrap_or(Call::Pass)
 }
 
 /// No call is taught for this position. Better to say so than to return a
@@ -395,6 +439,17 @@ fn respond_2nt(hand: &Hand) -> Decision {
     let hearts = hand.len_of(Suit::Heart);
     let spades = hand.len_of(Suit::Spade);
 
+    // 5–4 majors is Stayman, not a transfer — the same rule as over 1NT
+    // (resp.1nt.stayman.54). Transferring buries the four-card suit.
+    if hcp >= 4 && ((hearts == 5 && spades == 4) || (spades == 5 && hearts == 4)) {
+        return dec(
+            "resp.2nt.stayman.54",
+            Call::suit_bid(3, Suit::Club),
+            "Stayman with 5–4 majors",
+            "5–4 in the majors: ask for a four-card major rather than transferring, so a 4–4 \
+             fit in the shorter major is not lost.",
+        );
+    }
     if hearts >= 5 && spades >= 5 {
         return xfer_over_2nt(if hearts > spades {
             Suit::Heart
@@ -491,7 +546,7 @@ fn respond_weak_two(hand: &Hand, trump: Suit) -> Decision {
         if len >= 5 && long != trump {
             return dec(
                 "resp.weak2.new-suit",
-                Call::suit_bid(2, trump).cheapest_above(Strain::from_suit(long)),
+                suit_or_pass(Call::suit_bid(2, trump), long),
                 "Bid your own suit",
                 "16+ with a five-card suit and no fit for partner's. A new suit over a weak two \
                  is forcing — partner must bid again, so you can still find the right game.",
@@ -1893,7 +1948,7 @@ fn after_two_club_opening(hand: &Hand, response: Call) -> Decision {
                 "25+ balanced. Partner may hold nothing at all and game is still right.",
             );
         }
-        let bid = response.cheapest_above(Strain::NoTrump);
+        let bid = notrump_or_pass(response);
         return dec(
             "rebid.2c.2nt",
             bid,
@@ -1906,7 +1961,7 @@ fn after_two_club_opening(hand: &Hand, response: Call) -> Decision {
     let (long, _) = hand.longest();
     dec(
         "rebid.2c.suit",
-        response.cheapest_above(Strain::from_suit(long)),
+        suit_or_pass(response, long),
         "Name your suit",
         "Unbalanced with 21+ opening points: show the long suit at the cheapest level. The \
          auction is game-forcing, so there is all the room needed to find the fit.",
@@ -1999,7 +2054,7 @@ fn after_limited_opening(hand: &Hand, open: Call, response: Call) -> Decision {
             }
             return dec(
                 "rebid.preempt.rebid-suit",
-                response.cheapest_above(Strain::from_suit(opened)),
+                suit_or_pass(response, opened),
                 "Repeat your suit",
                 "Partner's new suit was forcing, so you must bid. With no support, repeat the \
                  long suit you already showed — it is still the only thing you have to say.",
@@ -2022,6 +2077,38 @@ mod tests {
     use crate::cards::{Card, Seat};
     use rand::SeedableRng;
 
+    /// Auction rank, derived independently of `Call::rank` so the legality
+    /// checks are not testing the production ordering against itself. `None`
+    /// for Pass/X/XX and for anything outside the seven real levels — an
+    /// "8♠" must read as illegal, not as a very high bid.
+    fn test_rank(c: Call) -> Option<(u8, u8)> {
+        match c {
+            Call::Bid { level, strain } if (1..=7).contains(&level) => Some((
+                level,
+                match strain {
+                    Strain::Clubs => 0,
+                    Strain::Diamonds => 1,
+                    Strain::Hearts => 2,
+                    Strain::Spades => 3,
+                    Strain::NoTrump => 4,
+                },
+            )),
+            _ => None,
+        }
+    }
+
+    /// A call that is legal after `last`: a pass, or a bid strictly above it
+    /// and inside levels 1–7.
+    fn is_legal_after(made: Call, last: Call) -> bool {
+        match made {
+            Call::Pass => true,
+            _ => match (test_rank(made), test_rank(last)) {
+                (Some(m), Some(l)) => m > l,
+                _ => false,
+            },
+        }
+    }
+
     /// The most a responder may hold and still be allowed to pass. It is set
     /// by what the opening promised: opposite an unlimited opening any real
     /// hand must keep the auction alive, while opposite a weak two — which
@@ -2037,7 +2124,12 @@ mod tests {
                 level: 2,
                 strain: Strain::NoTrump,
             } => Some(4),
-            Call::Bid { level: 1, .. } => Some(7),
+            Call::Bid {
+                level: 1,
+                strain: Strain::NoTrump,
+            } => Some(7),
+            // HOUSE_RULES: 0–5 passes a one-level suit opening, 6+ must bid.
+            Call::Bid { level: 1, .. } => Some(5),
             // Weak twos and preempts promised 5–10, so game needs ~16 opposite.
             Call::Bid { level: 2 | 3, .. } => Some(15),
             _ => Some(7),
@@ -2046,7 +2138,7 @@ mod tests {
 
     /// Every opening the tree makes. Fuzz tests sweep all of them, so a new
     /// opening cannot be added without a response and a rebid to match.
-    const ALL_OPENINGS: [Call; 12] = [
+    const ALL_OPENINGS: [Call; 14] = [
         Call::suit_bid(1, Suit::Club),
         Call::suit_bid(1, Suit::Diamond),
         Call::suit_bid(1, Suit::Heart),
@@ -2057,7 +2149,9 @@ mod tests {
         Call::suit_bid(2, Suit::Diamond),
         Call::suit_bid(2, Suit::Heart),
         Call::suit_bid(2, Suit::Spade),
+        Call::suit_bid(3, Suit::Club),
         Call::suit_bid(3, Suit::Diamond),
+        Call::suit_bid(3, Suit::Heart),
         Call::suit_bid(3, Suit::Spade),
     ];
 
@@ -2089,11 +2183,12 @@ mod tests {
         );
     }
 
-    /// The rule Chapter 8 exists to teach: a new suit by responder is forcing
-    /// for one round, so no hand opener can hold may pass one. Limited bids —
+    /// Two forcing rules, one test. A new suit by responder is forcing for one
+    /// round, at any level — a 16-count answers a weak two with one. And 2♣ is
+    /// game-forcing, so nothing after it may be passed at all. Limited bids —
     /// raises, notrump invitations — may be passed, and are checked elsewhere.
     #[test]
-    fn opener_never_passes_a_new_suit() {
+    fn opener_never_passes_a_forcing_bid() {
         let mut rng = rand::rngs::SmallRng::seed_from_u64(2026);
         let opens = ALL_OPENINGS;
         let mut hands = Vec::new();
@@ -2112,19 +2207,28 @@ mod tests {
             };
             for r in &hands {
                 let resp = respond(r, open);
-                // A new suit: a suit bid in a strain opener did not name.
+                // A new suit: any suit bid in a strain opener did not name.
+                // Level-3 new suits count too — a 16-count answers a weak two
+                // with one, and that is forcing exactly as at the two level.
                 let is_new_suit = match resp.bid {
-                    Call::Bid { level, strain } => {
-                        level <= 2 && strain != open_strain && strain != Strain::NoTrump
-                    }
+                    Call::Bid { strain, .. } => strain != open_strain && strain != Strain::NoTrump,
                     _ => false,
                 };
-                if !is_new_suit {
+                let game_forcing = open == Call::suit_bid(2, Suit::Club);
+                if !is_new_suit && !game_forcing {
                     continue;
                 }
                 sequences += 1;
                 for o in &hands {
-                    if rebid(o, open, resp.bid).bid == Call::Pass {
+                    let made = rebid(o, open, resp.bid);
+                    assert!(
+                        is_legal_after(made.bid, resp.bid),
+                        "{} is not legal after {} – {}",
+                        made.bid.to_app(),
+                        open.to_app(),
+                        resp.bid.to_app()
+                    );
+                    if made.bid == Call::Pass {
                         passed.insert(format!(
                             "{} – {} passed with {} HCP",
                             open.to_app(),
@@ -2135,10 +2239,10 @@ mod tests {
                 }
             }
         }
-        assert!(sequences > 100, "expected plenty of new-suit auctions");
+        assert!(sequences > 100, "expected plenty of forcing auctions");
         assert!(
             passed.is_empty(),
-            "a new suit is forcing and these were passed:\n{}",
+            "these bids are forcing and were passed:\n{}",
             passed
                 .iter()
                 .take(10)
@@ -2153,25 +2257,24 @@ mod tests {
     /// response would be unbiddable at the table.
     #[test]
     fn every_rebid_is_a_legal_call() {
-        fn rank(c: Call) -> Option<(u8, u8)> {
-            match c {
-                Call::Bid { level, strain } => Some((
-                    level,
-                    match strain {
-                        Strain::Clubs => 0,
-                        Strain::Diamonds => 1,
-                        Strain::Hearts => 2,
-                        Strain::Spades => 3,
-                        Strain::NoTrump => 4,
-                    },
-                )),
-                _ => None,
-            }
-        }
         let (_, illegal) = rebid_survey();
         assert!(illegal.is_empty(), "illegal rebids: {illegal:?}");
-        // Guard the guard: the ranking must order NT above spades.
-        assert!(rank(Call::nt(2)) > rank(Call::suit_bid(2, Suit::Spade)));
+        // Guard the guard: NT outranks spades, and there is no eighth level.
+        assert!(test_rank(Call::nt(2)) > test_rank(Call::suit_bid(2, Suit::Spade)));
+        assert_eq!(
+            test_rank(Call::Bid {
+                level: 8,
+                strain: Strain::Spades
+            }),
+            None
+        );
+        assert!(!is_legal_after(
+            Call::Bid {
+                level: 8,
+                strain: Strain::Spades
+            },
+            Call::nt(7)
+        ));
     }
 
     /// Shared sweep: every (opening, response, opener's hand) the tree can
@@ -2181,21 +2284,6 @@ mod tests {
         std::collections::BTreeSet<String>,
         std::collections::BTreeSet<String>,
     ) {
-        fn rank(c: Call) -> Option<(u8, u8)> {
-            match c {
-                Call::Bid { level, strain } => Some((
-                    level,
-                    match strain {
-                        Strain::Clubs => 0,
-                        Strain::Diamonds => 1,
-                        Strain::Hearts => 2,
-                        Strain::Spades => 3,
-                        Strain::NoTrump => 4,
-                    },
-                )),
-                _ => None,
-            }
-        }
         let mut rng = rand::rngs::SmallRng::seed_from_u64(99);
         let opens = ALL_OPENINGS;
         let mut hands = Vec::new();
@@ -2216,13 +2304,15 @@ mod tests {
                 for o in &hands {
                     let d = rebid(o, open, resp.bid);
                     let seq = format!("{} – {}", open.to_app(), resp.bid.to_app());
+                    // Keyed on the default leaf specifically: this asks which
+                    // sequences no handler took responsibility for. Whether a
+                    // pass was *allowed* is a different question, answered by
+                    // opener_never_passes_a_forcing_bid.
                     if d.leaf_id == "rebid.pass.default" {
                         defaults.insert(seq.clone());
                     }
-                    if let Some(made) = rank(d.bid) {
-                        if Some(made) <= rank(resp.bid) {
-                            illegal.insert(format!("{seq} – {}", d.bid.to_app()));
-                        }
+                    if !is_legal_after(d.bid, resp.bid) {
+                        illegal.insert(format!("{seq} – {}", d.bid.to_app()));
                     }
                 }
             }
@@ -2246,6 +2336,14 @@ mod tests {
             let h = Hand::try_from_slice(&deck[..13]).unwrap();
             for open in opens {
                 let d = respond(&h, open);
+                assert!(
+                    is_legal_after(d.bid, open),
+                    "{} is not a legal response to {} ({})",
+                    d.bid.to_app(),
+                    open.to_app(),
+                    d.leaf_id
+                );
+                assert!(!d.leaf_id.is_empty(), "response with no leaf id");
                 if d.leaf_id == "unsupported" {
                     let sh = h.shape();
                     gaps.push(format!(

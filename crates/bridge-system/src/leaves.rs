@@ -268,14 +268,16 @@ fn weak_two_opener(suit: Suit) -> HandPat {
     }
 }
 
-/// Seven or more cards, 5–10 HCP.
+/// Seven or more cards, 5–10 HCP. Eight-card suits qualify too, so the range
+/// is 7–8 rather than exactly seven — a tighter bound would silently stop
+/// sampling half the hands the rule covers.
 fn preempt_opener(suit: Suit) -> HandPat {
     let p = HandPat::hcp(5, 10);
     match suit {
-        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 7)),
-        Suit::Heart => p.lens((0, 3), (0, 3), (7, 7), (0, 3)),
-        Suit::Diamond => p.lens((0, 3), (7, 7), (0, 3), (0, 3)),
-        Suit::Club => p.lens((7, 7), (0, 3), (0, 3), (0, 3)),
+        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 8)),
+        Suit::Heart => p.lens((0, 3), (0, 3), (7, 8), (0, 3)),
+        Suit::Diamond => p.lens((0, 3), (7, 8), (0, 3), (0, 3)),
+        Suit::Club => p.lens((7, 8), (0, 3), (0, 3), (0, 3)),
     }
 }
 
@@ -817,7 +819,8 @@ fn build() -> Vec<LeafSpec> {
         "2NT – 3♦ transfer",
         Call::suit_bid(3, Suit::Diamond),
         Call::nt(2),
-        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 4)),
+        // Spades capped at 3: 5–4 majors are Stayman, not a transfer.
+        HandPat::hcp(0, 11).lens((0, 4), (0, 4), (5, 6), (0, 3)),
         two_nt_opener(),
     ));
     v.push(resp(
