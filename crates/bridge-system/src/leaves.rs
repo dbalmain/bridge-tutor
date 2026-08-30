@@ -322,12 +322,17 @@ fn two_nt_opener() -> HandPat {
 
 /// Exactly six cards, 5–10 HCP, below a one-level opening.
 fn weak_two_opener(suit: Suit) -> HandPat {
+    // Side suits up to FOUR, not three. Six trumps plus three side suits
+    // capped at three is thirteen exactly, so a cap of three quietly forbids
+    // every void: 6-4-3-0 is a perfectly ordinary weak two and no drill could
+    // deal one. Lowering the minima to zero, as an earlier round did, changes
+    // nothing on its own — the maximum is what binds.
     let p = HandPat::hcp(5, 10);
     match suit {
-        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (6, 6)),
-        Suit::Heart => p.lens((0, 3), (0, 3), (6, 6), (0, 3)),
-        Suit::Diamond => p.lens((0, 3), (6, 6), (0, 3), (0, 3)),
-        Suit::Club => p.lens((6, 6), (0, 3), (0, 3), (0, 3)),
+        Suit::Spade => p.lens((0, 4), (0, 4), (0, 4), (6, 6)),
+        Suit::Heart => p.lens((0, 4), (0, 4), (6, 6), (0, 4)),
+        Suit::Diamond => p.lens((0, 4), (6, 6), (0, 4), (0, 4)),
+        Suit::Club => p.lens((6, 6), (0, 4), (0, 4), (0, 4)),
     }
 }
 
@@ -339,12 +344,14 @@ fn weak_two_opener(suit: Suit) -> HandPat {
 /// 8, bought precision by silently never sampling a valid seven-card 9-count,
 /// and no generator test measures that missing recall.
 fn preempt_opener(suit: Suit) -> HandPat {
+    // Same reasoning as the weak twos: a side-suit cap of three forbids
+    // 7-4-2-0 and 7-4-1-1, which are ordinary preempt shapes.
     let p = HandPat::hcp(5, 9);
     match suit {
-        Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 8)),
-        Suit::Heart => p.lens((0, 3), (0, 3), (7, 8), (0, 3)),
-        Suit::Diamond => p.lens((0, 3), (7, 8), (0, 3), (0, 3)),
-        Suit::Club => p.lens((7, 8), (0, 3), (0, 3), (0, 3)),
+        Suit::Spade => p.lens((0, 4), (0, 4), (0, 4), (7, 8)),
+        Suit::Heart => p.lens((0, 4), (0, 4), (7, 8), (0, 4)),
+        Suit::Diamond => p.lens((0, 4), (7, 8), (0, 4), (0, 4)),
+        Suit::Club => p.lens((7, 8), (0, 4), (0, 4), (0, 4)),
     }
 }
 
@@ -487,19 +494,19 @@ fn build() -> Vec<LeafSpec> {
         "open.2s",
         "Weak 2♠",
         Call::suit_bid(2, Suit::Spade),
-        HandPat::hcp(5, 10).lens((0, 3), (0, 3), (0, 3), (6, 6)),
+        HandPat::hcp(5, 10).lens((0, 4), (0, 4), (0, 4), (6, 6)),
     ));
     v.push(open(
         "open.2h",
         "Weak 2♥",
         Call::suit_bid(2, Suit::Heart),
-        HandPat::hcp(5, 10).lens((0, 3), (0, 3), (6, 6), (0, 3)),
+        HandPat::hcp(5, 10).lens((0, 4), (0, 4), (6, 6), (0, 4)),
     ));
     v.push(open(
         "open.2d",
         "Weak 2♦",
         Call::suit_bid(2, Suit::Diamond),
-        HandPat::hcp(5, 10).lens((0, 3), (6, 6), (0, 3), (0, 3)),
+        HandPat::hcp(5, 10).lens((0, 4), (6, 6), (0, 4), (0, 4)),
     ));
     v.push(open(
         "open.3s",
@@ -1843,6 +1850,11 @@ fn build() -> Vec<LeafSpec> {
         "resp3.forced.accept",
         Family::Continue,
         "Bid the game anyway",
+    ));
+    v.push(undrilled(
+        "resp3.choose.major",
+        Family::Continue,
+        "Choose the other major",
     ));
     v
 }

@@ -148,7 +148,10 @@ Responder's second call, and opener's answer
   - Where partner's minimum rebid already reached the invitational step there
     is nothing left to ask: 11+ bids the game, 10 passes.
 • Opener answering an invitation: accept only at the top of the range the
-  OPENING promised, counting HIGH CARDS — 16+ over a 1NT, 14+ over a suit
+  OPENING promised, counting HIGH CARDS — 16+ over a 1NT, 14+ over a suit,
+  and 18+ when partner's call was FORCED out of them by our reverse and so
+  showed nothing (a chosen floor: 16+ opposite 6–9 is 22 to 27 and no single
+  number separates those — this one errs towards bidding)
   opening. Length points are tricks in a suit we may not be playing, and
   accepting on them reached game with nineteen HCP between the hands. Over a
   2NT opening there is nothing to decline: 20 opposite the 5 responder needs
@@ -1083,9 +1086,10 @@ fn respond_minor(hand: &Hand, minor: Suit) -> Decision {
                 id,
                 Call::nt(3),
                 "3NT over a minor",
-                "13+ HCP, balanced, with a minor fit and no four-card major. Nine tricks in \
-                 notrump beat eleven in a minor, so prefer 3NT — and count HCP for it, because \
-                 a singleton wins tricks with trumps, not in notrump.",
+                "13+ HCP with a minor fit and no four-card major, whatever the shape. Nine \
+                 tricks in notrump beat eleven in a minor, and it takes 16 to make eleven worth \
+                 chasing. Count HCP, not shortage: a singleton wins tricks with trumps, and in \
+                 notrump it is a suit the opponents may be able to run.",
             );
         }
         if hcp >= 16 {
@@ -2566,7 +2570,12 @@ fn after_1nt_sequence(hand: &Hand, response: Call, rebid: Call, nt_level: u8) ->
                 // above it forces to game. The same bid for both ranges left
                 // opener guessing, and a fifteen-count passed 2♠ opposite a
                 // game-going ten.
-                if hcp >= game_from && level < 7 {
+                // Only over a 1NT opening. Over 2NT the cheapest call is
+                // already forcing — game values are established the moment
+                // responder bids at all — so jumping to 4M would take the
+                // strain decision away from the hand that knows its own
+                // length, and 2NT–3♣–3♦–4♠ played a seven-card fit.
+                if nt_level == 1 && hcp >= game_from && level < 7 {
                     return dec(
                         "resp2.stayman.own-major.force",
                         Call::suit_bid(level + 1, major),
@@ -2969,10 +2978,37 @@ fn answer_meaning(open: Call, response: Call, rebid: Call, answer: Call) -> Answ
         // they declined the level and chose a strain.
         Meaning::Invitational { .. } => AnswerKind::Forced,
         Meaning::Minimum => {
-            // A jump insists; anything cheaper invites. Over a notrump
-            // opening the range comes from the opening, and over a 2NT there
-            // is nothing to decline at all: 20 opposite the 5 partner needs
-            // to bid is already game.
+            // The notrump sequences are game-forcing by construction, and
+            // geometry cannot see it. 1NT–2♥–2♠–3♥ is the CHEAPEST heart bid
+            // above 2♠, so `skips_a_level` says no jump — but the tree only
+            // makes that call on 5-5 with game values, and reading it as an
+            // invitation let a 15-count pass opposite a ten-count. Same over
+            // 2NT: responder needs five to bid at all, so anything they say
+            // is game.
+            let other_major = transfer_major(open, response, rebid).map(|shown| {
+                if shown == Suit::Heart {
+                    Suit::Spade
+                } else {
+                    Suit::Heart
+                }
+            });
+            let answer_suit = match answer {
+                Call::Bid { strain, .. } => strain.suit(),
+                _ => None,
+            };
+            let showed_the_second_major = other_major.is_some() && answer_suit == other_major;
+            let over_two_notrump = matches!(
+                open,
+                Call::Bid {
+                    level: 2,
+                    strain: Strain::NoTrump,
+                }
+            );
+            if showed_the_second_major || over_two_notrump {
+                return AnswerKind::GameForce;
+            }
+
+            // A jump insists; anything cheaper invites.
             if skips_a_level(rebid, answer) {
                 return AnswerKind::GameForce;
             }
@@ -3019,6 +3055,39 @@ fn answer_invitation(
                  left the strain to you. You hold three, so the pair has eight — and eight \
                  trumps beat notrump. Take the game in the major.",
             );
+        }
+    }
+
+    // Choice of games, which has to run BEFORE the pass-game path. Partner
+    // may have named a game in one major while having shown two — 5-5 over
+    // 2NT can only bid the second one at the four level — and passing 4♥ on a
+    // doubleton while holding three spades plays a seven-card fit instead of
+    // an eight-card one. This corrects the STRAIN, never the level, so it can
+    // only ever move 4♥ to 4♠: if partner named the higher-ranking major
+    // there is no room to go back, which is why the cheapest continuation
+    // over 2NT is left un-jumped.
+    if let Call::Bid { level: 4, strain } = answer {
+        if let Some(named) = strain
+            .suit()
+            .filter(|s| matches!(s, Suit::Heart | Suit::Spade))
+        {
+            let other = if named == Suit::Heart {
+                Suit::Spade
+            } else {
+                Suit::Heart
+            };
+            let shown_both = transfer_major(open, response, rebid) == Some(other);
+            if shown_both
+                && hand.len_of(other) > hand.len_of(named)
+                && Call::suit_bid(4, other).rank() > answer.rank()
+            {
+                return dec(
+                    "resp3.choose.major",
+                    Call::suit_bid(4, other),
+                    "Choose the other major",
+                    "Partner showed five of each major and had to name one of them at the game                      level. You hold more of the other, so the pair's longer fit is there —                      correct the strain, not the level.",
+                );
+            }
         }
     }
 
@@ -3082,12 +3151,20 @@ fn answer_invitation(
         // Bidding on needs the extras to be OURS: a reverse promised 16+, so
         // 18 opposite a forced 6-9 is the point at which game is worth it.
         AnswerKind::Forced => {
+            // 18 is a chosen floor, not a derivation, and there is no clean
+            // one: a reverse shows 16+, a forced answer is 6-9, so the pair
+            // holds anywhere from 22 to 27 and one number cannot separate
+            // them. 18 errs towards bidding — 18+6 is 24, which is thin —
+            // because the alternative errs towards leaving 27 in a
+            // partscore. Treat it as a floor to practise.
             if hand.hcp() >= 18 {
                 return take_the_game(
                     "resp3.forced.accept",
                     "Bid the game anyway",
-                    "Partner's call was forced out of them and showed nothing extra — but this \
-                     hand is big enough that six or seven opposite it is still game.",
+                    "Partner's call was forced out of them, so it showed nothing beyond the six \
+                     to nine they already had. This hand is big enough to bid the game on its \
+                     own strength: eighteen opposite even a minimum is close enough that the \
+                     course takes it.",
                 );
             }
             dec(
@@ -3401,8 +3478,28 @@ mod tests {
         ]);
         assert_eq!(after.next_seat(), Seat::North);
 
-        // A reverse promises 16+, so this is the low end of what may have
-        // reversed. Opposite a forced 6-9 that is 22-25: pass.
+        // A reverse promises 16+, so opposite a forced 6-9 the pair holds
+        // 22-27 and no single number separates them. 18 is the chosen floor,
+        // so 17 and 18 are the boundary that matters — not 15 and 19.
+        let seventeen = hand(&[
+            "SK", "S3", "HA", "HQ", "H5", "H4", "DA", "DJ", "D6", "D5", "CK", "C7", "C3",
+        ]);
+        assert_eq!(seventeen.hcp(), 17);
+        let eighteen = hand(&[
+            "SK", "S3", "HA", "HK", "H5", "H4", "DA", "DQ", "D6", "D5", "CQ", "C7", "C3",
+        ]);
+        assert_eq!(eighteen.hcp(), 18);
+        assert_eq!(
+            decide_for(&seventeen, &after, Seat::North).bid,
+            Call::Pass,
+            "17 is below the chosen floor"
+        );
+        assert_ne!(
+            decide_for(&eighteen, &after, Seat::North).bid,
+            Call::Pass,
+            "18 is the floor"
+        );
+
         let sixteen = hand(&[
             "SK", "S3", "HA", "HK", "H5", "H4", "DA", "DQ", "D6", "D5", "CK", "C7", "C3",
         ]);
@@ -3518,6 +3615,85 @@ mod tests {
         assert_eq!(weak_54.hcp(), 8);
         let d = decide(&weak_54, &after_denial);
         assert_eq!(d.bid, Call::suit_bid(2, Suit::Spade), "{}", d.leaf_id);
+    }
+
+    /// The calls above only mean something if OPENER acts on them, and every
+    /// version of this test so far stopped at responder. Codex made that
+    /// point three rounds running; here are the four opener choices those
+    /// four calls promise.
+    #[test]
+    fn opener_acts_on_the_five_card_major_continuations() {
+        // 1NT – 2♥ – 2♠ – 3♥ (5-5, game values). Game-forcing by
+        // construction: 3♥ is the CHEAPEST heart bid over 2♠, so nothing in
+        // the ranks says so, and a 15-count used to pass it.
+        let five_five = seq(&[
+            Call::nt(1),
+            Call::suit_bid(2, Suit::Heart),
+            Call::suit_bid(2, Suit::Spade),
+            Call::suit_bid(3, Suit::Heart),
+        ]);
+        let three_hearts = hand(&[
+            "SK", "SQ", "S4", "HA", "H3", "H2", "DK", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        assert_eq!(three_hearts.hcp(), 15, "the minimum that used to pass");
+        let d = decide_for(&three_hearts, &five_five, Seat::North);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Heart), "{}", d.leaf_id);
+
+        // The same auction with two hearts and four spades: the spade fit is
+        // the longer one, so the notrump game is wrong and so is 4♥.
+        let four_spades = hand(&[
+            "SK", "SQ", "S4", "S3", "HA", "H2", "DK", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        let d = decide_for(&four_spades, &five_five, Seat::North);
+        assert_eq!(d.bid, Call::suit_bid(4, Suit::Spade), "{}", d.leaf_id);
+
+        // 1NT – 2♣ – 2♦ – 2♠ (5-4, invitational). Opener may decline.
+        let invited = seq(&[
+            Call::nt(1),
+            Call::suit_bid(2, Suit::Club),
+            Call::suit_bid(2, Suit::Diamond),
+            Call::suit_bid(2, Suit::Spade),
+        ]);
+        assert_eq!(
+            decide_for(&three_hearts, &invited, Seat::North).bid,
+            Call::Pass,
+            "15 is the bottom of 1NT, so it declines"
+        );
+        let maximum = hand(&[
+            "SK", "SQ", "S4", "HA", "HQ", "H2", "DK", "D7", "D6", "D5", "CK", "C8", "C6",
+        ]);
+        assert_eq!(maximum.hcp(), 17);
+        assert_ne!(
+            decide_for(&maximum, &invited, Seat::North).bid,
+            Call::Pass,
+            "17 accepts"
+        );
+
+        // 2NT – 3♣ – 3♦ – 3♠ (5-4 over a 2NT opening). The cheapest call is
+        // already forcing, so opener still gets to pick the strain: three
+        // spades makes the fit, two does not. Jumping to 4♠ took this choice
+        // away and played a seven-card fit.
+        let over_2nt = seq(&[
+            Call::nt(2),
+            Call::suit_bid(3, Suit::Club),
+            Call::suit_bid(3, Suit::Diamond),
+            Call::suit_bid(3, Suit::Spade),
+        ]);
+        let with_three_spades = hand(&[
+            "SK", "SQ", "S4", "HA", "HK", "H2", "DA", "DK", "D6", "D5", "CA", "C8", "C6",
+        ]);
+        assert_eq!(
+            decide_for(&with_three_spades, &over_2nt, Seat::North).bid,
+            Call::suit_bid(4, Suit::Spade)
+        );
+        let with_two_spades = hand(&[
+            "SK", "SQ", "HA", "HK", "H4", "H2", "DA", "DK", "D6", "D5", "CA", "C8", "C6",
+        ]);
+        assert_eq!(
+            decide_for(&with_two_spades, &over_2nt, Seat::North).bid,
+            Call::nt(3),
+            "seven spades is not a fit"
+        );
     }
 
     /// Once a fit is named the count changes: a short suit is tricks the
@@ -4069,10 +4245,6 @@ mod tests {
 
         let d = respond(&h, Call::suit_bid(1, Suit::Club));
         assert_ne!(d.bid, Call::Pass, "14 HCP must not pass partner's opening");
-        // 3NT was the first fix and it was too blunt: a singleton diamond has
-        // no stopper, and the pair can be missing the suit entirely. The
-        // limit raise invites and lets opener, who may hold the stopper,
-        // choose the game.
         assert_eq!(d.bid, Call::nt(3));
         assert_eq!(d.leaf_id, "resp.1c.3nt");
     }

@@ -624,7 +624,11 @@ mod tests {
         );
     }
 
-    /// BOUNDARY COVERAGE, which nothing else measures.
+    /// A hand-written CHECKLIST of boundaries, and nothing more than that.
+    /// It is named for what it does — the boundaries listed here can be
+    /// dealt — because an earlier name claimed coverage, and the 6-4-3-0 weak
+    /// two it missed for a round is the proof that a checklist is not a
+    /// coverage proof.
     ///
     /// Every other generator test looks at deals a pattern already accepted,
     /// so a pattern that quietly excludes a class of valid hands looks
@@ -643,8 +647,14 @@ mod tests {
     /// not sampled from the implementation. Each must (a) be opened the way
     /// the rules say and (b) be accepted by that leaf's pattern, so a drill
     /// for it can actually deal the edge of its own class.
+    ///
+    /// What would settle recall properly is enumeration, not sampling and not
+    /// a list: state each leaf's intended shape-and-strength domain, walk
+    /// every 13-card length composition in it, and require a representative
+    /// hand for each. That needs the domains written down first, and they are
+    /// not — which is the real open item, not any one pattern.
     #[test]
-    fn the_patterns_cover_the_boundaries_the_rules_state() {
+    fn the_named_boundaries_can_actually_be_dealt() {
         use crate::leaves::leaf_by_id;
         use crate::system::opening;
 
@@ -660,6 +670,18 @@ mod tests {
                 "weak 2♠, top of 5-10",
                 "SA SK SQ SJ S8 S7 H4 H3 D4 D3 D2 C3 C2",
                 "2S",
+            ),
+            // Six trumps plus three side suits capped at three is thirteen
+            // exactly, so any cap of three silently forbids every void.
+            (
+                "weak 2♠ with a void",
+                "SK SQ S9 S8 S7 S6 H5 H4 H3 H2 D5 D4 D3",
+                "2S",
+            ),
+            (
+                "3♠ preempt with a void",
+                "SK SQ S9 S8 S7 S6 S5 H4 H3 H2 D5 D4 D3",
+                "3S",
             ),
             // Three-level preempts: 7+ cards, 5-10 HCP. The nine-count and
             // the eight-card suit are the two codex called out.
