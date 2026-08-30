@@ -65,27 +65,38 @@ async function main() {
     }
   }
 
-  // A run that checked nothing must not read as a pass. Two ways to get here:
-  // the sidecar is down, or every drill errored.
-  if (checked < DRILLS / 2) {
+  // Half the deals going missing must not read as a pass. Every drill should
+  // come back; anything less means the sidecar is down or erroring.
+  if (checked !== DRILLS) {
     console.error(
       `only ${checked}/${DRILLS} drills came back from ${BASE} — is the sidecar running? (npm run system)`,
     );
     process.exit(1);
   }
 
-  // Prove the comparison can fail: swap an ace for a two and it must be caught.
+  // Prove the comparison can fail. Perturbing the hand is not reliable — a
+  // spot card swapped for another spot card in the same suit changes nothing —
+  // so move the expected value instead, once per field, which always differs.
   const probe = await drill(1);
   if (!probe) {
     console.error("could not fetch a deal for the self-check");
     process.exit(1);
   }
-  const perturbed = probe.hands.S.map((c, i) => (i === 0 ? "CA" : c));
-  if (compare(probe, perturbed).length === 0) {
-    console.error(
-      "self-check failed: a deliberately wrong hand was reported as agreeing, so this script proves nothing",
-    );
-    process.exit(1);
+  const selfChecks: [string, DrillReply][] = [
+    ["hcp", { ...probe, south_hcp: probe.south_hcp + 1 }],
+    [
+      "opening points",
+      { ...probe, south_opening_points: probe.south_opening_points + 1 },
+    ],
+    ["shape", { ...probe, south_shape: "13-0-0-0" }],
+  ];
+  for (const [field, wrong] of selfChecks) {
+    if (compare(wrong, probe.hands.S).length === 0) {
+      console.error(
+        `self-check failed: a deliberately wrong ${field} was reported as agreeing, so this script proves nothing`,
+      );
+      process.exit(1);
+    }
   }
 
   if (failures.length > 0) {

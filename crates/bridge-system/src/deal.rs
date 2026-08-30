@@ -367,8 +367,9 @@ mod tests {
     /// fits. This samples straight from each opening pattern and asks the tree
     /// what it would bid, which is the claim the pattern is making.
     #[test]
-    fn opening_leaf_patterns_mostly_describe_their_own_leaf() {
+    fn opening_leaf_patterns_are_not_grossly_wrong() {
         const MIN_HIT_RATE: f64 = 0.6;
+        const SAMPLE_TARGET: u32 = 200;
         let mut rng = SmallRng::seed_from_u64(31337);
         let mut wrong: Vec<String> = Vec::new();
         for spec in catalog() {
@@ -382,7 +383,7 @@ mod tests {
             // 2♣ and 2NT need 20+ HCP, which turns up roughly once in a few
             // thousand deals — a fixed budget silently skipped them.
             for _ in 0..400_000 {
-                if sampled >= 200 {
+                if sampled >= SAMPLE_TARGET {
                     break;
                 }
                 let Some(h) = sample_hand(&mut rng, &spec.south) else {
@@ -405,9 +406,10 @@ mod tests {
                     );
                 }
             }
-            assert!(
-                sampled >= 30,
-                "{}: only {sampled} hands matched its pattern — too thin to check",
+            assert_eq!(
+                sampled, SAMPLE_TARGET,
+                "{}: the draw budget ran out at {sampled} hands, short of the \
+                 {SAMPLE_TARGET} this needs to mean anything",
                 spec.id
             );
             let rate = f64::from(hits) / f64::from(sampled);
@@ -432,14 +434,17 @@ mod tests {
     /// does, so the interesting number is how often a pattern-matching deal
     /// is *rejected* — that is the pattern being wrong, not the deal.
     ///
-    /// The floor is much lower than the opening test's because the claim is
-    /// compound: South's pattern and North's must both land, so two
-    /// over-approximations multiply. Real patterns here measure 22–45%; a
-    /// pattern with its suits transposed measures 0%, which is the case this
-    /// is here to catch.
+    /// This is a smoke test, not validation, and the 15% floor was picked
+    /// after seeing the numbers it judges — real patterns measure 22–45% and a
+    /// transposed one measures 0%, so it separates those two and nothing
+    /// finer. It catches a pattern pointed at the wrong suits. It does not
+    /// establish that a pattern is right, and it cannot catch a bid that is
+    /// legal but semantically wrong; only hands with independently authored
+    /// expected calls can do that.
     #[test]
-    fn response_and_rebid_patterns_mostly_describe_their_own_leaf() {
+    fn response_and_rebid_patterns_are_not_grossly_wrong() {
         const MIN_HIT_RATE: f64 = 0.15;
+        const DEAL_TARGET: u32 = 120;
         let mut rng = SmallRng::seed_from_u64(90210);
         let mut wrong: Vec<String> = Vec::new();
         for spec in catalog() {
@@ -449,7 +454,7 @@ mod tests {
             let mut drawn = 0;
             let mut hits = 0;
             for _ in 0..400_000 {
-                if drawn >= 120 {
+                if drawn >= DEAL_TARGET {
                     break;
                 }
                 let Some(deal) = try_once(&mut rng, spec) else {
@@ -460,9 +465,10 @@ mod tests {
                     hits += 1;
                 }
             }
-            assert!(
-                drawn >= 20,
-                "{}: only {drawn} deals matched its patterns — too thin to check",
+            assert_eq!(
+                drawn, DEAL_TARGET,
+                "{}: the draw budget ran out at {drawn} deals, short of the \
+                 {DEAL_TARGET} this needs to mean anything",
                 spec.id
             );
             let rate = f64::from(hits) / f64::from(drawn);
