@@ -11,7 +11,25 @@ pub struct Auction {
 pub enum Phase {
     Opening,
     RespondTo(Call),
-    OpenerRebid { open: Call, response: Call },
+    OpenerRebid {
+        open: Call,
+        response: Call,
+    },
+    /// Responder's second call. Without this the auction stopped dead after
+    /// opener's rebid: a completed transfer sat in 2♥ holding game values,
+    /// and a game-forcing 2♣ auction died in 2NT.
+    ResponderRebid {
+        open: Call,
+        response: Call,
+        rebid: Call,
+    },
+    /// Opener answering responder's second call — almost always accepting or
+    /// declining an invitation. Adding ResponderRebid alone just moved the
+    /// truncation one call deeper: 1NT–2♦–2♥–3♥ was passed out.
+    AnswerInvitation {
+        mine: Call,
+        theirs: Call,
+    },
     Unsupported,
 }
 
@@ -77,12 +95,31 @@ impl Auction {
         }
         let ours = self.non_pass_by(seat);
         let partner = self.non_pass_by(seat.partner());
+        // This course has no competitive bidding: once the opponents have
+        // opened, our side stays out. Without this the phase was decided from
+        // our own calls alone, so a seat could be told it was "opening" after
+        // an opponent had already bid. `uncontested_script` enforced it
+        // separately; the public decide API did not.
+        let opponents_opened = !self.non_pass_by(seat.next()).is_empty()
+            || !self.non_pass_by(seat.next().next().next()).is_empty();
+        if ours.is_empty() && partner.is_empty() && opponents_opened {
+            return Phase::Unsupported;
+        }
         match (ours.as_slice(), partner.as_slice()) {
             ([], []) => Phase::Opening,
             ([], [open]) => Phase::RespondTo(*open),
             ([open], [response]) => Phase::OpenerRebid {
                 open: *open,
                 response: *response,
+            },
+            ([response], [open, rebid]) => Phase::ResponderRebid {
+                open: *open,
+                response: *response,
+                rebid: *rebid,
+            },
+            ([_, mine], [_, theirs]) => Phase::AnswerInvitation {
+                mine: *mine,
+                theirs: *theirs,
             },
             _ => Phase::Unsupported,
         }
@@ -144,6 +181,68 @@ mod tests {
         assert!(
             !bid_in_front.in_fourth_seat(),
             "somebody opened — not a pass-out decision"
+        );
+    }
+
+    /// The auction has four phases, not three. Responder gets a second call
+    /// after opener's rebid, and it is where most contracts are actually
+    /// chosen.
+    /// Our side does not bid after the opponents open, and the phase must say
+    /// so rather than leaving it to one consumer to enforce.
+    #[test]
+    fn an_opponents_opening_takes_our_side_out_of_the_auction() {
+        let west_opened = Auction {
+            dealer: Seat::West,
+            calls: vec![bid(1, Suit::Spade)],
+        };
+        assert_eq!(west_opened.next_seat(), Seat::North);
+        assert_eq!(west_opened.phase_for(Seat::North), Phase::Unsupported);
+
+        // Our own side opening is untouched.
+        let we_opened = Auction {
+            dealer: Seat::North,
+            calls: vec![bid(1, Suit::Spade), Call::Pass],
+        };
+        assert_eq!(
+            we_opened.phase_for(Seat::South),
+            Phase::RespondTo(bid(1, Suit::Spade))
+        );
+    }
+
+    #[test]
+    fn responder_gets_a_second_call() {
+        let after_transfer = Auction {
+            dealer: Seat::North,
+            calls: vec![
+                Call::nt(1),
+                Call::Pass,
+                bid(2, Suit::Diamond),
+                Call::Pass,
+                bid(2, Suit::Heart),
+                Call::Pass,
+            ],
+        };
+        assert_eq!(after_transfer.next_seat(), Seat::South);
+        assert_eq!(
+            after_transfer.phase_for(Seat::South),
+            Phase::ResponderRebid {
+                open: Call::nt(1),
+                response: bid(2, Suit::Diamond),
+                rebid: bid(2, Suit::Heart),
+            }
+        );
+
+        // One call earlier it is opener's turn, not responder's.
+        assert_eq!(
+            Auction {
+                dealer: Seat::North,
+                calls: vec![Call::nt(1), Call::Pass, bid(2, Suit::Diamond), Call::Pass],
+            }
+            .phase_for(Seat::North),
+            Phase::OpenerRebid {
+                open: Call::nt(1),
+                response: bid(2, Suit::Diamond),
+            }
         );
     }
 

@@ -268,12 +268,15 @@ fn weak_two_opener(suit: Suit) -> HandPat {
     }
 }
 
-/// Seven or eight cards, and few enough points that the hand genuinely cannot
-/// open at the one level: eight cards with 9 HCP is 13 opening points, which
-/// opens 1♠, not 3♠. `verify()` would filter those out by retrying, which
-/// hides the fact that the pattern describes the wrong hands.
+/// Seven or eight cards, 5–9 HCP. The two bounds interact: seven cards plus 9
+/// HCP is 12 opening points and cannot open, but eight plus 9 is 13 and opens
+/// at the one level. One `HandPat` cannot vary the cap with the length, so
+/// this over-approximates by exactly that corner and lets the evaluator
+/// filter it — which is the documented contract. The alternative, capping at
+/// 8, bought precision by silently never sampling a valid seven-card 9-count,
+/// and no generator test measures that missing recall.
 fn preempt_opener(suit: Suit) -> HandPat {
-    let p = HandPat::hcp(5, 8);
+    let p = HandPat::hcp(5, 9);
     match suit {
         Suit::Spade => p.lens((0, 3), (0, 3), (0, 3), (7, 8)),
         Suit::Heart => p.lens((0, 3), (0, 3), (7, 8), (0, 3)),
@@ -434,25 +437,25 @@ fn build() -> Vec<LeafSpec> {
         "open.3s",
         "Preempt 3♠",
         Call::suit_bid(3, Suit::Spade),
-        HandPat::hcp(5, 8).lens((0, 3), (0, 3), (0, 3), (7, 8)),
+        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (0, 3), (7, 8)),
     ));
     v.push(open(
         "open.3h",
         "Preempt 3♥",
         Call::suit_bid(3, Suit::Heart),
-        HandPat::hcp(5, 8).lens((0, 3), (0, 3), (7, 8), (0, 3)),
+        HandPat::hcp(5, 9).lens((0, 3), (0, 3), (7, 8), (0, 3)),
     ));
     v.push(open(
         "open.3d",
         "Preempt 3♦",
         Call::suit_bid(3, Suit::Diamond),
-        HandPat::hcp(5, 8).lens((0, 3), (7, 8), (0, 3), (0, 3)),
+        HandPat::hcp(5, 9).lens((0, 3), (7, 8), (0, 3), (0, 3)),
     ));
     v.push(open(
         "open.3c",
         "Preempt 3♣",
         Call::suit_bid(3, Suit::Club),
-        HandPat::hcp(5, 8).lens((7, 8), (0, 3), (0, 3), (0, 3)),
+        HandPat::hcp(5, 9).lens((7, 8), (0, 3), (0, 3), (0, 3)),
     ));
 
     // --- 1NT responses ---
@@ -762,7 +765,11 @@ fn build() -> Vec<LeafSpec> {
         "1♦ – 2♣",
         Call::suit_bid(2, Suit::Club),
         Call::suit_bid(1, Suit::Diamond),
-        HandPat::hcp(10, 15).lens((6, 7), (0, 3), (0, 3), (0, 3)),
+        // Four or more clubs on a shapely hand, not six: a two-level new suit
+        // asks for 10+ points and a real suit, not a specific length.
+        HandPat::hcp(10, 15)
+            .lens((4, 7), (0, 3), (0, 3), (0, 3))
+            .bal(false),
         one_diamond_opener(),
     ));
     v.push(resp(

@@ -7,6 +7,7 @@ import { BiddingBox } from "../components/BiddingBox";
 import { HandRow } from "../components/HandRow";
 import { HandsReview } from "../components/HandsReview";
 import { PointsBreakdown } from "../components/PointsBreakdown";
+import { pointContextFor } from "../lib/handPoints";
 import {
   applyResult,
   nextDrill,
@@ -323,7 +324,17 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
               size="lg"
               align="start"
             />
-            {showPoints && <PointsBreakdown cards={drill.hands.S} />}
+            {showPoints &&
+              (() => {
+                const ctx = pointContextFor(drill.family, drill.leaf_id);
+                return (
+                  <PointsBreakdown
+                    cards={drill.hands.S}
+                    context={ctx.context}
+                    trump={ctx.trump}
+                  />
+                );
+              })()}
           </section>
 
           <section className="panel">

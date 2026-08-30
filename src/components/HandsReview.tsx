@@ -22,7 +22,9 @@ export function HandsReview({
     <section className="panel hands-review">
       <h2>The hands</h2>
       <p className="muted small">
-        Every hand counted the same way. Yours is highlighted.
+        Each hand counted as an opening hand — the question &ldquo;would this
+        one have opened?&rdquo; — which is not the count your own bid was
+        judged on if partner had already opened. Yours is highlighted.
       </p>
       {SEAT_ROWS.map(({ seat, label }) => (
         <div

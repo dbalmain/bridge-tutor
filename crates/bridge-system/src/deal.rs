@@ -355,6 +355,7 @@ fn verify(deal: &Deal, spec: &LeafSpec) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bid::Strain;
     use crate::leaves::catalog;
     use rand::rngs::SmallRng;
     use rand::SeedableRng;
@@ -484,6 +485,78 @@ mod tests {
             wrong.is_empty(),
             "patterns that mostly describe some other leaf:\n{}",
             wrong.join("\n")
+        );
+    }
+
+    /// A game-forcing auction must actually reach game. Nothing checked this,
+    /// and the auction used to stop dead after opener's rebid: 2♣ – 2♦ – 2NT
+    /// was passed out below game, and a completed transfer sat in 2♥ with
+    /// twenty-nine points between the two hands.
+    #[test]
+    fn forcing_auctions_reach_game_and_fits_are_not_left_in_partscore() {
+        let mut rng = SmallRng::seed_from_u64(606);
+        let mut failures: Vec<String> = Vec::new();
+        for spec in catalog() {
+            for _ in 0..4 {
+                let Ok((deal, _)) = generate(&mut rng, spec) else {
+                    continue;
+                };
+                let script = uncontested_script(&deal, spec.dealer);
+                let calls: Vec<Call> = script.iter().map(|s| s.bid).collect();
+                let opened_2c = calls.first() == Some(&Call::suit_bid(2, Suit::Club));
+                let Some(final_bid) = calls.iter().rev().find(|c| **c != Call::Pass) else {
+                    continue;
+                };
+                let (level, _) = final_bid.rank().expect("a real bid");
+                let is_game = match *final_bid {
+                    Call::Bid { level, strain } => match strain {
+                        Strain::NoTrump => level >= 3,
+                        Strain::Hearts | Strain::Spades => level >= 4,
+                        _ => level >= 5,
+                    },
+                    _ => false,
+                };
+
+                if opened_2c && !is_game {
+                    failures.push(format!(
+                        "{}: 2♣ is game-forcing but the auction ended in {} — {}",
+                        spec.id,
+                        final_bid.to_app(),
+                        calls
+                            .iter()
+                            .map(|c| c.to_app())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    ));
+                }
+
+                // 26+ HCP between the two hands and a partscore is a miss.
+                let ns = deal.north.hcp() + deal.south.hcp();
+                if ns >= 26 && !is_game && level < 4 {
+                    failures.push(format!(
+                        "{}: {ns} HCP between N/S but the auction ended in {} — {}",
+                        spec.id,
+                        final_bid.to_app(),
+                        calls
+                            .iter()
+                            .map(|c| c.to_app())
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    ));
+                }
+            }
+        }
+        failures.sort();
+        failures.dedup();
+        assert!(
+            failures.is_empty(),
+            "auctions that stopped short:\n{}",
+            failures
+                .iter()
+                .take(12)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
         );
     }
 

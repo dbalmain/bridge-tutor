@@ -414,8 +414,13 @@ mod tests {
     }
 
     /// Every leaf the drills can deal is taught by some lesson, and no lesson
-    /// claims a leaf twice. Without this, adding a branch to the tree silently
-    /// creates a drill for a rule the course never explains.
+    /// claims a leaf twice.
+    ///
+    /// Note what this does NOT say. `catalog()` is a curated subset of the ids
+    /// the tree produces — many decisions play out inside an auction without
+    /// being drilled — so adding a branch does not create a drill, and this
+    /// test will not notice one. It checks the catalogue against the course,
+    /// not the tree against either.
     #[test]
     fn every_catalogue_leaf_is_taught_by_a_lesson() {
         let raw = include_str!("../../../src/data/bidding-curriculum.json");

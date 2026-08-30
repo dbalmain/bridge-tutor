@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 7
+    "version": 8
   },
   "chapters": [
     {
@@ -47,12 +47,12 @@
       "id": "bid-ch4",
       "number": 4,
       "title": "Responding to 1NT",
-      "summary": "After partner's strong 1NT, count HCP only. Transfer with a six-card major; Stayman with a four-card major and 8+; otherwise Pass / 2NT / 3NT.",
+      "summary": "After partner's strong 1NT, count HCP only. Transfer with a five-card major; Stayman with a four-card major and 8+; otherwise Pass / 2NT / 3NT.",
       "concepts": [
         "HCP only — no length points as responder to 1NT.",
         "10+ and no 4-card major: 3NT. 8–9: 2NT (invitational). Else Pass.",
-        "6+ major: transfer (2♦ → hearts, 2♥ → spades). 5–5 majors: transfer to spades.",
-        "4-card major (or 5–4 majors) and 8+, no 6-card major: Stayman. Garbage Stayman is off."
+        "5+ major: transfer (2♦ → hearts, 2♥ → spades). 5–5 majors: transfer to spades.",
+        "4-card major (or 5–4 majors) and 8+, no 5-card major: Stayman. Garbage Stayman is off."
       ]
     },
     {
@@ -206,13 +206,13 @@
         }
       ],
       "teaching": [
-        "Opening values, but no five-card major, so Lesson 2's 1♥/1♠ is unavailable. Open a minor instead. 1♦ promises four diamonds (this course never opens 1♦ on three). 1♣ is the catch-all and can be as short as three clubs — it does not promise a real suit, it just starts the auction.",
+        "Opening values, but no five-card major, so Lesson 2's 1♥/1♠ is unavailable. Open a minor instead. 1♦ normally promises four diamonds, with one exception: holding 4-4 in the majors and a doubleton club, the shape is 4-4-3-2 and 1♦ is opened on three, because some minor has to be opened and diamonds is the longer one. 1♣ is the catch-all and can be as short as three clubs — it does not promise a real suit, it just starts the auction.",
         "Equal minors: 4–4 opens 1♦; 3–3 opens 1♣. With 4–4 in the majors you still open a minor, because Lesson 2 needs five. You can show a major later.",
         "When the minors are unequal, the longer one wins. That is the whole decision: no five-card major, then longer minor, then 1♦ on 4–4 and 1♣ on 3–3."
       ],
       "rules": [
         "No 5-card major (Lesson 2) → open a minor.",
-        "1♦ = 4+ diamonds. 1♣ = 3+ clubs and may be a short suit.",
+        "1♦ = 4+ diamonds, except 4-4-3-2 with 4–4 majors, where it is three. 1♣ = 3+ and may be short.",
         "Longer minor wins. 4–4 minors: 1♦. 3–3 minors: 1♣."
       ],
       "leaves": [
@@ -370,12 +370,12 @@
       "teaching": [
         "You are the responder now: partner opened 1NT, so from Lesson 4 you know they hold 15–17 HCP and a balanced hand. Add your HCP to theirs; about 25 between the two hands is enough for 3NT.",
         "Count high-card points only. The length points from Lesson 1 were for deciding whether to open — opposite a notrump opening they do not apply.",
-        "This lesson deals only hands with no four-card major and no six-card major, because those shapes have better bids than notrump — the transfer in Lesson 8 and Stayman in Lesson 9. On the rest: 0–7 pass, 8–9 bid 2NT, 10+ bid 3NT. 2NT is an invitation, not a resting place — with 10 or more you must not park there."
+        "This lesson deals only hands with no four-card major and no five-card major, because those shapes have better bids than notrump — the transfer in Lesson 8 and Stayman in Lesson 9. On the rest: 0–7 pass, 8–9 bid 2NT, 10+ bid 3NT. 2NT is an invitation, not a resting place — with 10 or more you must not park there."
       ],
       "rules": [
         "Partner's 1NT = 15–17 balanced (Lesson 4).",
         "As responder to 1NT: HCP only, no length points.",
-        "No 4-card and no 6-card major: 0–7 Pass, 8–9 2NT, 10+ 3NT.",
+        "No 4-card and no 5-card major: 0–7 Pass, 8–9 2NT, 10+ 3NT.",
         "2NT is invitational. Do not park in 2NT with 10+."
       ],
       "leaves": [
@@ -391,7 +391,7 @@
       "chapterNumber": 4,
       "lessonNumber": 8,
       "title": "Jacoby transfers",
-      "tip": "Six or more cards in a major: 2♦ transfers to hearts, 2♥ transfers to spades. 5–5 majors: transfer to spades.",
+      "tip": "Five or more in a major: 2♦ transfers to hearts, 2♥ transfers to spades. 5–5 majors: transfer to spades.",
       "newHere": "Jacoby transfers — your first artificial bid: 2♦ makes partner bid hearts, 2♥ makes partner bid spades, so the strong hand plays the contract.",
       "revisits": [
         {
@@ -406,16 +406,16 @@
         }
       ],
       "teaching": [
-        "Lesson 7 kept you in notrump because you had no long major. Now you have one: six or more cards in hearts or spades. Partner's 1NT promised a balanced hand (Lesson 4), so they hold at least two of your suit — that is an eight-card fit already, and the cheaper major game from Lesson 1 is the contract you want.",
+        "The shape Lesson 7 set aside: five or more cards in a major. Partner's 1NT promised a balanced hand (Lesson 4), so they hold at least two of your suit — that is a seven-card fit at worst and usually eight — and the cheaper major game from Lesson 1 is the contract you want.",
         "So you do not bid your suit; you make partner bid it. With six or more hearts, bid 2♦ and partner must bid 2♥. With six or more spades, bid 2♥ and partner must bid 2♠. The bid is artificial — 2♦ says nothing about diamonds. Its whole purpose is to make the 1NT hand declarer, so their high cards sit behind the opening lead instead of in front of it.",
         "The transfer says nothing about strength either. Weak, invitational and game-going hands all start with the same bid, and you describe how strong you are on the next round. That is why one bid covers so many hands.",
-        "5–5 in the majors: transfer to spades with 2♥ — the higher-ranking major, per Lesson 1's suit order — and hearts can still come out later.",
+        "5–5 in the majors: transfer to spades with 2♥ — the higher-ranking major, per Lesson 1's suit order — and you can still show hearts afterwards. 5–4 is not a transfer; that is Lesson 9's Stayman, because transferring would bury the four-card suit.",
         "Partner has no choice about completing: 2♦ is always answered 2♥, and 2♥ always 2♠. Lesson 17 puts you in that chair."
       ],
       "rules": [
-        "6+ hearts → 2♦. 6+ spades → 2♥. Artificial — partner must complete.",
+        "5+ hearts → 2♦. 5+ spades → 2♥. Artificial — partner must complete.",
         "5–5 majors → transfer to spades (2♥).",
-        "The transfer shows no strength; that comes next round.",
+        "5–4 majors → Stayman instead (Lesson 9).",
         "Partner completes: 2♦ → 2♥, 2♥ → 2♠, always (Lesson 17)."
       ],
       "leaves": [
@@ -434,7 +434,7 @@
       "chapterNumber": 4,
       "lessonNumber": 9,
       "title": "Stayman",
-      "tip": "Eight or more HCP and a four-card major, with no six-card major to transfer: bid 2♣. 5–4 majors are Stayman too.",
+      "tip": "Eight or more HCP and a four-card major, with no five-card major to transfer: bid 2♣. 5–4 majors are Stayman too.",
       "newHere": "Stayman: 2♣ asks partner to name a four-card major — for the hands with a major too short to transfer.",
       "revisits": [
         {
@@ -454,15 +454,15 @@
         }
       ],
       "teaching": [
-        "Two cases are settled. No major at all: Lesson 7's ladder — Pass, 2NT or 3NT. Six or more of a major: Lesson 8's transfer. This lesson is the gap between them — a four-card major, sometimes five, which is not enough to claim the fit on your own.",
+        "Two cases are settled. No major at all: Lesson 7's ladder — Pass, 2NT or 3NT. Five or more of a major: Lesson 8's transfer. This lesson is the gap between them — a four-card major, or five-four in the majors, which is not enough to claim the fit on your own.",
         "With four cards you cannot know there is a fit: partner's balanced hand might hold two. So you ask. Stayman — 2♣ — is artificial like the transfer and shows no clubs; it asks whether partner holds a four-card major, so the pair can find the 4–4 or 5–3 fit and play the cheaper major game. Use it with 8+ HCP and at least one four-card major.",
         "5–4 in the majors with 8+ is Stayman, not Lesson 8's transfer. Five is not six, and transferring would bury the four-card suit — you want to hear about both majors, not just one.",
         "Partner's answer, so you can read it when it comes: 2♥ with four hearts (even holding four spades too), 2♠ with four spades and no four hearts, 2♦ with neither. Hearts come first so the answer is never ambiguous. Lesson 17 puts you in the opener's chair for those.",
         "Below 8 HCP, do not use Stayman as an escape from 1NT even with 4–4 majors — garbage Stayman is off in this tree. Those hands pass, as in Lesson 7."
       ],
       "rules": [
-        "8+ HCP and a 4-card major, no 6-card major → 2♣ Stayman. Artificial, not clubs.",
-        "6+ major → transfer instead (Lesson 8).",
+        "8+ HCP and a 4-card major, no 5-card major → 2♣ Stayman. Artificial, not clubs.",
+        "5+ major → transfer instead (Lesson 8).",
         "5–4 majors and 8+ → Stayman, not a transfer.",
         "Partner answers 2♥ / 2♠ / 2♦, hearts first. You bid those in Lesson 17.",
         "0–7 with 4–4 majors: pass (Lesson 7) — garbage Stayman is off."

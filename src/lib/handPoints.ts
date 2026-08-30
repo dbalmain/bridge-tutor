@@ -15,6 +15,9 @@ export interface SuitPoints {
   lengthPoints: number;
 }
 
+/** Which count the system actually uses for the decision on the table. */
+export type PointContext = "opening" | "hcp" | "support";
+
 export interface HandPoints {
   /** Spades, hearts, diamonds, clubs — the order hands are displayed in. */
   suits: SuitPoints[];
@@ -26,6 +29,42 @@ export interface HandPoints {
   /** The two longest suits, longest first — the Rule of 20 pair. */
   twoLongest: SuitPoints[];
   ruleOf20: number;
+}
+
+/**
+ * Which count the decision actually uses, from the leaf being drilled.
+ * Opening and rebid decisions use opening points; responses to a notrump
+ * opening are high cards only; a raise means a fit is known, so shortage.
+ */
+export function pointContextFor(
+  family: string,
+  leafId: string,
+): { context: PointContext; trump?: Suit } {
+  if (family === "1nt" || family === "strong") return { context: "hcp" };
+  const raise = /\braise\d?\b/.test(leafId) || /\.raise/.test(leafId);
+  if (raise) {
+    const m = leafId.match(/^resp\.1([cdhs])\./);
+    const trump = m?.[1]?.toUpperCase() as Suit | undefined;
+    return { context: "support", trump };
+  }
+  if (family === "major" || family === "minor") return { context: "hcp" };
+  return { context: "opening" };
+}
+
+/** Shortage points for a known trump fit: void 5, singleton 3, doubleton 1. */
+export function shortagePoints(
+  p: HandPoints,
+  trump: Suit,
+): { suits: { suit: Suit; length: number; points: number }[]; total: number } {
+  const suits = p.suits
+    .filter((s) => s.suit !== trump)
+    .map((s) => ({
+      suit: s.suit,
+      length: s.length,
+      points: s.length === 0 ? 5 : s.length === 1 ? 3 : s.length === 2 ? 1 : 0,
+    }))
+    .filter((s) => s.points > 0);
+  return { suits, total: suits.reduce((n, s) => n + s.points, 0) };
 }
 
 function displayRank(rank: string): string {

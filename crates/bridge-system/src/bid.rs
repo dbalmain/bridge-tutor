@@ -101,6 +101,18 @@ impl Call {
         Some(Call::Bid { level, strain })
     }
 
+    /// `self` if it is already above `last`, otherwise the cheapest bid in the
+    /// same strain that is — and Pass if there is no such level.
+    pub fn cheapest_above_or_pass(self, last: Call) -> Call {
+        match (self.rank(), last.rank()) {
+            (Some(mine), Some(theirs)) if mine > theirs => self,
+            _ => match self {
+                Call::Bid { strain, .. } => last.cheapest_above(strain).unwrap_or(Call::Pass),
+                _ => Call::Pass,
+            },
+        }
+    }
+
     pub fn to_app(self) -> String {
         match self {
             Call::Pass => "Pass".to_string(),
