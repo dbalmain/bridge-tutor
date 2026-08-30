@@ -27,10 +27,23 @@ export function BidCourse() {
         <h1>Bidding course</h1>
         <p className="lede">{biddingCurriculum.meta.system}.</p>
         <p className="lede muted">
-          Each lesson: a short explanation, then a few live hands on that
-          branch. Miss a call and the system explainer stays up until you bid
-          the right one. After the course, drills keep sampling the leaves you
-          miss.
+          Each lesson: a short explanation, then live hands you bid from the
+          start. Every seat bids the system, so an opponent with an opening
+          hand opens — though only the side that opened keeps bidding, since
+          competitive bidding is not taught here yet. Opening lessons stop
+          after your first call and play out the rest; later lessons you bid
+          through to the end. Miss a call and the explainer stays up until you
+          bid the right one. After the course, drills keep sampling the leaves
+          you miss.
+        </p>
+        <p className="lede muted">
+          Every lesson says what it adds and links back to the lessons its
+          rules came from, so nothing is assumed and nothing is used before it
+          is taught. While you are bidding, your point count is hidden —
+          counting the hand is half the exercise — and once the auction ends you
+          get the full working plus every call explained, yours highlighted, so
+          you can read your own calls first and the rest of the table when you
+          want it.
         </p>
         <div className="btn-row">
           {nextLesson && (

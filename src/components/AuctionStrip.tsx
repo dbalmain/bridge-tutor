@@ -1,5 +1,8 @@
-import { padAuction } from "../lib/auction";
+import { auctionEndedAt, padAuction } from "../lib/auction";
+import { bidDisplay } from "../lib/cards";
 import type { Seat } from "../lib/types";
+
+const SEAT_NAME = { N: "North", E: "East", S: "South", W: "West" } as const;
 
 export function AuctionStrip({
   dealer,
@@ -29,5 +32,21 @@ export function AuctionStrip({
         )}
       </div>
     </div>
+  );
+}
+
+/** How the auction finished. */
+export function AuctionOutcome({
+  log,
+}: {
+  log: { seat: Seat; bid: string }[];
+}) {
+  const ended = auctionEndedAt(log);
+  return (
+    <p className="auction-note">
+      {ended
+        ? `Ends at ${bidDisplay(ended.bid)} (${SEAT_NAME[ended.seat]})`
+        : "Passed out"}
+    </p>
   );
 }

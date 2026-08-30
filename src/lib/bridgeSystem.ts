@@ -1,5 +1,14 @@
 export type FamilySlug = "open" | "1nt" | "major" | "minor" | "rebid";
 
+export interface ScriptCall {
+  seat: "N" | "E" | "S" | "W";
+  bid: string;
+  leaf_id: string;
+  title: string;
+  explanation: string;
+  student: boolean;
+}
+
 export interface Drill {
   leaf_id: string;
   family: FamilySlug | string;
@@ -9,6 +18,7 @@ export interface Drill {
   expected: string;
   dealer: "N" | "E" | "S" | "W";
   auction: string[];
+  script?: ScriptCall[];
   student: "S";
   hands: {
     N: string[];
@@ -139,4 +149,29 @@ export function randomSeed(): number {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);
   return buf[0]!;
+}
+
+/** Full uncontested line. Falls back to the old single-decision payload. */
+export function drillScript(drill: Drill): ScriptCall[] {
+  if (drill.script && drill.script.length > 0) return drill.script;
+  const prefix = drill.auction ?? [];
+  const seats: ScriptCall["seat"][] = ["N", "E", "S", "W"];
+  const start = seats.indexOf(drill.dealer);
+  const steps: ScriptCall[] = prefix.map((bid, i) => ({
+    seat: seats[(start + i) % 4]!,
+    bid,
+    leaf_id: "",
+    title: "",
+    explanation: "",
+    student: false,
+  }));
+  steps.push({
+    seat: "S",
+    bid: drill.expected,
+    leaf_id: drill.leaf_id,
+    title: drill.title,
+    explanation: drill.explanation,
+    student: true,
+  });
+  return steps;
 }

@@ -145,6 +145,11 @@ input {
 .bid-lesson-tip {
   margin: 0 0 0.75rem;
 }
+.auction-note {
+  margin: 0.35rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .chapter-list {
   display: grid;
   gap: 1rem;
@@ -458,13 +463,22 @@ input {
   font-size: 0.9rem;
 }
 
+.hand-row {
+  margin: 0.55rem 0 0.85rem;
+}
 .hand-row__meta {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
   color: #d7efe4;
   font-size: 0.85rem;
   margin-bottom: 0.3rem;
   padding: 0 0.25rem;
+}
+.hand-row__name {
+  font-weight: 600;
+  text-align: left;
 }
 .hand-row__hcp {
   opacity: 0.85;
@@ -474,6 +488,164 @@ input {
   flex-wrap: wrap;
   gap: 0.3rem;
   justify-content: center;
+}
+.hand-row--start .hand-row__meta {
+  justify-content: flex-start;
+  padding: 0;
+}
+.hand-row--start .hand-row__cards {
+  justify-content: flex-start;
+}
+.hands-review__seat {
+  border-left: 3px solid transparent;
+  padding: 0.25rem 0 0.25rem 0.65rem;
+  margin-bottom: 0.35rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.hands-review__seat--you {
+  border-left-color: var(--accent);
+  background: rgba(232, 197, 71, 0.07);
+}
+.hands-review__seat--you .hand-row__name {
+  color: var(--accent);
+}
+
+.auction-explained .call-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+.call-list__item {
+  border-left: 3px solid #2a3a30;
+  padding: 0.4rem 0 0.4rem 0.7rem;
+  margin-bottom: 0.4rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  opacity: 0.75;
+}
+.call-list__item--you {
+  border-left-color: var(--accent);
+  background: rgba(232, 197, 71, 0.07);
+  opacity: 1;
+}
+.call-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.call-list__seat {
+  min-width: 8.5rem;
+  color: var(--muted);
+}
+.call-list__item--you .call-list__seat {
+  color: var(--accent);
+  font-weight: 600;
+}
+.call-list__bid {
+  font-weight: 700;
+  min-width: 3rem;
+}
+.call-list__title {
+  color: #d7efe4;
+}
+.call-list__badge {
+  font-size: 0.72rem;
+}
+.call-list__why {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.lesson-meta {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+.lesson-meta__block h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.lesson-meta__new {
+  margin: 0;
+  color: var(--ink);
+}
+.lesson-meta__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.points {
+  margin: 0.75rem 0 0.25rem;
+}
+.points__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: #d7efe4;
+}
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.points-table th,
+.points-table td {
+  text-align: left;
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  border-bottom: 1px solid #2a3a30;
+}
+.points-table thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.points-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.points-table tfoot th,
+.points-table tfoot td {
+  border-bottom: none;
+  font-weight: 600;
+}
+.points-table__cards {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+.points-table__kind {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.points-steps {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.points-steps li {
+  margin-bottom: 0.25rem;
+}
+.points-steps strong {
+  color: var(--ink);
+}
+.points-line {
+  margin: 0.15rem 0 0.3rem;
+}
+.points-line__item + .points-line__item::before {
+  content: ", ";
+}
+.suit-mark--red {
+  color: #e08a80;
+}
+.suit-mark--black {
+  color: #cfe0d4;
 }
 .seat--s .hand-row__cards {
   justify-content: center;
