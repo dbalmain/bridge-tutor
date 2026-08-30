@@ -11,6 +11,11 @@ pub enum Family {
     RespMinor,
     RespStrong,
     Rebid,
+    /// Responder's second call and opener's answer to an invitation. Nothing
+    /// in this family is drilled yet — the course has no lesson for it — but
+    /// the tree makes these calls and the learner places them in a full
+    /// auction.
+    Continue,
 }
 
 impl Family {
@@ -22,6 +27,7 @@ impl Family {
             Family::RespMinor => "minor",
             Family::RespStrong => "strong",
             Family::Rebid => "rebid",
+            Family::Continue => "continue",
         }
     }
 
@@ -33,6 +39,7 @@ impl Family {
             Family::RespMinor => "Respond to 1♣/1♦",
             Family::RespStrong => "Respond to 2♣/2NT/preempts",
             Family::Rebid => "Opener’s rebid",
+            Family::Continue => "Later calls",
         }
     }
 
@@ -45,6 +52,7 @@ impl Family {
             "minor" | "minors" | "1m" => Some(Family::RespMinor),
             "strong" | "preempt" | "preempts" => Some(Family::RespStrong),
             "rebid" | "rebids" => Some(Family::Rebid),
+            "continue" | "continuations" => Some(Family::Continue),
             _ => None,
         }
     }
@@ -111,11 +119,10 @@ impl HandPat {
     }
 }
 
+/// Everything needed to generate and grade a drill for one decision: the
+/// auction that leads to it, the answer, and the hand patterns to deal from.
 #[derive(Clone, Debug)]
-pub struct LeafSpec {
-    pub id: &'static str,
-    pub family: Family,
-    pub title: &'static str,
+pub struct Drill {
     pub expected: Call,
     pub dealer: Seat,
     pub calls_before: Vec<Call>,
@@ -123,20 +130,57 @@ pub struct LeafSpec {
     pub north: Option<HandPat>,
 }
 
+/// One decision the tree can make. `drill` is `None` for decisions the course
+/// does not set as an exercise — responder's second call and opener's answer
+/// to an invitation have no lesson yet, and several rarer branches have no
+/// curated hand pattern.
+///
+/// They are still registered here, and that is the point: this is ONE
+/// registry with a flag rather than a curated catalogue plus an unwritten
+/// set of everything else. A decision missing from it fails
+/// `every_decision_the_tree_makes_is_registered`, and until this existed the
+/// whole-auction UI silently auto-played every unregistered call instead of
+/// letting the learner make it.
+#[derive(Clone, Debug)]
+pub struct LeafSpec {
+    pub id: &'static str,
+    pub family: Family,
+    pub title: &'static str,
+    pub drill: Option<Drill>,
+}
+
+impl LeafSpec {
+    pub fn drillable(&self) -> bool {
+        self.drill.is_some()
+    }
+}
+
+/// Every registered decision, drillable or not.
 pub fn catalog() -> &'static [LeafSpec] {
     use std::sync::OnceLock;
     static C: OnceLock<Vec<LeafSpec>> = OnceLock::new();
     C.get_or_init(build).as_slice()
 }
 
+/// Only the decisions a drill can be generated for.
+pub fn drills() -> Vec<&'static LeafSpec> {
+    catalog().iter().filter(|l| l.drillable()).collect()
+}
+
 pub fn leaf_by_id(id: &str) -> Option<&'static LeafSpec> {
     catalog().iter().find(|l| l.id == id)
+}
+
+/// The drill for `id`, or `None` when the id is unknown or not drillable.
+pub fn drill_by_id(id: &str) -> Option<(&'static LeafSpec, &'static Drill)> {
+    let spec = leaf_by_id(id)?;
+    Some((spec, spec.drill.as_ref()?))
 }
 
 pub fn leaves_in_family(family: Option<Family>) -> Vec<&'static LeafSpec> {
     catalog()
         .iter()
-        .filter(|l| family.is_none_or(|f| l.family == f))
+        .filter(|l| l.drillable() && family.is_none_or(|f| l.family == f))
         .collect()
 }
 
@@ -154,11 +198,24 @@ fn leaf(
         id,
         family,
         title,
-        expected,
-        dealer,
-        calls_before,
-        south,
-        north,
+        drill: Some(Drill {
+            expected,
+            dealer,
+            calls_before,
+            south,
+            north,
+        }),
+    }
+}
+
+/// A decision the tree makes but the course does not drill. Registering it
+/// here is what lets the learner place the call in a full auction.
+fn undrilled(id: &'static str, family: Family, title: &'static str) -> LeafSpec {
+    LeafSpec {
+        id,
+        family,
+        title,
+        drill: None,
     }
 }
 
@@ -1339,6 +1396,383 @@ fn build() -> Vec<LeafSpec> {
         HandPat::hcp(6, 9).lens((1, 4), (1, 4), (4, 5), (0, 3)),
     ));
 
+    // --- Decisions the tree makes that the course does not drill. They are
+    // registered so the learner places them in a full auction and so a new
+    // branch cannot appear without being listed somewhere.
+    v.push(undrilled(
+        "pass.fourth-seat",
+        Family::Open,
+        "Pass in fourth seat",
+    ));
+    v.push(undrilled("rebid.1c.1d.1s", Family::Rebid, "Bid 1♠"));
+    v.push(undrilled("rebid.1c.1d.2c", Family::Rebid, "Rebid 2♣"));
+    v.push(undrilled("rebid.1c.1d.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled(
+        "rebid.1c.1d.raise3",
+        Family::Rebid,
+        "Jump raise the diamonds",
+    ));
+    v.push(undrilled("rebid.1h.1s.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled("rebid.1h.1s.game", Family::Rebid, "Raise to 4♠"));
+    v.push(undrilled(
+        "rebid.1h.1s.new-minor",
+        Family::Rebid,
+        "Show the second suit",
+    ));
+    v.push(undrilled(
+        "rebid.1h.1s.raise3",
+        Family::Rebid,
+        "Jump raise to 3♠",
+    ));
+    v.push(undrilled("rebid.1m.1h.1s", Family::Rebid, "Bid 1♠"));
+    v.push(undrilled("rebid.1m.1nt.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled("rebid.1m.1nt.3nt", Family::Rebid, "Bid 3NT"));
+    v.push(undrilled("rebid.1m.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled(
+        "rebid.1m.other-minor",
+        Family::Rebid,
+        "Show the other minor",
+    ));
+    v.push(undrilled(
+        "rebid.1m.rebid-minor",
+        Family::Rebid,
+        "Rebid the minor",
+    ));
+    v.push(undrilled("rebid.1m.reverse", Family::Rebid, "Reverse"));
+    v.push(undrilled("rebid.2c.3nt", Family::Rebid, "Bid 3NT"));
+    v.push(undrilled(
+        "rebid.2c.raise-major",
+        Family::Rebid,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "rebid.2level.game",
+        Family::Rebid,
+        "Bid the major game",
+    ));
+    v.push(undrilled("rebid.2nt.pass", Family::Rebid, "Pass"));
+    v.push(undrilled(
+        "rebid.2nt.stayman.3d",
+        Family::Rebid,
+        "Stayman: no major",
+    ));
+    v.push(undrilled(
+        "rebid.2nt.stayman.3s",
+        Family::Rebid,
+        "Stayman: show spades",
+    ));
+    v.push(undrilled(
+        "rebid.2nt.xfer.s",
+        Family::Rebid,
+        "Complete the transfer",
+    ));
+    v.push(undrilled("rebid.minor-raise.3nt", Family::Rebid, "Bid 3NT"));
+    v.push(undrilled("rebid.pass.default", Family::Rebid, "Pass"));
+    v.push(undrilled(
+        "rebid.preempt.raise",
+        Family::Rebid,
+        "Raise partner's major to game",
+    ));
+    v.push(undrilled(
+        "rebid.preempt.rebid-suit",
+        Family::Rebid,
+        "Repeat your suit",
+    ));
+    v.push(undrilled(
+        "resp.2c.2nt",
+        Family::RespStrong,
+        "Positive: 2NT",
+    ));
+    v.push(undrilled("resp.other.pass", Family::RespStrong, "Pass"));
+    v.push(undrilled(
+        "resp.preempt.game",
+        Family::RespStrong,
+        "Raise to game",
+    ));
+    v.push(undrilled(
+        "resp.weak2.new-suit",
+        Family::RespStrong,
+        "Bid your own suit",
+    ));
+    v.push(undrilled("resp2.2c.3nt", Family::Continue, "Bid 3NT"));
+    v.push(undrilled(
+        "resp2.2c.minor-game",
+        Family::Continue,
+        "Raise to game in the minor",
+    ));
+    v.push(undrilled(
+        "resp2.2c.raise",
+        Family::Continue,
+        "Raise partner's major to game",
+    ));
+    v.push(undrilled(
+        "resp2.accept.3nt",
+        Family::Continue,
+        "Accept: bid 3NT",
+    ));
+    v.push(undrilled(
+        "resp2.accept.game",
+        Family::Continue,
+        "Accept: bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.decline",
+        Family::Continue,
+        "Decline the invitation",
+    ));
+    v.push(undrilled("resp2.nt.pass", Family::Continue, "Pass"));
+    v.push(undrilled("resp2.pass", Family::Continue, "Pass"));
+    v.push(undrilled(
+        "resp2.pass-game",
+        Family::Continue,
+        "Pass — partner has bid the game",
+    ));
+    v.push(undrilled(
+        "resp2.raise-second",
+        Family::Continue,
+        "Raise partner's second suit",
+    ));
+    v.push(undrilled(
+        "resp2.stayman.2nt",
+        Family::Continue,
+        "Invite in notrump",
+    ));
+    v.push(undrilled("resp2.stayman.3nt", Family::Continue, "Bid 3NT"));
+    v.push(undrilled(
+        "resp2.stayman.game",
+        Family::Continue,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.stayman.invite",
+        Family::Continue,
+        "Invite in the major",
+    ));
+    v.push(undrilled("resp2.stayman.pass", Family::Continue, "Pass"));
+    v.push(undrilled(
+        "resp2.suit.2nt",
+        Family::Continue,
+        "Invite in notrump",
+    ));
+    v.push(undrilled("resp2.suit.3nt", Family::Continue, "Bid 3NT"));
+    v.push(undrilled(
+        "resp2.suit.accept-raise",
+        Family::Continue,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.suit.game",
+        Family::Continue,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.suit.invite",
+        Family::Continue,
+        "Invite in the major",
+    ));
+    v.push(undrilled(
+        "resp2.suit.minor-game",
+        Family::Continue,
+        "Bid game in the minor",
+    ));
+    v.push(undrilled("resp2.suit.pass-limit", Family::Continue, "Pass"));
+    v.push(undrilled(
+        "resp2.suit.raise-2nt",
+        Family::Continue,
+        "Bid 3NT",
+    ));
+    v.push(undrilled(
+        "resp2.xfer.2nt",
+        Family::Continue,
+        "Invite in notrump",
+    ));
+    v.push(undrilled("resp2.xfer.3nt", Family::Continue, "Bid 3NT"));
+    v.push(undrilled(
+        "resp2.xfer.game",
+        Family::Continue,
+        "Bid the major game",
+    ));
+    v.push(undrilled(
+        "resp2.xfer.invite",
+        Family::Continue,
+        "Invite in the major",
+    ));
+    v.push(undrilled(
+        "resp2.xfer.pass",
+        Family::Continue,
+        "Pass the transfer",
+    ));
+    v.push(undrilled(
+        "resp3.accept.3nt",
+        Family::Continue,
+        "Accept: bid 3NT",
+    ));
+    v.push(undrilled(
+        "resp3.accept.major",
+        Family::Continue,
+        "Accept: bid the major game",
+    ));
+    v.push(undrilled(
+        "resp3.decline",
+        Family::Continue,
+        "Decline the invitation",
+    ));
+    v.push(undrilled(
+        "resp3.decline-jumped",
+        Family::Continue,
+        "Decline — you already showed the extras",
+    ));
+    v.push(undrilled(
+        "resp3.pass-game",
+        Family::Continue,
+        "Pass — partner named the game",
+    ));
+    v.push(undrilled(
+        "unsupported",
+        Family::Continue,
+        "Pass — nothing more to say",
+    ));
+    v.push(undrilled("rebid.1h.1nt.2c", Family::Rebid, "Rebid a minor"));
+    v.push(undrilled("rebid.1h.1nt.2d", Family::Rebid, "Rebid a minor"));
+    v.push(undrilled(
+        "rebid.1h.1nt.2h",
+        Family::Rebid,
+        "Rebid the six-card major",
+    ));
+    v.push(undrilled("rebid.1h.1nt.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled(
+        "rebid.1h.1nt.2s",
+        Family::Rebid,
+        "Show the second major",
+    ));
+    v.push(undrilled("rebid.1h.1nt.pass", Family::Rebid, "Pass 1NT"));
+    v.push(undrilled(
+        "rebid.1h.limit.accept",
+        Family::Rebid,
+        "Accept the limit raise",
+    ));
+    v.push(undrilled(
+        "rebid.1h.limit.reject",
+        Family::Rebid,
+        "Pass the limit raise",
+    ));
+    v.push(undrilled(
+        "rebid.1h.raise.game",
+        Family::Rebid,
+        "Bid game over the raise",
+    ));
+    v.push(undrilled(
+        "rebid.1m.1h.game",
+        Family::Rebid,
+        "Raise to game",
+    ));
+    v.push(undrilled("rebid.1m.1h.raise3", Family::Rebid, "Jump raise"));
+    v.push(undrilled(
+        "rebid.1m.1s.game",
+        Family::Rebid,
+        "Raise to game",
+    ));
+    v.push(undrilled(
+        "rebid.1m.1s.raise2",
+        Family::Rebid,
+        "Raise to two",
+    ));
+    v.push(undrilled("rebid.1m.1s.raise3", Family::Rebid, "Jump raise"));
+    v.push(undrilled("rebid.1s.1nt.2c", Family::Rebid, "Rebid a minor"));
+    v.push(undrilled("rebid.1s.1nt.2d", Family::Rebid, "Rebid a minor"));
+    v.push(undrilled("rebid.1s.1nt.2nt", Family::Rebid, "Jump to 2NT"));
+    v.push(undrilled(
+        "rebid.side-minor",
+        Family::Rebid,
+        "Rebid a minor",
+    ));
+    v.push(undrilled("resp.1c.2nt", Family::RespMinor, "2NT invite"));
+    v.push(undrilled(
+        "resp.1c.3nt",
+        Family::RespMinor,
+        "3NT over a minor",
+    ));
+    v.push(undrilled(
+        "resp.1c.raise2",
+        Family::RespMinor,
+        "Simple raise of the minor",
+    ));
+    v.push(undrilled(
+        "resp.1c.raise3",
+        Family::RespMinor,
+        "Limit raise of the minor",
+    ));
+    v.push(undrilled("resp.1d.2nt", Family::RespMinor, "2NT invite"));
+    v.push(undrilled(
+        "resp.1d.3nt",
+        Family::RespMinor,
+        "3NT over a minor",
+    ));
+    v.push(undrilled("resp.1d.pass", Family::RespMinor, "Pass"));
+    v.push(undrilled(
+        "resp.1d.raise2",
+        Family::RespMinor,
+        "Simple raise of the minor",
+    ));
+    v.push(undrilled(
+        "resp.1d.raise3",
+        Family::RespMinor,
+        "Limit raise of the minor",
+    ));
+    v.push(undrilled(
+        "resp.1h.2c",
+        Family::RespMajor,
+        "Two-level shift",
+    ));
+    v.push(undrilled(
+        "resp.1h.2d",
+        Family::RespMajor,
+        "Two-level shift",
+    ));
+    v.push(undrilled("resp.1h.2nt", Family::RespMajor, "2NT invite"));
+    v.push(undrilled("resp.1h.3nt", Family::RespMajor, "3NT"));
+    v.push(undrilled(
+        "resp.1h.pass.fit-too-weak",
+        Family::RespMajor,
+        "Two-level shift",
+    ));
+    v.push(undrilled("resp.1s.2nt", Family::RespMajor, "2NT invite"));
+    v.push(undrilled("resp.1s.3nt", Family::RespMajor, "3NT"));
+    v.push(undrilled(
+        "resp.1s.pass.fit-too-weak",
+        Family::RespMajor,
+        "Two-level shift",
+    ));
+    v.push(undrilled(
+        "resp.2c.2s",
+        Family::RespStrong,
+        "Positive: show the suit",
+    ));
+    v.push(undrilled(
+        "resp.2c.3c",
+        Family::RespStrong,
+        "Positive: show the suit",
+    ));
+    v.push(undrilled(
+        "resp.2c.3d",
+        Family::RespStrong,
+        "Positive: show the suit",
+    ));
+    v.push(undrilled(
+        "resp.2minor",
+        Family::RespMinor,
+        "Two-level shift",
+    ));
+    v.push(undrilled(
+        "resp.2nt.xfer.s",
+        Family::Resp1NT,
+        "Transfer over 2NT",
+    ));
+    v.push(undrilled(
+        "resp.raise",
+        Family::RespMajor,
+        "Two-level shift",
+    ));
     v
 }
 

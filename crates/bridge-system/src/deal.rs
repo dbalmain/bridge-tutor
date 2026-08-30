@@ -4,7 +4,7 @@ use rand::Rng;
 use crate::auction::Auction;
 use crate::bid::Call;
 use crate::cards::{is_balanced_shape, Card, Deal, Hand, Seat, Suit};
-use crate::leaves::{leaf_by_id, HandPat, LeafSpec};
+use crate::leaves::{leaf_by_id, Drill, HandPat, LeafSpec};
 use crate::system::{decide, decide_for, opening};
 
 const MAX_ATTEMPTS: u32 = 80_000;
@@ -26,9 +26,16 @@ pub fn generate_for_id<R: Rng>(rng: &mut R, id: &str) -> Result<(Deal, u32), Dea
 }
 
 pub fn generate<R: Rng>(rng: &mut R, spec: &LeafSpec) -> Result<(Deal, u32), DealError> {
+    let Some(drill) = spec.drill.as_ref() else {
+        return Err(DealError {
+            leaf_id: spec.id.to_string(),
+            attempts: 0,
+            message: format!("{} is registered but not drillable", spec.id),
+        });
+    };
     for attempt in 1..=MAX_ATTEMPTS {
-        if let Some(deal) = try_once(rng, spec) {
-            if verify(&deal, spec) {
+        if let Some(deal) = try_once(rng, drill) {
+            if verify(&deal, spec, drill) {
                 return Ok((deal, attempt));
             }
         }
@@ -43,10 +50,10 @@ pub fn generate<R: Rng>(rng: &mut R, spec: &LeafSpec) -> Result<(Deal, u32), Dea
     })
 }
 
-fn try_once<R: Rng>(rng: &mut R, spec: &LeafSpec) -> Option<Deal> {
+fn try_once<R: Rng>(rng: &mut R, drill: &Drill) -> Option<Deal> {
     let mut piles = piles_from_shuffled(rng);
-    let south = deal_matching(rng, &mut piles, &spec.south)?;
-    let north = if let Some(ref npat) = spec.north {
+    let south = deal_matching(rng, &mut piles, &drill.south)?;
+    let north = if let Some(ref npat) = drill.north {
         deal_matching(rng, &mut piles, npat)?
     } else {
         take_random_13(rng, &mut piles)?
@@ -247,10 +254,10 @@ fn hand_fits_pat(hand: &Hand, pat: &HandPat) -> bool {
     true
 }
 
-pub fn auction_for(spec: &LeafSpec) -> Auction {
+pub fn auction_for(drill: &Drill) -> Auction {
     Auction {
-        dealer: spec.dealer,
-        calls: spec.calls_before.clone(),
+        dealer: drill.dealer,
+        calls: drill.calls_before.clone(),
     }
 }
 
@@ -294,7 +301,16 @@ pub fn uncontested_script(deal: &Deal, dealer: Seat) -> Vec<ScriptCall> {
                 leaf_id: d.leaf_id,
                 title: d.title,
                 explanation: d.explanation,
-                student: seat == Seat::South && leaf_by_id(d.leaf_id).is_some(),
+                // Every decision the tree makes is registered, drillable or
+                // not, so the learner places their own second call and the
+                // answer to an invitation. Before the registry existed this
+                // read `leaf_by_id(...).is_some()` against the curated drill
+                // catalogue alone, and silently auto-played everything the
+                // course had no exercise for. `unsupported` is the one
+                // exclusion: it is the tree saying it has nothing to say.
+                student: seat == Seat::South
+                    && d.leaf_id != "unsupported"
+                    && leaf_by_id(d.leaf_id).is_some(),
             }
         } else {
             ScriptCall {
@@ -315,34 +331,34 @@ pub fn uncontested_script(deal: &Deal, dealer: Seat) -> Vec<ScriptCall> {
     out
 }
 
-fn verify(deal: &Deal, spec: &LeafSpec) -> bool {
-    let auction = auction_for(spec);
+fn verify(deal: &Deal, spec: &LeafSpec, drill: &Drill) -> bool {
+    let auction = auction_for(drill);
     if auction.next_seat() != Seat::South {
         return false;
     }
     let d = decide(&deal.south, &auction);
-    if d.leaf_id != spec.id || d.bid != spec.expected {
+    if d.leaf_id != spec.id || d.bid != drill.expected {
         return false;
     }
 
-    match spec.dealer {
+    match drill.dealer {
         Seat::North => {
             let open = opening(&deal.north);
-            if spec.calls_before.first().copied() != Some(open.bid) {
+            if drill.calls_before.first().copied() != Some(open.bid) {
                 return false;
             }
         }
         Seat::South => {
-            if spec.calls_before.is_empty() {
+            if drill.calls_before.is_empty() {
                 return true;
             }
             let open = opening(&deal.south);
-            if spec.calls_before.first().copied() != Some(open.bid) {
+            if drill.calls_before.first().copied() != Some(open.bid) {
                 return false;
             }
-            if spec.calls_before.len() >= 3 {
+            if drill.calls_before.len() >= 3 {
                 let resp = crate::system::respond(&deal.north, open.bid);
-                if spec.calls_before.get(2).copied() != Some(resp.bid) {
+                if drill.calls_before.get(2).copied() != Some(resp.bid) {
                     return false;
                 }
             }
@@ -356,7 +372,7 @@ fn verify(deal: &Deal, spec: &LeafSpec) -> bool {
 mod tests {
     use super::*;
     use crate::bid::Strain;
-    use crate::leaves::catalog;
+    use crate::leaves::drills;
     use rand::rngs::SmallRng;
     use rand::SeedableRng;
 
@@ -373,7 +389,8 @@ mod tests {
         const SAMPLE_TARGET: u32 = 200;
         let mut rng = SmallRng::seed_from_u64(31337);
         let mut wrong: Vec<String> = Vec::new();
-        for spec in catalog() {
+        for spec in drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
             if spec.family != crate::leaves::Family::Open {
                 continue;
             }
@@ -387,7 +404,7 @@ mod tests {
                 if sampled >= SAMPLE_TARGET {
                     break;
                 }
-                let Some(h) = sample_hand(&mut rng, &spec.south) else {
+                let Some(h) = sample_hand(&mut rng, &drill.south) else {
                     continue;
                 };
                 sampled += 1;
@@ -448,7 +465,8 @@ mod tests {
         const DEAL_TARGET: u32 = 120;
         let mut rng = SmallRng::seed_from_u64(90210);
         let mut wrong: Vec<String> = Vec::new();
-        for spec in catalog() {
+        for spec in drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
             if spec.family == crate::leaves::Family::Open {
                 continue;
             }
@@ -458,11 +476,11 @@ mod tests {
                 if drawn >= DEAL_TARGET {
                     break;
                 }
-                let Some(deal) = try_once(&mut rng, spec) else {
+                let Some(deal) = try_once(&mut rng, drill) else {
                     continue;
                 };
                 drawn += 1;
-                if verify(&deal, spec) {
+                if verify(&deal, spec, drill) {
                     hits += 1;
                 }
             }
@@ -505,12 +523,13 @@ mod tests {
     fn forcing_auctions_reach_game_and_fits_are_not_left_in_partscore() {
         let mut rng = SmallRng::seed_from_u64(606);
         let mut failures: Vec<String> = Vec::new();
-        for spec in catalog() {
+        for spec in drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
             for _ in 0..4 {
                 let Ok((deal, _)) = generate(&mut rng, spec) else {
                     continue;
                 };
-                let script = uncontested_script(&deal, spec.dealer);
+                let script = uncontested_script(&deal, drill.dealer);
                 let calls: Vec<Call> = script.iter().map(|s| s.bid).collect();
                 let shown = |label: &str| {
                     format!(
@@ -607,7 +626,7 @@ mod tests {
     fn every_leaf_generates() {
         let mut rng = SmallRng::seed_from_u64(20260828);
         let mut failures = Vec::new();
-        for spec in catalog() {
+        for spec in drills() {
             match generate(&mut rng, spec) {
                 Ok(_) => {}
                 Err(e) => failures.push(format!("{}: {}", spec.id, e.message)),
@@ -624,17 +643,18 @@ mod tests {
     fn script_starts_at_dealer_and_hits_the_target_leaf() {
         let mut rng = SmallRng::seed_from_u64(20260830);
         let mut failures = Vec::new();
-        for spec in catalog() {
+        for spec in drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
             let Ok((deal, _)) = generate(&mut rng, spec) else {
                 failures.push(format!("{}: could not deal", spec.id));
                 continue;
             };
-            let script = uncontested_script(&deal, spec.dealer);
-            if script.first().map(|s| s.seat) != Some(spec.dealer) {
+            let script = uncontested_script(&deal, drill.dealer);
+            if script.first().map(|s| s.seat) != Some(drill.dealer) {
                 failures.push(format!("{}: script did not start at dealer", spec.id));
                 continue;
             }
-            let prefix: Vec<Call> = spec.calls_before.clone();
+            let prefix: Vec<Call> = drill.calls_before.clone();
             let got: Vec<Call> = script.iter().take(prefix.len()).map(|s| s.bid).collect();
             if got != prefix {
                 failures.push(format!(
@@ -648,12 +668,12 @@ mod tests {
                 continue;
             };
             if target.seat != Seat::South
-                || target.bid != spec.expected
+                || target.bid != drill.expected
                 || target.leaf_id != spec.id
             {
                 failures.push(format!(
                     "{}: target step seat={:?} bid={:?} leaf={} (want S / {:?} / {})",
-                    spec.id, target.seat, target.bid, target.leaf_id, spec.expected, spec.id
+                    spec.id, target.seat, target.bid, target.leaf_id, drill.expected, spec.id
                 ));
             }
             if !script.iter().any(|s| s.seat == Seat::South && s.student) {
@@ -743,7 +763,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(11);
         let spec = leaf_by_id("open.1s").unwrap();
         let (deal, _) = generate(&mut rng, spec).unwrap();
-        let script = uncontested_script(&deal, spec.dealer);
+        let script = uncontested_script(&deal, spec.drill.as_ref().unwrap().dealer);
         let n = script.len();
         assert!(n >= 4);
         assert!(script[n - 3..].iter().all(|s| s.bid == Call::Pass));

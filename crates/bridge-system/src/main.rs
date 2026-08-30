@@ -5,7 +5,7 @@ use rand::rngs::SmallRng;
 use rand::SeedableRng;
 
 use bridge_system::deal::generate_for_id;
-use bridge_system::leaves::catalog;
+use bridge_system::leaves::drills;
 use bridge_system::progress::Progress;
 
 fn main() {
@@ -61,7 +61,7 @@ fn prove(seed: Option<String>) {
     let mut worst: u32 = 0;
     let mut worst_id = "";
     let mut failed = 0;
-    for spec in catalog() {
+    for spec in drills() {
         match generate_for_id(&mut rng, spec.id) {
             Ok((_, attempts)) => {
                 if attempts > worst {
@@ -78,7 +78,7 @@ fn prove(seed: Option<String>) {
     }
     println!(
         "\n{} leaves, {failed} failed, worst {worst_id} ({worst} tries), {:?}",
-        catalog().len(),
+        drills().len(),
         t0.elapsed()
     );
     if failed > 0 {

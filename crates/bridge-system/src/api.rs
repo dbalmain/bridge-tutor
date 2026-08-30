@@ -6,7 +6,7 @@ use crate::auction::Auction;
 use crate::bid::Call;
 use crate::cards::{Card, Deal, Hand, Seat};
 use crate::deal::{auction_for, generate_for_id, uncontested_script, ScriptCall};
-use crate::leaves::{catalog, leaf_by_id, Family};
+use crate::leaves::{drill_by_id, drills, leaf_by_id, Family};
 use crate::progress::{pick_from_ids, pick_leaf_id, weight_table, Progress};
 use crate::system::{decide, HOUSE_RULES, SYSTEM_ID};
 
@@ -27,14 +27,16 @@ struct CatalogJson {
 }
 
 pub fn catalog_json() -> String {
-    let leaves = catalog()
+    // Only the drillable half: this is what the app offers as exercises, and
+    // a decision with no curated hand pattern cannot be one.
+    let leaves = drills()
         .iter()
         .map(|l| CatalogEntry {
             id: l.id,
             family: l.family.slug(),
             family_title: l.family.title(),
             title: l.title,
-            expected: l.expected.to_app(),
+            expected: l.drill.as_ref().expect("drillable").expected.to_app(),
         })
         .collect();
     serde_json::to_string(&CatalogJson {
@@ -142,7 +144,7 @@ pub fn next_drill_json(progress_json: &str, seed: u32, family: &str, leaves: &[S
             "" | "all" => None,
             other => match Family::parse(other) {
                 Some(f) => Some(f),
-                None if crate::leaves::leaf_by_id(other).is_some() => {
+                None if crate::leaves::drill_by_id(other).is_some() => {
                     return drill_for_id(&progress, seed, other);
                 }
                 None => return err(format!("unknown family '{other}'")),
@@ -160,10 +162,10 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
     let mut rng = SmallRng::seed_from_u64(u64::from(seed) ^ 0xDEAD_0000_0000);
     match generate_for_id(&mut rng, id) {
         Ok((deal, attempts)) => {
-            let spec = leaf_by_id(id).unwrap();
-            let auction = auction_for(spec);
+            let (spec, drill) = drill_by_id(id).expect("generate_for_id succeeded");
+            let auction = auction_for(drill);
             let d = decide(&deal.south, &auction);
-            let script = uncontested_script(&deal, spec.dealer)
+            let script = uncontested_script(&deal, drill.dealer)
                 .iter()
                 .map(script_json)
                 .collect();
@@ -173,9 +175,9 @@ fn drill_for_id(_progress: &Progress, seed: u32, id: &str) -> String {
                 family_title: spec.family.title(),
                 title: spec.title,
                 explanation: d.explanation.to_string(),
-                expected: spec.expected.to_app(),
-                dealer: spec.dealer.letter().to_string(),
-                auction: spec.calls_before.iter().map(|c| c.to_app()).collect(),
+                expected: drill.expected.to_app(),
+                dealer: drill.dealer.letter().to_string(),
+                auction: drill.calls_before.iter().map(|c| c.to_app()).collect(),
                 script,
                 student: "S",
                 hands: HandsJson::from_deal(&deal),
@@ -338,7 +340,7 @@ mod tests {
         for lesson in lessons {
             for id in lesson["leaves"].as_array().unwrap() {
                 let id = id.as_str().unwrap();
-                if leaf_by_id(id).is_none() {
+                if crate::leaves::drill_by_id(id).is_none() {
                     missing.push(id.to_string());
                 }
             }
@@ -416,11 +418,13 @@ mod tests {
     /// Every leaf the drills can deal is taught by some lesson, and no lesson
     /// claims a leaf twice.
     ///
-    /// Note what this does NOT say. `catalog()` is a curated subset of the ids
-    /// the tree produces — many decisions play out inside an auction without
-    /// being drilled — so adding a branch does not create a drill, and this
-    /// test will not notice one. It checks the catalogue against the course,
-    /// not the tree against either.
+    /// Note what this does NOT say. `drills()` is the drillable half of the
+    /// registry — many decisions play out inside an auction without being
+    /// drilled — so adding a branch does not create a drill, and this test
+    /// will not notice one. It checks the drillable leaves against the
+    /// course, not the tree against either.
+    ///
+    /// `every_decision_the_tree_makes_is_registered` is what covers the tree.
     #[test]
     fn every_catalogue_leaf_is_taught_by_a_lesson() {
         let raw = include_str!("../../../src/data/bidding-curriculum.json");
@@ -434,7 +438,7 @@ mod tests {
             }
         }
 
-        let untaught: Vec<&str> = catalog()
+        let untaught: Vec<&str> = drills()
             .iter()
             .map(|l| l.id)
             .filter(|id| !taught.contains_key(id))

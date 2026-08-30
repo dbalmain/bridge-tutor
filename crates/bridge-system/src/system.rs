@@ -2989,6 +2989,87 @@ mod tests {
         assert_eq!(d.bid, Call::nt(3), "{}", d.leaf_id);
     }
 
+    /// Every decision the tree can make must be registered in `leaves.rs`,
+    /// and every registered decision must still be one the tree makes.
+    ///
+    /// This is the gate the catalogue could not be: `catalog()` was a curated
+    /// subset, so a new branch appeared in the tree, was auto-played by the
+    /// whole-auction UI and drilled by nothing, and no test noticed. Sixty-five
+    /// ids were in that state when this was written.
+    ///
+    /// It reads the source rather than sampling auctions on purpose. Sampling
+    /// proves an id is reachable; only the source proves none was missed.
+    #[test]
+    fn every_decision_the_tree_makes_is_registered() {
+        // Only the production half of this file: the test module below quotes
+        // ids too, and a typo there should fail its own assertion, not this
+        // one.
+        let src = include_str!("system.rs");
+        let production = &src[..src.find("\n#[cfg(test)]\n").expect("the test module")];
+
+        // Ids are not always literals inside `dec(...)` — several are chosen
+        // by a `let id = if ... {"a"} else {"b"}` above the call — so scan
+        // every string literal and keep the ones shaped like an id.
+        let mut made: Vec<&str> = Vec::new();
+        let bytes = production.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] != b'"' {
+                i += 1;
+                continue;
+            }
+            let start = i + 1;
+            let mut j = start;
+            while j < bytes.len() && bytes[j] != b'"' {
+                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            }
+            let lit = &production[start..j.min(production.len())];
+            let looks_like_an_id = lit == "unsupported"
+                || (lit.contains('.')
+                    && !lit.contains(' ')
+                    && lit
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || ".-".contains(c))
+                    && ["open.", "resp.", "resp2.", "resp3.", "rebid.", "pass."]
+                        .iter()
+                        .any(|p| lit.starts_with(p)));
+            if looks_like_an_id {
+                made.push(lit);
+            }
+            i = j + 1;
+        }
+        made.sort_unstable();
+        made.dedup();
+        assert!(
+            made.len() > 100,
+            "the source scan found only {} decisions, so the scan is broken, not the tree",
+            made.len()
+        );
+
+        let registered: Vec<&str> = crate::leaves::catalog().iter().map(|l| l.id).collect();
+        let unregistered: Vec<&str> = made
+            .iter()
+            .copied()
+            .filter(|id| !registered.contains(id))
+            .collect();
+        assert!(
+            unregistered.is_empty(),
+            "the tree makes decisions that leaves.rs does not register:\n{}",
+            unregistered.join("\n")
+        );
+
+        let stale: Vec<&str> = registered
+            .iter()
+            .copied()
+            .filter(|id| !made.contains(id))
+            .collect();
+        assert!(
+            stale.is_empty(),
+            "leaves.rs registers decisions the tree no longer makes:\n{}",
+            stale.join("\n")
+        );
+    }
+
     /// Opener may only fall back on a blanket pass where a pass is right in
     /// every case: partner has already bid game. Every other sequence — a
     /// forcing new suit, an invitation, a limited raise — must consult
@@ -3426,8 +3507,9 @@ mod tests {
     #[test]
     fn is_preempt_agrees_with_the_calls_the_tree_makes() {
         let mut checked = 0;
-        for spec in crate::leaves::catalog() {
-            let looks_like_a_preempt = match spec.expected {
+        for spec in crate::leaves::drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
+            let looks_like_a_preempt = match drill.expected {
                 Call::Bid { level: 2, strain } => {
                     strain != Strain::Clubs && strain != Strain::NoTrump
                 }
@@ -3440,7 +3522,7 @@ mod tests {
                     looks_like_a_preempt,
                     "{} expects {:?}",
                     spec.id,
-                    spec.expected
+                    drill.expected
                 );
                 checked += 1;
             } else {

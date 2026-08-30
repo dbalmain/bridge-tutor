@@ -105,7 +105,9 @@ pub fn pick_from_ids<R: Rng>(
     let leaves: Vec<&LeafSpec> = ids
         .iter()
         .filter(|id| seen.insert(**id))
-        .filter_map(|id| leaf_by_id(id))
+        // Only drillable ones: an id may be registered and still have no
+        // curated hand pattern to deal from.
+        .filter_map(|id| leaf_by_id(id).filter(|l| l.drillable()))
         .collect();
     pick_from_leaves(progress, rng, &leaves)
 }
