@@ -468,6 +468,13 @@ mod tests {
     /// At 400,000 draws, a class appearing once per 100,000 random deals has
     /// about a 98% chance of being exercised. A sample can prove a gap is
     /// present, never that no gap exists; named boundary hands complement it.
+    ///
+    /// Note the direction. Measuring the OTHER way — sampling from a pattern
+    /// and asking how often the tree agrees — was tried and abandoned, and is
+    /// not worth trying again: patterns over-approximate on purpose, so that
+    /// rate is low by design (~40% for `open.1c`) and no threshold on it means
+    /// anything. What bounds a pattern from above is the cost of the retries
+    /// `verify` forces, not a hit rate.
     #[test]
     fn every_sampled_opening_fits_its_leaf_pattern() {
         const SAMPLE_COUNT: usize = 400_000;

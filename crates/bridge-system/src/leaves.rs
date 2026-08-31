@@ -467,7 +467,7 @@ fn build() -> Vec<LeafSpec> {
         "open.2c",
         "Open 2♣ strong",
         Call::suit_bid(2, Suit::Club),
-        HandPat::hcp(12, 40),
+        HandPat::hcp(12, 37),
         vec![PinnedHand::south(
             "open-2c-22-balanced",
             "SA SK SQ S4 HA HK H2 DA DQ D5 C4 C3 C2",
