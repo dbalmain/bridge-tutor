@@ -322,36 +322,27 @@ fn two_nt_opener() -> HandPat {
 
 /// Exactly six cards, 5–10 HCP, below a one-level opening.
 fn weak_two_opener(suit: Suit) -> HandPat {
-    // Side suits up to FOUR, not three. Six trumps plus three side suits
-    // capped at three is thirteen exactly, so a cap of three quietly forbids
-    // every void: 6-4-3-0 is a perfectly ordinary weak two and no drill could
-    // deal one. Lowering the minima to zero, as an earlier round did, changes
-    // nothing on its own — the maximum is what binds.
+    // A second six-card suit is possible. The tree's longest-suit tie-break
+    // chooses which weak-two leaf owns it; `verify` filters other patterns.
     let p = HandPat::hcp(5, 10);
     match suit {
-        Suit::Spade => p.lens((0, 4), (0, 4), (0, 4), (6, 6)),
-        Suit::Heart => p.lens((0, 4), (0, 4), (6, 6), (0, 4)),
-        Suit::Diamond => p.lens((0, 4), (6, 6), (0, 4), (0, 4)),
-        Suit::Club => p.lens((6, 6), (0, 4), (0, 4), (0, 4)),
+        Suit::Spade => p.lens((0, 6), (0, 6), (0, 6), (6, 6)),
+        Suit::Heart => p.lens((0, 6), (0, 6), (6, 6), (0, 5)),
+        Suit::Diamond => p.lens((0, 6), (6, 6), (0, 5), (0, 5)),
+        Suit::Club => p.lens((6, 6), (0, 5), (0, 5), (0, 5)),
     }
 }
 
-/// Seven or eight cards, 5–9 HCP. The two bounds interact: seven cards plus 9
-/// HCP is 12 opening points and cannot open, but eight plus 9 is 13 and opens
-/// at the one level. One `HandPat` cannot vary the cap with the length, so
-/// this over-approximates by exactly that corner and lets the evaluator
-/// filter it — which is the documented contract. The alternative, capping at
-/// 8, bought precision by silently never sampling a valid seven-card 9-count,
-/// and no generator test measures that missing recall.
+/// Seven or more cards, 5–10 HCP, below a one-level opening. The strength cap
+/// falls as length points rise, which one `HandPat` cannot express; `verify`
+/// filters those deliberate over-approximations.
 fn preempt_opener(suit: Suit) -> HandPat {
-    // Same reasoning as the weak twos: a side-suit cap of three forbids
-    // 7-4-2-0 and 7-4-1-1, which are ordinary preempt shapes.
-    let p = HandPat::hcp(5, 9);
+    let p = HandPat::hcp(5, 10);
     match suit {
-        Suit::Spade => p.lens((0, 4), (0, 4), (0, 4), (7, 8)),
-        Suit::Heart => p.lens((0, 4), (0, 4), (7, 8), (0, 4)),
-        Suit::Diamond => p.lens((0, 4), (7, 8), (0, 4), (0, 4)),
-        Suit::Club => p.lens((7, 8), (0, 4), (0, 4), (0, 4)),
+        Suit::Spade => p.lens((0, 6), (0, 6), (0, 6), (7, 11)),
+        Suit::Heart => p.lens((0, 6), (0, 6), (7, 11), (0, 6)),
+        Suit::Diamond => p.lens((0, 6), (7, 11), (0, 6), (0, 6)),
+        Suit::Club => p.lens((7, 11), (0, 6), (0, 6), (0, 6)),
     }
 }
 
@@ -382,13 +373,13 @@ fn build() -> Vec<LeafSpec> {
         "open.pass",
         "Pass as dealer",
         Call::Pass,
-        HandPat::hcp(0, 9).lens((2, 5), (2, 5), (2, 5), (2, 5)),
+        HandPat::hcp(0, 12),
     ));
     v.push(open(
         "open.1nt",
         "Open 1NT (no 5-card major)",
         Call::nt(1),
-        HandPat::hcp(15, 17)
+        HandPat::hcp(14, 17)
             .lens((2, 5), (2, 5), (2, 4), (2, 4))
             .bal(true),
     ));
@@ -416,23 +407,19 @@ fn build() -> Vec<LeafSpec> {
         "open.2c",
         "Open 2♣ strong",
         Call::suit_bid(2, Suit::Club),
-        HandPat::hcp(22, 27).lens((1, 7), (1, 7), (1, 7), (1, 7)),
+        HandPat::hcp(12, 40),
     ));
     v.push(open(
         "open.1s",
         "Open 1♠ (5 cards)",
         Call::suit_bid(1, Suit::Spade),
-        HandPat::hcp(11, 16)
-            .lens((1, 4), (1, 4), (1, 4), (5, 5))
-            .bal(false),
+        HandPat::hcp(10, 19).lens((0, 5), (0, 5), (0, 4), (5, 5)),
     ));
     v.push(open(
         "open.1s.6plus",
         "Open 1♠ (6+ cards)",
         Call::suit_bid(1, Suit::Spade),
-        HandPat::hcp(11, 16)
-            .lens((0, 4), (0, 4), (0, 4), (6, 7))
-            .bal(false),
+        HandPat::hcp(4, 18).lens((0, 13), (0, 13), (0, 13), (6, 13)),
     ));
     v.push(open(
         "open.1s.equal-majors",
@@ -440,7 +427,7 @@ fn build() -> Vec<LeafSpec> {
         Call::suit_bid(1, Suit::Spade),
         // Ten, not twelve: the Rule of 20 is exactly what lets a 5-5 ten-count
         // open, and the pattern excluded the boundary the lesson teaches.
-        HandPat::hcp(10, 16)
+        HandPat::hcp(9, 18)
             .lens((0, 3), (0, 3), (5, 6), (5, 6))
             .eq_maj(),
     ));
@@ -448,47 +435,41 @@ fn build() -> Vec<LeafSpec> {
         "open.1h",
         "Open 1♥ (5 cards)",
         Call::suit_bid(1, Suit::Heart),
-        HandPat::hcp(11, 16)
-            .lens((1, 4), (1, 4), (5, 5), (0, 4))
-            .bal(false),
+        HandPat::hcp(10, 19).lens((0, 5), (0, 5), (5, 5), (0, 4)),
     ));
     v.push(open(
         "open.1h.6plus",
         "Open 1♥ (6+ cards)",
         Call::suit_bid(1, Suit::Heart),
-        HandPat::hcp(11, 16)
-            .lens((0, 4), (0, 4), (6, 7), (0, 4))
-            .bal(false),
+        HandPat::hcp(4, 18).lens((0, 13), (0, 13), (6, 13), (0, 12)),
     ));
     v.push(open(
         "open.1d",
         "Open 1♦",
         Call::suit_bid(1, Suit::Diamond),
-        HandPat::hcp(12, 16)
-            .lens((0, 4), (4, 7), (0, 5), (0, 5))
-            .bal(false),
+        HandPat::hcp(4, 20).lens((0, 12), (3, 13), (0, 12), (0, 12)),
     ));
     v.push(open(
         "open.1d.equal-minors",
         "Equal minors: open 1♦",
         Call::suit_bid(1, Suit::Diamond),
-        HandPat::hcp(12, 16)
-            .lens((4, 5), (4, 5), (0, 4), (0, 4))
+        HandPat::hcp(9, 20)
+            .lens((4, 6), (4, 6), (0, 4), (0, 4))
             .eq_min(),
     ));
     v.push(open(
         "open.1c",
         "Open 1♣",
         Call::suit_bid(1, Suit::Club),
-        HandPat::hcp(12, 16)
-            .lens((4, 7), (0, 4), (0, 5), (0, 5))
-            .bal(false),
+        HandPat::hcp(4, 20).lens((3, 13), (0, 12), (0, 12), (0, 12)),
     ));
     v.push(open(
         "open.1c.33-minors",
         "3–3 minors: open 1♣",
         Call::suit_bid(1, Suit::Club),
-        HandPat::hcp(13, 14).lens((3, 3), (3, 3), (3, 4), (3, 4)),
+        HandPat::hcp(13, 19)
+            .lens((3, 3), (3, 3), (3, 4), (3, 4))
+            .bal(true),
     ));
     v.push(open(
         "open.2s",

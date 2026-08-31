@@ -15,16 +15,33 @@ curated examples belong in the new pinned-hand list.
 - With the fixed seed used by `every_leaf_generates`, the baseline worst case
   was 925 attempts (`rebid.2c.suit`); the worst opening was 320 attempts
   (`open.2c`). Both are far below `MAX_ATTEMPTS = 80_000`.
-- Divergences from the brief: none found yet.
+- The table's 10-HCP preempt example is not routed to a preempt by the tree:
+  seven cards add three length points, so every such hand opens at the one
+  level before the preempt branch. The 5–10 range in `HOUSE_RULES` is therefore
+  only an outer range qualified by “cannot open.” The pattern still permits 10
+  HCP and lets `verify` reject it, matching that documented proposal contract.
+- The brief understated two edges without making a false claim: the tree can
+  pass a flat 12-count, and extreme one-suit hands can open at the one level
+  with as few as 4 HCP because length points reach 13.
 
 ## Changes
 
-- Pending.
+- Opening patterns now over-approximate every routed class, including high-card
+  and shape edges beyond the sampled examples (balanced one-suit openings,
+  6-6 weak twos, 11-card preempts, 18–20 HCP one-level openings, and 18–19 HCP
+  3-3-minor club openings).
+- The permanent seeded 400,000-deal gate reports the leaf, literal hand, and
+  exact rejecting constraint. It has no percentage threshold and documents
+  that sampling finds counterexamples but cannot prove their absence.
+- Post-change fixed-seed generation: 925 attempts remains the overall worst
+  case (`rebid.2c.suit`); the worst opening improved to 97 (`open.2c`).
 
 ## Decisions left open
 
-- Whether to extend the possible-hand invariant beyond openings is still under
-  evaluation.
+- The response/rebid extension remains open. Their `south` side can be checked
+  from `calls_before`, but those drills are joint two-hand proposal
+  distributions; a south-only gate would leave the equally important `north`
+  constraint unchecked. Deriving both sides is a separate, much larger audit.
 
 ## Not done
 

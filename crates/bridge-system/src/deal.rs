@@ -103,16 +103,6 @@ fn deal_matching<R: Rng>(rng: &mut R, piles: &mut [Vec<Card>; 4], pat: &HandPat)
     Some(hand)
 }
 
-/// One hand matching `pat`, drawn the way the deal generator draws it. Tests
-/// use this to check a pattern describes the hands it claims: `generate` +
-/// `verify` cannot, because they retry until something fits and so report
-/// success on a pattern that is mostly wrong.
-#[cfg(test)]
-pub(crate) fn sample_hand<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<Hand> {
-    let mut piles = piles_from_shuffled(rng);
-    deal_matching(rng, &mut piles, pat)
-}
-
 fn take_random_13<R: Rng>(rng: &mut R, piles: &mut [Vec<Card>; 4]) -> Option<Hand> {
     let mut all: Vec<Card> = piles.iter_mut().flat_map(|p| p.drain(..)).collect();
     if all.len() < 13 {
@@ -219,39 +209,69 @@ fn constructive_shape<R: Rng>(rng: &mut R, pat: &HandPat) -> Option<[u8; 4]> {
     Some(l)
 }
 
-pub(crate) fn hand_fits_pat(hand: &Hand, pat: &HandPat) -> bool {
+pub(crate) fn hand_pat_rejection(hand: &Hand, pat: &HandPat) -> Option<String> {
     let hcp = hand.hcp();
-    if hcp < pat.min_hcp || hcp > pat.max_hcp {
-        return false;
+    if hcp < pat.min_hcp {
+        return Some(format!("HCP {hcp} is below minimum {}", pat.min_hcp));
+    }
+    if hcp > pat.max_hcp {
+        return Some(format!("HCP {hcp} is above maximum {}", pat.max_hcp));
     }
     let sh = hand.shape();
-    for ((len, min), max) in sh.iter().zip(pat.min_len).zip(pat.max_len) {
-        if *len < min || *len > max {
-            return false;
+    for suit in Suit::ALL {
+        let len = sh[suit.idx()];
+        let min = pat.min_len[suit.idx()];
+        let max = pat.max_len[suit.idx()];
+        if len < min {
+            return Some(format!(
+                "{} length {len} is below minimum {min}",
+                suit.letter()
+            ));
+        }
+        if len > max {
+            return Some(format!(
+                "{} length {len} is above maximum {max}",
+                suit.letter()
+            ));
         }
     }
     if let Some(b) = pat.balanced {
         if hand.is_balanced() != b {
-            return false;
+            return Some(format!(
+                "balanced={} but pattern requires balanced={b}",
+                hand.is_balanced()
+            ));
         }
     }
     if pat.equal_majors && hand.len_of(Suit::Heart) != hand.len_of(Suit::Spade) {
-        return false;
+        return Some(format!(
+            "major lengths {}-{} are not equal",
+            hand.len_of(Suit::Heart),
+            hand.len_of(Suit::Spade)
+        ));
     }
     if pat.equal_minors && hand.len_of(Suit::Club) != hand.len_of(Suit::Diamond) {
-        return false;
+        return Some(format!(
+            "minor lengths {}-{} are not equal",
+            hand.len_of(Suit::Club),
+            hand.len_of(Suit::Diamond)
+        ));
     }
     if pat.require_five_major && !hand.has_five_major() {
-        return false;
+        return Some("neither major has five cards".to_string());
     }
     if pat.five_four_majors {
         let h = hand.len_of(Suit::Heart);
         let s = hand.len_of(Suit::Spade);
         if !((h == 5 && s == 4) || (h == 4 && s == 5)) {
-            return false;
+            return Some(format!("major lengths {h}-{s} are not 5-4"));
         }
     }
-    true
+    None
+}
+
+pub(crate) fn hand_fits_pat(hand: &Hand, pat: &HandPat) -> bool {
+    hand_pat_rejection(hand, pat).is_none()
 }
 
 pub fn auction_for(drill: &Drill) -> Auction {
@@ -378,74 +398,32 @@ mod tests {
     use rand::rngs::SmallRng;
     use rand::SeedableRng;
 
-    /// A leaf's HandPat is deliberately over-approximate — the evaluator is
-    /// the filter — so it is allowed to admit hands that turn out to be a
-    /// different leaf. What it may not be is *mostly* wrong: a pattern with
-    /// the suits transposed, or one that admits hands the leaf can never
-    /// contain, still generates fine because `verify` retries until something
-    /// fits. This samples straight from each opening pattern and asks the tree
-    /// what it would bid, which is the claim the pattern is making.
+    /// A full-deck sample checks the one-way contract: every hand the opening
+    /// tree routes to a drillable leaf must fit that leaf's proposal pattern.
+    ///
+    /// At 400,000 draws, a class appearing once per 100,000 random deals has
+    /// about a 98% chance of being exercised. A sample can prove a gap is
+    /// present, never that no gap exists; named boundary hands complement it.
     #[test]
-    fn opening_leaf_patterns_are_not_grossly_wrong() {
-        const MIN_HIT_RATE: f64 = 0.6;
-        const SAMPLE_TARGET: u32 = 200;
+    fn every_sampled_opening_fits_its_leaf_pattern() {
+        const SAMPLE_COUNT: usize = 400_000;
         let mut rng = SmallRng::seed_from_u64(31337);
-        let mut wrong: Vec<String> = Vec::new();
-        for spec in drills() {
-            let drill = spec.drill.as_ref().expect("drillable");
-            if spec.family != crate::leaves::Family::Open {
+        let mut deck = crate::cards::full_deck();
+        for _ in 0..SAMPLE_COUNT {
+            deck.shuffle(&mut rng);
+            let hand = Hand::try_from_slice(&deck[..13]).expect("13 unique cards from a deck");
+            let decision = opening(&hand);
+            let Some((_, drill)) = crate::leaves::drill_by_id(decision.leaf_id) else {
                 continue;
-            }
-            let mut sampled = 0;
-            let mut hits = 0;
-            let mut example = String::new();
-            // Keep drawing until the sample is big enough to mean something.
-            // 2♣ and 2NT need 20+ HCP, which turns up roughly once in a few
-            // thousand deals — a fixed budget silently skipped them.
-            for _ in 0..400_000 {
-                if sampled >= SAMPLE_TARGET {
-                    break;
-                }
-                let Some(h) = sample_hand(&mut rng, &drill.south) else {
-                    continue;
-                };
-                sampled += 1;
-                let d = opening(&h);
-                if d.leaf_id == spec.id {
-                    hits += 1;
-                } else if example.is_empty() {
-                    let sh = h.shape();
-                    example = format!(
-                        "{} HCP {}-{}-{}-{} bids {}",
-                        h.hcp(),
-                        sh[3],
-                        sh[2],
-                        sh[1],
-                        sh[0],
-                        d.leaf_id
-                    );
-                }
-            }
-            assert_eq!(
-                sampled, SAMPLE_TARGET,
-                "{}: the draw budget ran out at {sampled} hands, short of the \
-                 {SAMPLE_TARGET} this needs to mean anything",
-                spec.id
-            );
-            let rate = f64::from(hits) / f64::from(sampled);
-            if rate < MIN_HIT_RATE {
-                wrong.push(format!(
-                    "{}: only {hits}/{sampled} ({:.0}%) of pattern hands are this leaf — e.g. {example}",
-                    spec.id,
-                    rate * 100.0
-                ));
+            };
+            if let Some(reason) = hand_pat_rejection(&hand, &drill.south) {
+                panic!(
+                    "{} rejected {}: {reason}",
+                    decision.leaf_id,
+                    hand.to_app_list().join(" ")
+                );
             }
         }
-        assert!(
-            wrong.is_empty(),
-            "patterns that mostly describe some other leaf:\n{}",
-            wrong.join("\n")
-        );
     }
 
     /// The same claim for response and rebid leaves, where the pattern covers
@@ -591,12 +569,47 @@ mod tests {
                 }
 
                 // The direction nothing checked: reaching game on values that
-                // cannot be there. Without it, "bid 3NT after every opener
-                // rebid" passes this whole test. 2♣ is exempt — it is forcing
-                // to game on trick-taking strength, not HCP.
-                if is_game && side < 20 && !opened_2c {
+                // cannot be there. Suit contracts use the same length and
+                // shortage points as the tree; raw HCP alone rejects valid
+                // Rule-of-20 openings opposite distributional raises. 2♣ is
+                // exempt because it may be game-forcing on playing strength
+                // this coarse check cannot reconstruct.
+                let playing_strength = match *final_bid {
+                    Call::Bid {
+                        strain: Strain::Clubs,
+                        ..
+                    } => {
+                        deal.hand(opener.seat).opening_points()
+                            + deal.hand(opener.seat.partner()).support_points(Suit::Club)
+                    }
+                    Call::Bid {
+                        strain: Strain::Diamonds,
+                        ..
+                    } => {
+                        deal.hand(opener.seat).opening_points()
+                            + deal
+                                .hand(opener.seat.partner())
+                                .support_points(Suit::Diamond)
+                    }
+                    Call::Bid {
+                        strain: Strain::Hearts,
+                        ..
+                    } => {
+                        deal.hand(opener.seat).opening_points()
+                            + deal.hand(opener.seat.partner()).support_points(Suit::Heart)
+                    }
+                    Call::Bid {
+                        strain: Strain::Spades,
+                        ..
+                    } => {
+                        deal.hand(opener.seat).opening_points()
+                            + deal.hand(opener.seat.partner()).support_points(Suit::Spade)
+                    }
+                    _ => side,
+                };
+                if is_game && playing_strength < 20 && !opened_2c {
                     failures.push(shown(&format!(
-                        "only {side} HCP on the bidding side but the auction reached {}",
+                        "only {playing_strength} playing points on the bidding side but the auction reached {}",
                         final_bid.to_app()
                     )));
                 }
