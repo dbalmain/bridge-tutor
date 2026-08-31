@@ -4,7 +4,7 @@ use rand::Rng;
 use crate::auction::Auction;
 use crate::bid::Call;
 use crate::cards::{is_balanced_shape, Card, Deal, Hand, Seat, Suit};
-use crate::leaves::{leaf_by_id, Drill, HandPat, LeafSpec};
+use crate::leaves::{leaf_by_id, Drill, HandPat, LeafSpec, PinnedHand};
 use crate::system::{decide, decide_for, opening};
 
 const MAX_ATTEMPTS: u32 = 80_000;
@@ -14,6 +14,70 @@ pub struct DealError {
     pub leaf_id: String,
     pub attempts: u32,
     pub message: String,
+}
+
+#[derive(Debug)]
+pub struct PinnedDealError {
+    pub pinned_id: &'static str,
+    pub message: String,
+}
+
+/// Completes a pinned South hand, and optional North hand, with random legal
+/// hands from the remaining deck.
+pub fn deal_from_pinned<R: Rng>(rng: &mut R, pinned: &PinnedHand) -> Result<Deal, PinnedDealError> {
+    let invalid = |seat: &str, reason: &str| PinnedDealError {
+        pinned_id: pinned.id,
+        message: format!("{} has an invalid {seat} hand: {reason}", pinned.id),
+    };
+    let south = Hand::parse_app(pinned.south).map_err(|reason| invalid("South", reason))?;
+    let north = pinned
+        .north
+        .map(Hand::parse_app)
+        .transpose()
+        .map_err(|reason| invalid("North", reason))?;
+
+    let mut used = [false; 52];
+    for card in south.cards() {
+        used[card.id() as usize] = true;
+    }
+    if let Some(north) = north {
+        for card in north.cards() {
+            if used[card.id() as usize] {
+                return Err(PinnedDealError {
+                    pinned_id: pinned.id,
+                    message: format!(
+                        "{} repeats {} across South and North",
+                        pinned.id,
+                        card.to_app()
+                    ),
+                });
+            }
+            used[card.id() as usize] = true;
+        }
+    }
+
+    let mut remaining: Vec<Card> = crate::cards::full_deck()
+        .into_iter()
+        .filter(|card| !used[card.id() as usize])
+        .collect();
+    remaining.shuffle(rng);
+    let (north, east, west) = if let Some(north) = north {
+        (
+            north,
+            Hand::try_from_slice(&remaining[..13]).map_err(|reason| invalid("East", reason))?,
+            Hand::try_from_slice(&remaining[13..]).map_err(|reason| invalid("West", reason))?,
+        )
+    } else {
+        (
+            Hand::try_from_slice(&remaining[..13]).map_err(|reason| invalid("North", reason))?,
+            Hand::try_from_slice(&remaining[13..26]).map_err(|reason| invalid("East", reason))?,
+            Hand::try_from_slice(&remaining[26..]).map_err(|reason| invalid("West", reason))?,
+        )
+    };
+    Deal::from_four(north, east, south, west).map_err(|reason| PinnedDealError {
+        pinned_id: pinned.id,
+        message: format!("{} cannot form a legal deal: {reason}", pinned.id),
+    })
 }
 
 pub fn generate_for_id<R: Rng>(rng: &mut R, id: &str) -> Result<(Deal, u32), DealError> {
@@ -637,147 +701,82 @@ mod tests {
         );
     }
 
-    /// A hand-written CHECKLIST of boundaries, and nothing more than that.
-    /// It is named for what it does — the boundaries listed here can be
-    /// dealt — because an earlier name claimed coverage, and the 6-4-3-0 weak
-    /// two it missed for a round is the proof that a checklist is not a
-    /// coverage proof.
-    ///
-    /// Every other generator test looks at deals a pattern already accepted,
-    /// so a pattern that quietly excludes a class of valid hands looks
-    /// perfect: the generator never proposes them and every assertion is
-    /// about what it did propose. Codex named the 5-9 HCP, seven-or-eight
-    /// card preempt approximation as the least-verified thing in the system
-    /// across four rounds, twice, for exactly that reason.
-    ///
-    /// Sampling recall is the wrong shape for the answer, and worth saying
-    /// why: these patterns are deliberately NARROW slices, not complete
-    /// descriptions of their class, so a random hand the tree opens 1♣ will
-    /// usually fail the `open.1c` pattern by design. There is no defensible
-    /// threshold on that number.
-    ///
-    /// So instead: hands written to sit ON the boundaries HOUSE_RULES states,
-    /// not sampled from the implementation. Each must (a) be opened the way
-    /// the rules say and (b) be accepted by that leaf's pattern, so a drill
-    /// for it can actually deal the edge of its own class.
-    ///
-    /// What would settle recall properly is enumeration, not sampling and not
-    /// a list: state each leaf's intended shape-and-strength domain, walk
-    /// every 13-card length composition in it, and require a representative
-    /// hand for each. That needs the domains written down first, and they are
-    /// not — which is the real open item, not any one pattern.
+    /// Pinned examples are authored guarantees, so malformed cards, an
+    /// impossible auction prefix, a wrong decision, or pattern drift must
+    /// break the suite rather than silently showing the wrong lesson.
     #[test]
-    fn the_named_boundaries_can_actually_be_dealt() {
-        use crate::leaves::leaf_by_id;
-        use crate::system::opening;
-
-        // (what the rules say, the hand, the call they say it makes)
-        let cases: &[(&str, &str, &str)] = &[
-            // Weak twos: exactly six cards, 5-10 HCP, both ends.
-            (
-                "weak 2♠, bottom of 5-10",
-                "SK SQ S9 S8 S7 S6 H4 H3 D4 D3 D2 C3 C2",
-                "2S",
-            ),
-            (
-                "weak 2♠, top of 5-10",
-                "SA SK SQ SJ S8 S7 H4 H3 D4 D3 D2 C3 C2",
-                "2S",
-            ),
-            // Six trumps plus three side suits capped at three is thirteen
-            // exactly, so any cap of three silently forbids every void.
-            (
-                "weak 2♠ on 6-4-3-0",
-                "SK SQ S9 S8 S7 S6 H5 H4 H3 H2 D5 D4 D3",
-                "2S",
-            ),
-            // 7-4-2-0, not 7-3-3-0: a side-suit cap of three permits the
-            // second, so only the first tells the old cap from the new one.
-            (
-                "3♠ preempt on 7-4-2-0",
-                "SK SQ S9 S8 S7 S6 S5 H5 H4 H3 H2 D4 D3",
-                "3S",
-            ),
-            // Three-level preempts: 7+ cards, 5-10 HCP. The nine-count and
-            // the eight-card suit are the two codex called out.
-            (
-                "3♠ preempt on seven, 5 HCP",
-                "SK SQ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3 C2",
-                "3S",
-            ),
-            (
-                "3♠ preempt on seven, 9 HCP",
-                "SA SK SQ S9 S8 S7 S6 H4 H3 D3 D2 C3 C2",
-                "3S",
-            ),
-            (
-                "3♠ preempt on eight cards",
-                "SK SQ SJ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3",
-                "3S",
-            ),
-            // 1NT: both ends of 15-17, and the 14-HCP five-card-major upgrade.
-            (
-                "1NT, bottom of 15-17",
-                "SK SQ S4 HQ H3 H2 DA DJ D5 D4 CK C3 C2",
-                "1NT",
-            ),
-            (
-                "1NT, top of 15-17",
-                "SA SQ S4 HA HQ H2 DQ D5 D4 D3 CK C3 C2",
-                "1NT",
-            ),
-            (
-                "14 HCP with a five-card major upgrades to 1NT",
-                "SK SQ SJ S4 S3 HA H3 H2 DK DJ D4 C3 C2",
-                "1NT",
-            ),
-            // The Rule of 20 boundary: 10 HCP and two five-card suits.
-            (
-                "Rule of 20 on the nose",
-                "SK SQ SJ S4 S3 HA H5 H4 H3 H2 D4 C3 C2",
-                "1S",
-            ),
-            // 2♣: the bottom of 22+ balanced.
-            (
-                "2♣, bottom of 22+ balanced",
-                "SA SK SQ S4 HA HK H2 DA DQ D5 C4 C3 C2",
-                "2C",
-            ),
-        ];
-
+    fn every_pinned_hand_is_a_valid_example_of_its_leaf() {
+        let mut rng = SmallRng::seed_from_u64(20260831);
+        let mut ids = std::collections::BTreeSet::new();
+        let mut count = 0;
         let mut failures = Vec::new();
-        for (what, cards, expected) in cases {
-            let h = hand(cards);
-            let d = opening(&h);
-            if d.bid.to_app() != *expected {
-                failures.push(format!(
-                    "{what}: the tree opens {} ({}), not {expected}",
-                    d.bid.to_app(),
-                    d.leaf_id
-                ));
-                continue;
-            }
-            let Some(spec) = leaf_by_id(d.leaf_id) else {
-                failures.push(format!("{what}: {} is not registered", d.leaf_id));
-                continue;
-            };
-            let Some(drill) = spec.drill.as_ref() else {
-                // Not drillable, so no pattern to cover it. That is a
-                // curriculum gap, not a pattern gap, and other tests own it.
-                continue;
-            };
-            if !hand_fits_pat(&h, &drill.south) {
-                failures.push(format!(
-                    "{what}: {} accepts this hand from the tree but its drill pattern rejects \
-                     it, so no drill can ever deal this edge of the class",
-                    d.leaf_id
-                ));
+        for spec in drills() {
+            let drill = spec.drill.as_ref().expect("drillable");
+            for pinned in &drill.pinned {
+                count += 1;
+                if pinned.id.is_empty() || pinned.why.is_empty() {
+                    failures.push(format!("{}: pinned id and why must be non-empty", spec.id));
+                }
+                if !ids.insert(pinned.id) {
+                    failures.push(format!("{}: duplicate pinned id {}", spec.id, pinned.id));
+                }
+                let deal = match deal_from_pinned(&mut rng, pinned) {
+                    Ok(deal) => deal,
+                    Err(error) => {
+                        failures.push(error.message);
+                        continue;
+                    }
+                };
+                if let Some(reason) = hand_pat_rejection(&deal.south, &drill.south) {
+                    failures.push(format!(
+                        "{} ({}) is rejected by {}: {reason}",
+                        pinned.id, pinned.why, spec.id
+                    ));
+                    continue;
+                }
+                let decision = decide(&deal.south, &auction_for(drill));
+                if decision.leaf_id != spec.id || decision.bid != drill.expected {
+                    failures.push(format!(
+                        "{} ({}): tree chose {} / {}, expected {} / {}",
+                        pinned.id,
+                        pinned.why,
+                        decision.leaf_id,
+                        decision.bid.to_app(),
+                        spec.id,
+                        drill.expected.to_app()
+                    ));
+                    continue;
+                }
+                if !verify(&deal, spec, drill) {
+                    failures.push(format!(
+                        "{} ({}): completed deal does not produce {} after its auction prefix",
+                        pinned.id, pinned.why, spec.id
+                    ));
+                }
             }
         }
+        assert_eq!(count, 12, "the migrated boundary checklist lost a hand");
         assert!(
             failures.is_empty(),
-            "boundaries the patterns do not cover:\n{}",
+            "invalid pinned hands:\n{}",
             failures.join("\n")
+        );
+    }
+
+    #[test]
+    fn a_pinned_pair_completes_to_a_legal_deal() {
+        let pinned = PinnedHand::south(
+            "pair-example",
+            "S5 S4 H8 H7 H5 H4 H2 DK D6 D3 CA C7 C6",
+            "exercise the optional North literal",
+        )
+        .with_north("S8 S7 S6 S2 HA H9 DA D9 CQ CT C9 C5 C3");
+        let mut rng = SmallRng::seed_from_u64(17);
+        let deal = deal_from_pinned(&mut rng, &pinned).expect("two disjoint hands form a deal");
+        assert_eq!(deal.south, Hand::parse_app(pinned.south).unwrap());
+        assert_eq!(
+            deal.north,
+            Hand::parse_app(pinned.north.expect("North is pinned")).unwrap()
         );
     }
 
@@ -855,8 +854,7 @@ mod tests {
     }
 
     fn hand(cards: &str) -> Hand {
-        let list: Vec<String> = cards.split_whitespace().map(str::to_string).collect();
-        Hand::parse_app_list(&list).expect("13 valid cards")
+        Hand::parse_app(cards).expect("13 valid cards")
     }
 
     /// Reported deal: South is dealer with 8 opening points and passes.

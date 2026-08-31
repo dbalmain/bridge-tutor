@@ -35,6 +35,15 @@ curated examples belong in the new pinned-hand list.
   that sampling finds counterexamples but cannot prove their absence.
 - Post-change fixed-seed generation: 925 attempts remains the overall worst
   case (`rebid.2c.suit`); the worst opening improved to 97 (`open.2c`).
+- `PinnedHand` now carries a stable id, South literal, optional North literal,
+  and human-authored reason. `Drill.pinned` defaults empty; random generation
+  and scheduling do not read it.
+- The card-literal parser is shared on `Hand`, and `deal_from_pinned` completes
+  one or two fixed hands from the remaining deck without duplicates.
+- All 12 hands from `the_named_boundaries_can_actually_be_dealt` now live on
+  their leaf specs. The replacement gate preserves the checklist count,
+  requires unique non-empty ids and reasons, parses and completes each deal,
+  checks the exact leaf and expected call, and checks pattern acceptance.
 
 ## Decisions left open
 
@@ -42,7 +51,18 @@ curated examples belong in the new pinned-hand list.
   from `calls_before`, but those drills are joint two-hand proposal
   distributions; a south-only gate would leave the equally important `north`
   constraint unchecked. Deriving both sides is a separate, much larger audit.
+- Pinned hands are data and validation only in this slice. A future scheduler
+  must decide when “guaranteed” examples appear; that behavior was explicitly
+  out of scope here.
 
 ## Not done
 
 - No curriculum, frontend, scheduler, or HTTP API changes.
+
+## Gates
+
+- `cargo fmt --all`: green.
+- `cargo clippy --workspace --all-targets -- -D warnings`: green, zero warnings.
+- `cargo test --workspace`: 79 passed, up from the baseline 78; none failed or
+  were ignored.
+- `cargo build`: green.

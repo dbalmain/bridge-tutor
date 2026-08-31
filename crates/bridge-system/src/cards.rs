@@ -208,12 +208,21 @@ impl Hand {
         Self::from_cards(arr)
     }
 
-    pub fn parse_app_list(list: &[String]) -> Result<Self, &'static str> {
-        let mut cards = Vec::with_capacity(13);
-        for s in list {
-            cards.push(Card::parse_app(s).ok_or("bad card")?);
-        }
+    fn parse_app_cards<'a>(cards: impl IntoIterator<Item = &'a str>) -> Result<Self, &'static str> {
+        let cards = cards
+            .into_iter()
+            .map(|card| Card::parse_app(card).ok_or("bad card"))
+            .collect::<Result<Vec<_>, _>>()?;
         Self::try_from_slice(&cards)
+    }
+
+    /// Parses a whitespace-separated app literal such as `"SA SK H2 ..."`.
+    pub fn parse_app(cards: &str) -> Result<Self, &'static str> {
+        Self::parse_app_cards(cards.split_whitespace())
+    }
+
+    pub fn parse_app_list(list: &[String]) -> Result<Self, &'static str> {
+        Self::parse_app_cards(list.iter().map(String::as_str))
     }
 
     pub fn cards(self) -> [Card; 13] {
@@ -393,6 +402,9 @@ mod tests {
         assert_eq!(c.rank(), Rank::ACE);
         assert_eq!(c.to_app(), "SA");
         assert_eq!(c.hcp(), 4);
+
+        let hand = Hand::parse_app("SA SK SQ SJ ST S9 S8 S7 S6 S5 S4 S3 S2").unwrap();
+        assert_eq!(hand.len_of(Suit::Spade), 13);
     }
 
     #[test]

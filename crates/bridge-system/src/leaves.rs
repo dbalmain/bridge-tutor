@@ -120,8 +120,35 @@ impl HandPat {
     }
 }
 
+/// A named hand a lesson must always retain as an example of one question.
+/// Literals use the app's whitespace-separated card format.
+#[derive(Clone, Debug)]
+pub struct PinnedHand {
+    pub id: &'static str,
+    pub south: &'static str,
+    pub north: Option<&'static str>,
+    pub why: &'static str,
+}
+
+impl PinnedHand {
+    pub const fn south(id: &'static str, south: &'static str, why: &'static str) -> Self {
+        Self {
+            id,
+            south,
+            north: None,
+            why,
+        }
+    }
+
+    pub const fn with_north(mut self, north: &'static str) -> Self {
+        self.north = Some(north);
+        self
+    }
+}
+
 /// Everything needed to generate and grade a drill for one decision: the
-/// auction that leads to it, the answer, and the hand patterns to deal from.
+/// auction that leads to it, the answer, the possible-hand proposal patterns,
+/// and examples the lesson guarantees.
 #[derive(Clone, Debug)]
 pub struct Drill {
     pub expected: Call,
@@ -129,6 +156,7 @@ pub struct Drill {
     pub calls_before: Vec<Call>,
     pub south: HandPat,
     pub north: Option<HandPat>,
+    pub pinned: Vec<PinnedHand>,
 }
 
 /// One decision the tree can make. `drill` is `None` for decisions the course
@@ -198,6 +226,7 @@ fn leaf(
     calls_before: Vec<Call>,
     south: HandPat,
     north: Option<HandPat>,
+    pinned: Vec<PinnedHand>,
 ) -> LeafSpec {
     LeafSpec {
         id,
@@ -209,6 +238,7 @@ fn leaf(
             calls_before,
             south,
             north,
+            pinned,
         }),
     }
 }
@@ -226,6 +256,16 @@ fn undrilled(id: &'static str, family: Family, title: &'static str) -> LeafSpec 
 }
 
 fn open(id: &'static str, title: &'static str, expected: Call, south: HandPat) -> LeafSpec {
+    open_with_pins(id, title, expected, south, Vec::new())
+}
+
+fn open_with_pins(
+    id: &'static str,
+    title: &'static str,
+    expected: Call,
+    south: HandPat,
+    pinned: Vec<PinnedHand>,
+) -> LeafSpec {
     leaf(
         id,
         Family::Open,
@@ -235,6 +275,7 @@ fn open(id: &'static str, title: &'static str, expected: Call, south: HandPat) -
         vec![],
         south,
         None,
+        pinned,
     )
 }
 
@@ -256,6 +297,7 @@ fn resp(
         vec![partner_open, Call::Pass],
         south,
         Some(north),
+        Vec::new(),
     )
 }
 
@@ -277,6 +319,7 @@ fn rebid(
         vec![open, Call::Pass, response, Call::Pass],
         south,
         Some(north),
+        Vec::new(),
     )
 }
 
@@ -375,15 +418,27 @@ fn build() -> Vec<LeafSpec> {
         Call::Pass,
         HandPat::hcp(0, 12),
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.1nt",
         "Open 1NT (no 5-card major)",
         Call::nt(1),
         HandPat::hcp(14, 17)
             .lens((2, 5), (2, 5), (2, 4), (2, 4))
             .bal(true),
+        vec![
+            PinnedHand::south(
+                "open-1nt-bottom",
+                "SK SQ S4 HQ H3 H2 DA DJ D5 D4 CK C3 C2",
+                "1NT, bottom of 15–17",
+            ),
+            PinnedHand::south(
+                "open-1nt-top",
+                "SA SQ S4 HA HQ H2 DQ D5 D4 D3 CK C3 C2",
+                "1NT, top of 15–17",
+            ),
+        ],
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.1nt.5major",
         "Open 1NT with a 5-card major",
         Call::nt(1),
@@ -394,6 +449,11 @@ fn build() -> Vec<LeafSpec> {
             .lens((2, 3), (2, 3), (2, 5), (2, 5))
             .bal(true)
             .five_major(),
+        vec![PinnedHand::south(
+            "open-1nt-14-five-major",
+            "SK SQ SJ S4 S3 HA H3 H2 DK DJ D4 C3 C2",
+            "14 HCP with a five-card major upgrades to 1NT",
+        )],
     ));
     v.push(open(
         "open.2nt",
@@ -403,11 +463,16 @@ fn build() -> Vec<LeafSpec> {
             .lens((2, 5), (2, 5), (2, 5), (2, 5))
             .bal(true),
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.2c",
         "Open 2♣ strong",
         Call::suit_bid(2, Suit::Club),
         HandPat::hcp(12, 40),
+        vec![PinnedHand::south(
+            "open-2c-22-balanced",
+            "SA SK SQ S4 HA HK H2 DA DQ D5 C4 C3 C2",
+            "2♣, bottom of 22+ balanced",
+        )],
     ));
     v.push(open(
         "open.1s",
@@ -421,7 +486,7 @@ fn build() -> Vec<LeafSpec> {
         Call::suit_bid(1, Suit::Spade),
         HandPat::hcp(4, 18).lens((0, 13), (0, 13), (0, 13), (6, 13)),
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.1s.equal-majors",
         "5–5 majors: open 1♠",
         Call::suit_bid(1, Suit::Spade),
@@ -430,6 +495,11 @@ fn build() -> Vec<LeafSpec> {
         HandPat::hcp(9, 18)
             .lens((0, 3), (0, 3), (5, 6), (5, 6))
             .eq_maj(),
+        vec![PinnedHand::south(
+            "open-rule-of-20",
+            "SK SQ SJ S4 S3 HA H5 H4 H3 H2 D4 C3 C2",
+            "Rule of 20 on the nose",
+        )],
     ));
     v.push(open(
         "open.1h",
@@ -471,11 +541,28 @@ fn build() -> Vec<LeafSpec> {
             .lens((3, 3), (3, 3), (3, 4), (3, 4))
             .bal(true),
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.2s",
         "Weak 2♠",
         Call::suit_bid(2, Suit::Spade),
         weak_two_opener(Suit::Spade),
+        vec![
+            PinnedHand::south(
+                "open-2s-five-hcp",
+                "SK SQ S9 S8 S7 S6 H4 H3 D4 D3 D2 C3 C2",
+                "weak 2♠, bottom of 5–10",
+            ),
+            PinnedHand::south(
+                "open-2s-ten-hcp",
+                "SA SK SQ SJ S8 S7 H4 H3 D4 D3 D2 C3 C2",
+                "weak 2♠, top of 5–10",
+            ),
+            PinnedHand::south(
+                "open-2s-6430",
+                "SK SQ S9 S8 S7 S6 H5 H4 H3 H2 D5 D4 D3",
+                "weak 2♠ on 6-4-3-0",
+            ),
+        ],
     ));
     v.push(open(
         "open.2h",
@@ -489,11 +576,33 @@ fn build() -> Vec<LeafSpec> {
         Call::suit_bid(2, Suit::Diamond),
         weak_two_opener(Suit::Diamond),
     ));
-    v.push(open(
+    v.push(open_with_pins(
         "open.3s",
         "Preempt 3♠",
         Call::suit_bid(3, Suit::Spade),
         preempt_opener(Suit::Spade),
+        vec![
+            PinnedHand::south(
+                "open-3s-7420",
+                "SK SQ S9 S8 S7 S6 S5 H5 H4 H3 H2 D4 D3",
+                "3♠ preempt on 7-4-2-0",
+            ),
+            PinnedHand::south(
+                "open-3s-five-hcp",
+                "SK SQ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3 C2",
+                "3♠ preempt on seven cards and 5 HCP",
+            ),
+            PinnedHand::south(
+                "open-3s-nine-hcp",
+                "SA SK SQ S9 S8 S7 S6 H4 H3 D3 D2 C3 C2",
+                "3♠ preempt on seven cards and 9 HCP",
+            ),
+            PinnedHand::south(
+                "open-3s-eight-cards",
+                "SK SQ SJ S9 S8 S7 S6 S5 H4 H3 D3 D2 C3",
+                "3♠ preempt on eight cards",
+            ),
+        ],
     ));
     v.push(open(
         "open.3h",
