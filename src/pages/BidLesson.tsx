@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AuctionExplained } from "../components/AuctionExplained";
 import { AuctionOutcome, AuctionStrip } from "../components/AuctionStrip";
@@ -64,7 +64,13 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
   const [busy, setBusy] = useState(false);
   const [completed, setCompleted] = useState(false);
   const loadGen = useRef(0);
+  const completeRef = useRef<HTMLElement>(null);
   const maxStudentBids = lessonStudentBids(lesson);
+
+  useEffect(() => {
+    if (!completed) return;
+    completeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [completed]);
 
   const loadHand = useCallback(async () => {
     const gen = (loadGen.current += 1);
@@ -380,7 +386,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
       )}
 
       {completed && (
-        <section className="panel">
+        <section className="panel" ref={completeRef}>
           <h2>
             {mistakesThisRun === 0
               ? "Clean run ★"
