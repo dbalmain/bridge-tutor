@@ -393,6 +393,42 @@ impl Deal {
 
 #[cfg(test)]
 mod tests {
+    /// A balanced hand can hold at most one length point.
+    ///
+    /// 5332 is the only balanced shape with a five-card suit, and two five-card
+    /// suits force 5-5-2-1 or 5-5-3-0 — a singleton or a second doubleton
+    /// either way. `opening` relies on this: its 2♣ test is `hcp >= 22 ||
+    /// total >= 21`, and the second arm is meant for unbalanced hands only.
+    /// It gets that for free, because a balanced hand needs 20 HCP to reach 21
+    /// total and balanced 20-21 has already opened 2NT.
+    ///
+    /// So this is load-bearing rather than trivia: widen `is_balanced_shape` to
+    /// a shape with two length points and a balanced 19-count starts opening
+    /// 2♣. Exhaustive over every 13-card shape, not sampled.
+    #[test]
+    fn balanced_hands_hold_at_most_one_length_point() {
+        let mut checked = 0;
+        for s in 0..=13u8 {
+            for h in 0..=(13 - s) {
+                for d in 0..=(13 - s - h) {
+                    let c = 13 - s - h - d;
+                    let shape = [s, h, d, c];
+                    if !is_balanced_shape(shape) {
+                        continue;
+                    }
+                    let length: u8 = shape.iter().map(|&l| l.saturating_sub(4)).sum();
+                    assert!(
+                        length <= 1,
+                        "{shape:?} is balanced but scores {length} length points — \
+                         `opening`'s 2♣ test assumes at most one"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0, "no balanced shape was enumerated");
+    }
+
     use super::*;
 
     #[test]

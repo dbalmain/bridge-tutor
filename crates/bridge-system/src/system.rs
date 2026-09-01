@@ -279,7 +279,13 @@ pub fn opening(hand: &Hand) -> Decision {
         );
     }
 
-    if hcp >= 22 || (total >= 21 && !(bal && (18..=21).contains(&hcp))) {
+    // The opening-points door is effectively "unbalanced" without saying so:
+    // a balanced hand holds at most one length point (5332 is the only balanced
+    // shape with a five-card suit), so reaching 21 total needs 20 HCP, and
+    // balanced 20-21 returned 2NT just above. `balanced_hands_hold_at_most_one_
+    // length_point` in cards.rs pins that, and fails if `is_balanced_shape` is
+    // ever widened to a shape that would need this spelled out again.
+    if hcp >= 22 || total >= 21 {
         return dec(
             "open.2c",
             Call::suit_bid(2, Suit::Club),
