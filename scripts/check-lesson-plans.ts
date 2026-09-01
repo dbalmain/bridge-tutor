@@ -5,9 +5,9 @@
  *
  * Two properties matter and neither is visible from reading one run:
  *
- *  - every lesson deals `ceil(1.5 x quizCount)` hands, of which exactly
- *    `quizCount` are its own material, so the review half never crowds out
- *    the lesson;
+ *  - every lesson deals `quizCount` of its own hands plus
+ *    `ceil(1.5 x quizCount)` review hands, so the lesson's own material is
+ *    always present in full however much review is stacked around it;
  *  - the lesson's own leaves are covered evenly. Independent sampling is
  *    what dealt a three-hand Lesson 5 two 2C hands and one 2NT, leaving half
  *    the lesson unexercised.
@@ -18,6 +18,7 @@ import {
   biddingCurriculum,
   buildLessonPlan,
   lessonHandCount,
+  reviewHandCount,
   reviewLeavesFor,
   type BidLesson,
 } from "../src/lib/biddingCurriculum";
@@ -50,7 +51,8 @@ function main(): void {
 
     // Lesson 1 has nothing behind it, so it stays at its own count.
     const wanted =
-      pool.length === 0 ? lesson.quizCount : Math.ceil(lesson.quizCount * 1.5);
+      lesson.quizCount +
+      (pool.length === 0 ? 0 : Math.ceil(lesson.quizCount * 1.5));
     if (expected !== wanted) {
       failures.push(`${lesson.id}: hand count ${expected}, expected ${wanted}`);
     }
@@ -105,6 +107,14 @@ function main(): void {
     (n, l) => n + lessonHandCount(l),
     0,
   );
+  const thin = biddingCurriculum.lessons.filter(
+    (l) => reviewHandCount(l) > reviewLeavesFor(l).length * 2,
+  );
+  for (const l of thin) {
+    console.warn(
+      `note  ${l.id} draws ${reviewHandCount(l)} review hands from only ${reviewLeavesFor(l).length} earlier leaf/leaves`,
+    );
+  }
   console.log(
     `OK  ${biddingCurriculum.lessons.length} lessons x ${RUNS} runs: quotas hold, own leaves evenly covered, ${total} hands across the course`,
   );

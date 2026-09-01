@@ -105,18 +105,25 @@ export function reviewLeavesFor(lesson: BidLesson): string[] {
 }
 
 /**
- * How many hands a run actually deals: the lesson's own quota plus half
- * again, rounded up, drawn from everything taught so far.
+ * How many review hands a run deals: one and a half times the lesson's own
+ * quota, rounded up, drawn from everything taught before it.
  *
  * A lesson that only ever deals its own leaves telegraphs its answer — in
- * the 1NT lesson you know before you look that the call is 1NT, so the
- * hand is not really being read. The review half restores the question
- * the course is actually teaching, which is "what do I open?", not "how do
- * I open 1NT?". Lesson 1 has nothing behind it and stays at its own count.
+ * the 1NT lesson you know before you look that the call is 1NT, so the hand
+ * is not really being read, which is the whole exercise. Review outnumbers
+ * new material deliberately: the question the course is teaching is "what
+ * do I open?", not "how do I open 1NT?", and only a mixed run asks it.
+ *
+ * Lesson 1 has nothing behind it and gets none.
  */
-export function lessonHandCount(lesson: BidLesson): number {
-  if (reviewLeavesFor(lesson).length === 0) return lesson.quizCount;
+export function reviewHandCount(lesson: BidLesson): number {
+  if (reviewLeavesFor(lesson).length === 0) return 0;
   return Math.ceil(lesson.quizCount * 1.5);
+}
+
+/** Every hand in a run: the lesson's own quota plus its review hands. */
+export function lessonHandCount(lesson: BidLesson): number {
+  return lesson.quizCount + reviewHandCount(lesson);
 }
 
 function shuffled<T>(items: T[], rand: () => number): T[] {
@@ -157,9 +164,8 @@ export function buildLessonPlan(
 ): string[] {
   const own = drawEvenly(lesson.leaves, lesson.quizCount, rand);
   const review = reviewLeavesFor(lesson);
-  const reviewCount = lessonHandCount(lesson) - lesson.quizCount;
   const rest = shuffled(
-    [...own.slice(1), ...drawEvenly(review, reviewCount, rand)],
+    [...own.slice(1), ...drawEvenly(review, reviewHandCount(lesson), rand)],
     rand,
   );
   return [own[0]!, ...rest];

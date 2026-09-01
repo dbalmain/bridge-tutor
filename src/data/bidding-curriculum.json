@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 12
+    "version": 13
   },
   "chapters": [
     {
@@ -308,7 +308,7 @@
         "open.2nt",
         "open.2c"
       ],
-      "quizCount": 4
+      "quizCount": 6
     },
     {
       "id": "bid-preempt",
