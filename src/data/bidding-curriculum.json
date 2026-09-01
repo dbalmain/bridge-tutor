@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 8
+    "version": 9
   },
   "chapters": [
     {
@@ -157,7 +157,7 @@
       "chapterNumber": 1,
       "lessonNumber": 2,
       "title": "Opening 1♥ or 1♠",
-      "tip": "A one-level major promises five or more cards. Equal length: higher ranking. 6–5: bid the six.",
+      "tip": "A one-level major promises five or more cards. Equal length: higher ranking. 6–5: bid the six — even when the six is a minor (Lesson 3).",
       "newHere": "1♥ and 1♠ promise five or more cards — and which suit to open when you are long in two.",
       "revisits": [
         {
@@ -169,12 +169,13 @@
       "teaching": [
         "The hand passed the strength test from Lesson 1 — 13+ opening points, or the Rule of 20 with at least 10 HCP. Now you pick a suit. In this system a 1♥ or 1♠ opening promises at least five cards in that major. Partner can raise with three-card support. That is the whole point of five-card majors.",
         "Open your longest suit. With 5–5 or 6–6 in the majors, open the higher-ranking suit (spades), then bid hearts next — the suit rank order from Lesson 1 decides it. With 6–5, open the six, even if the five is the other major.",
-        "Strength first, always. Re-run Lesson 1's count before you look at the shape: a five-card major on a bust is a pass, not 1♥/1♠."
+        "Strength first, always. Re-run Lesson 1's count before you look at the shape: a five-card major on a bust is a pass, not 1♥/1♠.",
+        "One thing to be clear about now, because it looks like an exception and is not. \"Five-card major\" is a promise about 1♥/1♠ — you may not open a major on four — not an instruction to prefer a major over a longer suit. The longest suit still wins. A major outranks both minors, so it takes every tie: five hearts and five diamonds opens 1♥. The only hand where a minor beats a five-card major is one where the minor is strictly longer — six diamonds beside five hearts opens 1♦. That is Lesson 3."
       ],
       "rules": [
         "1♥ / 1♠ = 5+ cards and opening values (Lesson 1).",
-        "5–5 or 6–6: higher ranking (1♠).",
-        "6–5: the six."
+        "Open your longest suit. 5–5 or 6–6: higher ranking (1♠).",
+        "6–5: the six — and if the six is a minor, that is Lesson 3."
       ],
       "leaves": [
         "open.1s",
@@ -191,8 +192,8 @@
       "chapterNumber": 1,
       "lessonNumber": 3,
       "title": "Opening 1♣ or 1♦",
-      "tip": "No five-card major: open a minor. 1♦ is 4+; 1♣ can be three. 4–4 minors: 1♦. 3–3 minors: 1♣.",
-      "newHere": "With no five-card major, open a minor: 1♦ on four or more, 1♣ on as few as three.",
+      "tip": "Longest suit is a minor: open it — including a six-card minor beside a five-card major. No five-card suit at all: 1♦ on 4+, 1♣ on 3+. 4–4 minors: 1♦. 3–3 minors: 1♣.",
+      "newHere": "When your longest suit is a minor — including when it beats a five-card major — and which minor to pick when nothing is five cards long.",
       "revisits": [
         {
           "lessonId": "bid-pass",
@@ -201,27 +202,30 @@
         },
         {
           "lessonId": "bid-open-major",
-          "what": "the five-card promise that these hands cannot make",
+          "what": "open your longest suit, and the five-card promise 1♥/1♠ makes",
           "lessonNumber": 2
         }
       ],
       "teaching": [
-        "Opening values, but no five-card major, so Lesson 2's 1♥/1♠ is unavailable. Open a minor instead. 1♦ normally promises four diamonds, with one exception: holding 4-4 in the majors and a doubleton club, the shape is 4-4-3-2 and 1♦ is opened on three, because some minor has to be opened and diamonds is the longer one. 1♣ is the catch-all and can be as short as three clubs — it does not promise a real suit, it just starts the auction.",
-        "Equal minors: 4–4 opens 1♦; 3–3 opens 1♣. With 4–4 in the majors you still open a minor, because Lesson 2 needs five. You can show a major later.",
-        "When the minors are unequal, the longer one wins. That is the whole decision: no five-card major, then longer minor, then 1♦ on 4–4 and 1♣ on 3–3."
+        "Same rule as Lesson 2, other half of it: open your longest suit. Lesson 2 covered the hands where that suit is a major. Here it is a minor, and the bid is 1♦ or 1♣.",
+        "A long minor beats a five-card major. Six diamonds and five hearts opens 1♦, not 1♥. This surprises people, so be exact about why: 1♥/1♠ promises five cards — that is a floor on what the bid means, not a claim that a major jumps the queue. Length decides, and a major wins every tie because it outranks both minors. So the only hand where a minor wins is one where the minor is strictly longer. Five hearts and five diamonds: 1♥. Five hearts and six diamonds: 1♦. You bid the hearts next round, and partner hears both suits with the longer one named first.",
+        "Now the hands with no five-card suit anywhere. Some minor has to be opened, so the longer minor wins: 1♦ normally promises four diamonds, 1♣ is the catch-all and can be as short as three — it does not promise a real suit, it just starts the auction. Equal minors: 4–4 opens 1♦, 3–3 opens 1♣. With 4–4 in the majors you still open a minor, because Lesson 2 needs five; you show a major later. One shape to know: 4-4-3-2 with 4–4 majors and a doubleton club opens 1♦ on three, because some minor must be opened and diamonds is the longer one.",
+        "What waits until later, so it does not surprise you. A long minor beside a five-card major is awkward on the second round: after 1♦ – 1♠ from partner, naming the hearts costs the two-level and promises extra values, so it is only available on the stronger hands — though a 6–5 shape often gets there, because those length points from Lesson 1 count. Without them you rebid your diamonds and the hearts go unsaid for now. That bid has a name, the reverse, and it is Chapter 8. None of it changes the opening: you still open your longest suit."
       ],
       "rules": [
-        "No 5-card major (Lesson 2) → open a minor.",
-        "1♦ = 4+ diamonds, except 4-4-3-2 with 4–4 majors, where it is three. 1♣ = 3+ and may be short.",
-        "Longer minor wins. 4–4 minors: 1♦. 3–3 minors: 1♣."
+        "Open your longest suit (Lesson 2). When that suit is a minor, this lesson.",
+        "A minor beats a five-card major only when it is STRICTLY longer. 5♥/5♦ → 1♥. 5♥/6♦ → 1♦.",
+        "No five-card suit: longer minor wins. 1♦ = 4+, 1♣ = 3+. 4–4 minors: 1♦. 3–3 minors: 1♣."
       ],
       "leaves": [
+        "open.1d.long",
+        "open.1c.long",
         "open.1d",
         "open.1d.equal-minors",
         "open.1c",
         "open.1c.33-minors"
       ],
-      "quizCount": 4
+      "quizCount": 6
     },
     {
       "id": "bid-open-1nt",

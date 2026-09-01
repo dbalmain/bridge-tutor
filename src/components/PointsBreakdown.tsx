@@ -1,9 +1,12 @@
 import { SUIT_COLOR, SUIT_SYMBOL } from "../lib/cards";
 import {
   handPoints,
+  openingKind,
   shortagePoints,
+  suitChoice,
   type HandPoints,
   type PointContext,
+  type OpeningKind,
   type SuitPoints,
 } from "../lib/handPoints";
 import type { Card, Suit } from "../lib/types";
@@ -85,16 +88,20 @@ export function PointsBreakdown({
   context = "opening",
   trump,
   title,
+  leafId,
 }: {
   cards: Card[];
   context?: PointContext;
   trump?: Suit;
   title?: string;
+  /** The decision that was made. Without it the count stops at "may I open?". */
+  leafId?: string;
 }) {
   const p: HandPoints = handPoints(cards);
   const [long1, long2] = p.twoLongest;
   const shortage = trump ? shortagePoints(p, trump) : null;
   const heading = title ?? CONTEXT_TITLE[context];
+  const kind = context === "opening" ? openingKind(leafId) : null;
   return (
     <div className="points">
       <h3 className="points__title">{heading}</h3>
@@ -202,7 +209,102 @@ export function PointsBreakdown({
               : "Under 20 — no."}
         </li>
         )}
+        {kind && <WhichBidStep p={p} kind={kind} />}
       </ol>
     </div>
+  );
+}
+
+/**
+ * Step 5 — which bid, once the hand is known to be worth opening.
+ *
+ * The count used to stop at "you may open" and leave the choice of bid — the
+ * half the learner is actually being asked for — unexplained.
+ *
+ * `kind` comes from the leaf id, never re-derived from the hand, so this
+ * cannot argue with the call above it. A balanced sixteen-count with five
+ * hearts opens 1NT; a shape-first explanation reinvented here would have
+ * announced 1♥ underneath a correct 1NT.
+ */
+function WhichBidStep({ p, kind }: { p: HandPoints; kind: OpeningKind }) {
+  const c = suitChoice(p);
+  const len = (s: SuitPoints) => (
+    <>
+      {s.length}
+      <SuitMark suit={s.suit} />
+    </>
+  );
+
+  if (kind === "pass") {
+    return (
+      <li>
+        <strong>Step 5 — the bid.</strong> Neither test is met, so there is no
+        opening to choose. <strong>Pass</strong>, and wait to hear from partner.
+      </li>
+    );
+  }
+
+  if (kind === "notrump") {
+    return (
+      <li>
+        <strong>Step 5 — which bid?</strong> The shape is balanced ({p.shape}),
+        so the hand describes itself better by naming notrump than by naming a
+        suit — including when it holds a five-card major. High cards alone pick
+        the level here: <strong>{p.hcp} HCP</strong>, and length points do not
+        count towards a notrump opening.
+      </li>
+    );
+  }
+
+  if (kind === "strong") {
+    return (
+      <li>
+        <strong>Step 5 — which bid?</strong> Too strong to risk a one-level
+        opening partner is allowed to pass: {p.hcp} HCP, {p.openingPoints}{" "}
+        opening points. 2♣ is artificial — it says nothing about clubs, it says
+        the hand is enormous, and partner must answer.
+      </li>
+    );
+  }
+
+  if (kind === "weak-two" || kind === "preempt") {
+    return (
+      <li>
+        <strong>Step 5 — which bid?</strong> <strong>{len(c.winner)}</strong>{" "}
+        but only {p.hcp} HCP — not enough to open at the one level, and too
+        shapely to pass. Name the suit high straight away, to spend the
+        opponents' bidding room before they can use it.
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <strong>Step 5 — which suit?</strong> Open your longest:{" "}
+      <strong>{len(c.winner)}</strong>
+      {c.runnerUp && c.runnerUp.length > 0 && <> (next longest {len(c.runnerUp)})</>}.{" "}
+      {c.tied ? (
+        <>
+          Equal length, so the higher-ranking suit wins: spades over hearts,
+          either major over either minor, diamonds over clubs.
+        </>
+      ) : c.minorBeatsFiveCardMajor ? (
+        <>
+          A five-card major does not jump the queue. 1♥/1♠ promises five cards —
+          that is a floor on what the bid means, not a claim that a major
+          outranks a <em>longer</em> suit. A major does win every tie, so a
+          minor only ever gets here by being strictly longer, as it is on this
+          hand. You show the major on the next round.
+        </>
+      ) : c.noFiveCardSuit ? (
+        <>
+          Nothing reaches five, so 1♥/1♠ is unavailable and some minor has to be
+          opened. 1♦ promises four; 1♣ can be three cards and simply starts the
+          auction.
+        </>
+      ) : (
+        <>Five or more cards, and longer than anything else in the hand.</>
+      )}
+    </li>
   );
 }

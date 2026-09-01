@@ -513,11 +513,25 @@ fn build() -> Vec<LeafSpec> {
         Call::suit_bid(1, Suit::Heart),
         HandPat::hcp(4, 18).lens((0, 13), (0, 13), (6, 13), (0, 12)),
     ));
+    // Diamonds are the longest suit, five or more — the case where a long minor
+    // beats a five-card major. Split from `open.1d` because they are different
+    // rules: this one is "open your longest suit", that one is "no five-card
+    // suit anywhere, so pick a minor". Sharing an id meant Lesson 3 dealt this
+    // hand 97% of the time under a tip that said "no five-card major".
+    v.push(open(
+        "open.1d.long",
+        "Longest suit: open 1♦",
+        Call::suit_bid(1, Suit::Diamond),
+        HandPat::hcp(4, 20).lens((0, 8), (5, 13), (0, 8), (0, 8)),
+    ));
+    // No five-card suit at all: every suit capped at four is exactly the branch
+    // condition, so the pattern says it rather than leaving the generator to
+    // rediscover it by rejection.
     v.push(open(
         "open.1d",
         "Open 1♦",
         Call::suit_bid(1, Suit::Diamond),
-        HandPat::hcp(4, 20).lens((0, 12), (3, 13), (0, 12), (0, 12)),
+        HandPat::hcp(4, 20).lens((0, 4), (1, 4), (0, 4), (0, 4)),
     ));
     v.push(open(
         "open.1d.equal-minors",
@@ -528,10 +542,16 @@ fn build() -> Vec<LeafSpec> {
             .eq_min(),
     ));
     v.push(open(
+        "open.1c.long",
+        "Longest suit: open 1♣",
+        Call::suit_bid(1, Suit::Club),
+        HandPat::hcp(4, 20).lens((5, 13), (0, 8), (0, 8), (0, 8)),
+    ));
+    v.push(open(
         "open.1c",
         "Open 1♣",
         Call::suit_bid(1, Suit::Club),
-        HandPat::hcp(4, 20).lens((3, 13), (0, 12), (0, 12), (0, 12)),
+        HandPat::hcp(4, 20).lens((1, 4), (0, 4), (0, 4), (0, 4)),
     ));
     v.push(open(
         "open.1c.33-minors",

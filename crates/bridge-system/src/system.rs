@@ -19,7 +19,8 @@ Opening
 • 1♥/1♠ = 5+ cards. 1♦ = 4+, with one exception: 4-4-3-2 with 4-4 majors and
   a doubleton club opens 1♦ on three, because some minor must be opened and
   diamonds is the longer one. 1♣ = 3+.
-• 5-5 or 6-6: higher ranking. 6-5: the six.
+• Open the longest suit. 5-5 or 6-6: higher ranking, so a major beats a minor on
+  every tie. 6-5: the six — including 6 of a minor beside a 5-card major.
 • 4-4 minors: 1♦. 3-3 minors: 1♣.
 • 1NT = 15–17 HCP balanced (4333 / 4432 / 5332), including a 5-card major.
   14 HCP balanced with a 5-card suit upgrades to 1NT.
@@ -358,7 +359,9 @@ fn open_one(hand: &Hand) -> Decision {
     let c = hand.len_of(Suit::Club);
     let longest = s.max(h).max(d).max(c);
 
-    // Longest suit. 5-5 / 6-6: higher ranking. 6-5: the six.
+    // Longest suit wins, majors and minors alike. 5-5 / 6-6: higher ranking, and a
+    // major always outranks a minor, so the major takes every tie. A minor is
+    // therefore opened over a five-card major only when it is STRICTLY longer.
     if longest >= 5 {
         if s == longest {
             if h == s {
@@ -396,17 +399,20 @@ fn open_one(hand: &Hand) -> Decision {
                 );
             }
             return dec(
-                "open.1d",
+                "open.1d.long",
                 Call::suit_bid(1, Suit::Diamond),
-                "Open 1♦",
-                "Diamonds are the longest suit. A 5-card major would have been opened if it were as long.",
+                "Longest suit: open 1♦",
+                "Diamonds are the longest suit, so 1♦ is the opening — including beside a \
+                 five-card major. 1♥/1♠ promises five cards; it does not outrank a suit that \
+                 is longer still.",
             );
         }
         return dec(
-            "open.1c",
+            "open.1c.long",
             Call::suit_bid(1, Suit::Club),
-            "Open 1♣",
-            "Clubs are the longest suit (6–5 with a 5-card major still opens the six).",
+            "Longest suit: open 1♣",
+            "Clubs are the longest suit, so 1♣ is the opening — including beside a five-card \
+             major. 1♥/1♠ promises five cards; it does not outrank a suit that is longer still.",
         );
     }
 
@@ -415,7 +421,8 @@ fn open_one(hand: &Hand) -> Decision {
             "open.1d",
             Call::suit_bid(1, Suit::Diamond),
             "Open 1♦",
-            "No 5-card major. Diamonds longer than clubs (1♦ shows 4+).",
+            "No five-card suit at all, so the longest-suit rule leaves a minor. Diamonds are \
+             longer than clubs — 1♦ shows 4+.",
         );
     }
     if c > d {
@@ -423,7 +430,8 @@ fn open_one(hand: &Hand) -> Decision {
             "open.1c",
             Call::suit_bid(1, Suit::Club),
             "Open 1♣",
-            "No 5-card major. Clubs longer than diamonds. 1♣ can be three cards.",
+            "No five-card suit at all, so the longest-suit rule leaves a minor. Clubs are \
+             longer than diamonds, and 1♣ can be three cards.",
         );
     }
     if d >= 4 && c >= 4 {
@@ -4574,17 +4582,47 @@ mod tests {
         assert_eq!(d.leaf_id, "open.1s.equal-majors");
     }
 
+    /// A minor beats a five-card major only when it is STRICTLY longer.
+    ///
+    /// Both halves matter and only together do they pin the rule. Length alone
+    /// would also be satisfied by "always bid the minor"; rank alone by "always
+    /// bid the major". The 5-5 case is the discriminating one: it is the shape
+    /// where the two candidate rules disagree and the major has to win.
+    ///
+    /// The leaf ids are asserted, not just the calls, because a shared id is
+    /// what went wrong here before. `open.1c`/`open.1d` were reached from both
+    /// this branch and the no-five-card-suit branch, so Lesson 3 dealt long-minor
+    /// hands under a tip that said "no five-card major" — measured at 195 of 200
+    /// generated `open.1d` drills.
     #[test]
-    fn six_five_opens_the_six_not_the_five_major() {
+    fn a_minor_beats_a_five_card_major_only_when_strictly_longer() {
         // 6 clubs, 5 spades — HOUSE_RULES: 6-5: the six.
-        let h = hand(&[
+        let six_five = hand(&[
             "SA", "S9", "S8", "S4", "S2", "H3", "D3", "CA", "CK", "C9", "C8", "C5", "C4",
         ]);
-        assert_eq!(h.len_of(Suit::Club), 6);
-        assert_eq!(h.len_of(Suit::Spade), 5);
-        let d = opening(&h);
+        assert_eq!(six_five.len_of(Suit::Club), 6);
+        assert_eq!(six_five.len_of(Suit::Spade), 5);
+        let d = opening(&six_five);
         assert_eq!(d.bid, Call::suit_bid(1, Suit::Club), "{}", d.leaf_id);
-        assert_eq!(d.leaf_id, "open.1c");
+        assert_eq!(d.leaf_id, "open.1c.long");
+
+        // 6 diamonds, 5 hearts — the hand a learner hit in Lesson 3.
+        let long_diamonds = hand(&[
+            "HK", "HJ", "HT", "H4", "H3", "DA", "DK", "DQ", "D8", "D4", "D2", "C6", "C5",
+        ]);
+        let d = opening(&long_diamonds);
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Diamond), "{}", d.leaf_id);
+        assert_eq!(d.leaf_id, "open.1d.long");
+
+        // 5 hearts, 5 diamonds — equal, so the major takes the tie. This is the
+        // case "always open the longer minor" would get wrong.
+        let five_five = hand(&[
+            "SA", "S4", "S3", "HK", "HQ", "H9", "H8", "H7", "DK", "DQ", "D9", "D8", "D7",
+        ]);
+        assert_eq!(five_five.len_of(Suit::Heart), 5);
+        assert_eq!(five_five.len_of(Suit::Diamond), 5);
+        let d = opening(&five_five);
+        assert_eq!(d.bid, Call::suit_bid(1, Suit::Heart), "{}", d.leaf_id);
     }
 
     #[test]

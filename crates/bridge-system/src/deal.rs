@@ -804,6 +804,35 @@ mod tests {
         );
     }
 
+    /// `open.1d` and `open.1c` deal only the no-five-card-suit hands.
+    ///
+    /// That is the rule Lesson 3 states — "1♦ shows 4+, 1♣ can be three" — and
+    /// until these ids were split it was not the rule the drill dealt: the
+    /// longest-suit branch reached the same ids, so 195 of 200 generated
+    /// `open.1d` drills were long-diamond hands and 24 of them held the
+    /// five-card major the lesson's tip said the hand did not have.
+    #[test]
+    fn the_plain_minor_openings_deal_no_five_card_suit() {
+        let mut rng = SmallRng::seed_from_u64(20260901);
+        for id in ["open.1d", "open.1c"] {
+            let all = drills();
+            let spec = all.iter().find(|s| s.id == id).expect("drillable leaf");
+            for _ in 0..200 {
+                let (deal, _) = generate(&mut rng, spec).expect("deals");
+                let longest = [Suit::Spade, Suit::Heart, Suit::Diamond, Suit::Club]
+                    .into_iter()
+                    .map(|s| deal.south.len_of(s))
+                    .max()
+                    .unwrap();
+                assert!(
+                    longest <= 4,
+                    "{id} dealt a {longest}-card suit — that hand is the longest-suit rule \
+                     ({id}.long), not this leaf"
+                );
+            }
+        }
+    }
+
     #[test]
     fn script_starts_at_dealer_and_hits_the_target_leaf() {
         let mut rng = SmallRng::seed_from_u64(20260830);

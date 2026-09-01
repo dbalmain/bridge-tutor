@@ -332,6 +332,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
                     cards={drill.hands.S}
                     context={ctx.context}
                     trump={ctx.trump}
+                    leafId={drill.leaf_id}
                   />
                 );
               })()}

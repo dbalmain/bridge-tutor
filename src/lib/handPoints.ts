@@ -117,3 +117,73 @@ export function handPoints(cards: Card[]): HandPoints {
     ruleOf20: hcp + twoLongest.reduce((n, s) => n + s.length, 0),
   };
 }
+
+/** Which family of opening the decision landed in, taken from the leaf id. */
+export type OpeningKind =
+  | "suit"
+  | "notrump"
+  | "strong"
+  | "weak-two"
+  | "preempt"
+  | "pass";
+
+/**
+ * The bid the decision actually made, classified.
+ *
+ * Read from the leaf id rather than re-derived from the hand: the display
+ * must never argue with the call above it. A 5332 sixteen-count has a
+ * five-card major AND opens 1NT, so a shape-first explanation invented here
+ * would contradict the tree on a hand the tree is right about.
+ *
+ * `null` means "not an opening decision" — say nothing rather than guess.
+ */
+export function openingKind(leafId: string | undefined): OpeningKind | null {
+  if (!leafId) return null;
+  if (leafId === "open.pass" || leafId === "pass.fourth-seat") return "pass";
+  if (leafId.startsWith("open.1nt") || leafId === "open.2nt") return "notrump";
+  if (leafId === "open.2c") return "strong";
+  if (leafId.startsWith("open.2")) return "weak-two";
+  if (leafId.startsWith("open.3")) return "preempt";
+  if (leafId.startsWith("open.1")) return "suit";
+  return null;
+}
+
+export interface SuitChoice {
+  /** Longest first; ties in bidding rank order, so the winner is first. */
+  ranked: SuitPoints[];
+  winner: SuitPoints;
+  runnerUp: SuitPoints | undefined;
+  /** The runner-up is the same length as the winner — rank broke the tie. */
+  tied: boolean;
+  /** No suit reaches five: the longest-suit rule leaves only a minor. */
+  noFiveCardSuit: boolean;
+  /** A minor won over a major of five or more — strictly longer, so it wins. */
+  minorBeatsFiveCardMajor: boolean;
+}
+
+const IS_MAJOR_SUIT: Record<Suit, boolean> = { S: true, H: true, D: false, C: false };
+
+/**
+ * How the opening bid's suit is picked: longest wins, ties go to the higher
+ * ranking suit.
+ *
+ * `suits` arrives in S-H-D-C order, which is bidding rank high to low, so a
+ * stable sort on length alone already resolves ties the way the system does —
+ * and that is why a major takes every tie against a minor, and why a minor
+ * only ever wins by being strictly longer.
+ */
+export function suitChoice(p: HandPoints): SuitChoice {
+  const ranked = [...p.suits].sort((a, b) => b.length - a.length);
+  const winner = ranked[0]!;
+  const runnerUp = ranked[1];
+  return {
+    ranked,
+    winner,
+    runnerUp,
+    tied: runnerUp?.length === winner.length,
+    noFiveCardSuit: winner.length < 5,
+    minorBeatsFiveCardMajor:
+      !IS_MAJOR_SUIT[winner.suit] &&
+      p.suits.some((s) => IS_MAJOR_SUIT[s.suit] && s.length >= 5),
+  };
+}

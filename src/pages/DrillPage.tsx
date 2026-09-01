@@ -171,6 +171,7 @@ export function DrillPage() {
                     cards={drill.hands.S}
                     context={ctx.context}
                     trump={ctx.trump}
+                    leafId={drill.leaf_id}
                   />
                 );
               })()}
