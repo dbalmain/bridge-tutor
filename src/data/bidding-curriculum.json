@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 10
+    "version": 11
   },
   "chapters": [
     {
@@ -255,14 +255,15 @@
       "teaching": [
         "A balanced hand is 4333, 4432, or 5332 — no singleton, no void, and not 5422 (two doubletons). This is the first shape test in the course that is not just “how long is my longest suit”, so learn the three patterns.",
         "With 15–17 HCP and a balanced hand, open 1NT. This takes priority over Lessons 2 and 3: you open 1NT even when the five-card suit is a major, which is the one place the five-card-major rule is overruled. It keeps the strong hand hidden and avoids an awkward rebid.",
-        "Count HCP only for the 1NT range — no length points from Lesson 1, because 1NT is a high-card bid. One nudge upward: 14 HCP balanced with a five-card suit is treated as 1NT too. Below that, a balanced 12–14 goes back to Lessons 2 and 3 and opens a suit, and 5422 is not balanced at all, so it opens a suit as well."
+        "The range is high cards, not opening points, and the reason is worth having: every bid above 1NT is defined in high cards, so \"too strong for 1NT\" can only mean too many of them. A fifth card never makes a hand too strong for 1NT — it makes the hand better at 1NT. So length cannot push you out of the top: 17 HCP with a five-card suit is 18 opening points and is still a 1NT opening. At the bottom the question is the other one — is this hand good enough to promise 15–17? — and that is playing strength, where a fifth card is worth about a point. So a balanced 14 with a five-card suit is judged a 15 and opens 1NT. Not an exception to the count: the two ends of the range are asking different questions.",
+        "Everything else balanced opens a suit. A balanced 12–14 without that fifth card goes back to Lessons 2 and 3, opens a suit, and rebids 1NT to show 12–14. And 5-4-2-2 is not balanced at all — two doubletons — so it opens a suit whatever its strength."
       ],
       "rules": [
         "Balanced = 4333 / 4432 / 5332. 5422 is not balanced.",
-        "1NT = 15–17 HCP, balanced. HCP only — no length points (Lesson 1).",
+        "1NT = 15–17 HCP, balanced. High cards only — length points never move you out of the range.",
         "1NT beats a 5-card major (Lesson 2) — still 1NT.",
-        "14 HCP balanced with a 5-card suit upgrades to 1NT.",
-        "Balanced 12–14: open a suit (Lessons 2 and 3)."
+        "14 HCP balanced with a 5-card suit is judged a 15 and opens 1NT: a fifth card is worth about a point of playing strength.",
+        "Balanced 12–14: open a suit (Lessons 2 and 3) and rebid 1NT."
       ],
       "leaves": [
         "open.1nt",
