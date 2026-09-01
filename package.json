@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "test:engine": "tsx scripts/smoke-engine.ts",
     "test:points": "tsx scripts/check-points.ts",
+    "test:plans": "tsx scripts/check-lesson-plans.ts",
     "test:dds": "tsx scripts/test-dds-equals.ts"
   },
   "dependencies": {

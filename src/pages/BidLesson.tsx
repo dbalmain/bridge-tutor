@@ -18,6 +18,9 @@ import {
   chapterOfBid,
   findBidLesson,
   lessonStudentBids,
+  leafStudentBids,
+  lessonHandCount,
+  buildLessonPlan,
   nextBidLesson,
   type BidLesson as BidLessonSpec,
 } from "../lib/biddingCurriculum";
@@ -65,14 +68,16 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
   const [completed, setCompleted] = useState(false);
   const loadGen = useRef(0);
   const completeRef = useRef<HTMLElement>(null);
-  const maxStudentBids = lessonStudentBids(lesson);
+  const lessonBids = lessonStudentBids(lesson);
+  const [plan, setPlan] = useState<string[]>([]);
+  const handCount = plan.length || lessonHandCount(lesson);
 
   useEffect(() => {
     if (!completed) return;
     completeRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [completed]);
 
-  const loadHand = useCallback(async () => {
+  const loadHand = useCallback(async (leafId: string) => {
     const gen = (loadGen.current += 1);
     setBusy(true);
     setLoadError(null);
@@ -82,7 +87,9 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
         loadSystemProgressJson(),
         "all",
         randomSeed(),
-        lesson.leaves,
+        // One leaf, chosen by the run's plan, so the mix of new material and
+        // review is decided up front rather than re-rolled every hand.
+        [leafId],
       );
       if (loadGen.current !== gen) return;
       setDrill(d);
@@ -92,16 +99,18 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
     } finally {
       if (loadGen.current === gen) setBusy(false);
     }
-  }, [lesson.leaves]);
+  }, []);
 
   const begin = () => {
     const p = recordAttemptStart(loadProgress(), lesson.id);
     saveProgress(p);
+    const runPlan = buildLessonPlan(lesson);
+    setPlan(runPlan);
     setStarted(true);
     setHandIndex(0);
     setMistakesThisRun(0);
     setCompleted(false);
-    void loadHand();
+    void loadHand(runPlan[0]!);
   };
 
   const persistMistake = (
@@ -126,7 +135,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
   };
 
   const play = useBidPlaythrough(drill, {
-    maxStudentBids,
+    maxStudentBids: leafStudentBids(drill?.leaf_id),
     onDecision: (d) => {
       if (!d.correct) {
         setMistakesThisRun((n) => n + 1);
@@ -148,12 +157,12 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
   function nextHand() {
     if (!play.done) return;
     const upcoming = handIndex + 1;
-    if (upcoming >= lesson.quizCount) {
+    if (upcoming >= plan.length) {
       finishRun(mistakesThisRun);
       return;
     }
     setHandIndex(upcoming);
-    void loadHand();
+    void loadHand(plan[upcoming]!);
   }
 
   const log = play.revealed.map((s) => ({ seat: s.seat, bid: s.bid }));
@@ -214,14 +223,18 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
           <h2>Then a few tests</h2>
           <p>{lesson.tip}</p>
           <p className="muted small">
-            {lesson.quizCount} live hands. You bid from the start of each
+            {handCount} live hands. You bid from the start of each
             auction. Every seat bids the system, so if an opponent holds an
             opening hand they will open — but only the side that opened keeps
             bidding, because this course does not teach competitive bidding
             yet.
-            {maxStudentBids === 1
+            {handCount > lesson.quizCount &&
+              ` ${lesson.quizCount} of them are this lesson; the other ${
+                handCount - lesson.quizCount
+              } are drawn from everything taught so far, so the hand still has to be read rather than assumed.`}
+            {lessonBids === 1
               ? " This lesson stops after your first call — then you watch the rest."
-              : " Bid every South call through to the end."}{" "}
+              : " Bid every South call through to the end — except on a review hand from an opening lesson, which stops after your opening call."}{" "}
             A miss shows the explainer; bid the system call before the auction
             continues. Replay for ★ with zero misses.
           </p>
@@ -264,7 +277,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
             </span>
           </div>
           <h1 className="play-title">
-            Hand {Math.min(handIndex + 1, lesson.quizCount)} of {lesson.quizCount}
+            Hand {Math.min(handIndex + 1, handCount)} of {handCount}
             <span className="muted small">
               {" "}
               · misses this run: {mistakesThisRun}
@@ -368,7 +381,7 @@ function BidLessonInner({ lesson }: { lesson: BidLessonSpec }) {
                   className="btn btn--primary"
                   onClick={nextHand}
                 >
-                  {handIndex + 1 >= lesson.quizCount
+                  {handIndex + 1 >= plan.length
                     ? "Finish lesson"
                     : "Next hand"}
                 </button>
