@@ -49,10 +49,13 @@ function main(): void {
     const pool = reviewLeavesFor(lesson);
     const expected = lessonHandCount(lesson);
 
-    // Lesson 1 has nothing behind it, so it stays at its own count.
+    // Lesson 1 has nothing behind it, so it stays at its own count, and a
+    // pool too thin for the ratio is capped at two hands per leaf.
     const wanted =
       lesson.quizCount +
-      (pool.length === 0 ? 0 : Math.ceil(lesson.quizCount * 1.5));
+      (pool.length === 0
+        ? 0
+        : Math.min(Math.ceil(lesson.quizCount * 1.5), pool.length * 2));
     if (expected !== wanted) {
       failures.push(`${lesson.id}: hand count ${expected}, expected ${wanted}`);
     }
@@ -107,12 +110,15 @@ function main(): void {
     (n, l) => n + lessonHandCount(l),
     0,
   );
-  const thin = biddingCurriculum.lessons.filter(
-    (l) => reviewHandCount(l) > reviewLeavesFor(l).length * 2,
+  // Lessons whose pool was too thin for the full ratio, so the cap applied.
+  const capped = biddingCurriculum.lessons.filter(
+    (l) =>
+      reviewLeavesFor(l).length > 0 &&
+      reviewHandCount(l) < Math.ceil(l.quizCount * 1.5),
   );
-  for (const l of thin) {
-    console.warn(
-      `note  ${l.id} draws ${reviewHandCount(l)} review hands from only ${reviewLeavesFor(l).length} earlier leaf/leaves`,
+  for (const l of capped) {
+    console.log(
+      `note  ${l.id} capped to ${reviewHandCount(l)} review hands (ratio wanted ${Math.ceil(l.quizCount * 1.5)}, pool is ${reviewLeavesFor(l).length} leaf/leaves)`,
     );
   }
   console.log(

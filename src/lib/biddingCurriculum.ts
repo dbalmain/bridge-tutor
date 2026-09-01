@@ -104,6 +104,9 @@ export function reviewLeavesFor(lesson: BidLesson): string[] {
   return [...seen];
 }
 
+/** At most this many review hands per leaf the lesson can draw from. */
+const MAX_REVIEW_PER_LEAF = 2;
+
 /**
  * How many review hands a run deals: one and a half times the lesson's own
  * quota, rounded up, drawn from everything taught before it.
@@ -114,11 +117,19 @@ export function reviewLeavesFor(lesson: BidLesson): string[] {
  * new material deliberately: the question the course is teaching is "what
  * do I open?", not "how do I open 1NT?", and only a mixed run asks it.
  *
+ * The ratio needs a pool deep enough to fill, and early on there isn't one.
+ * Lesson 2's only predecessor is Lesson 1, whose single leaf is `open.pass`,
+ * so the unclamped ratio deals the same pass drill six times in a ten-hand
+ * run — a worse version of the monotony the review is there to fix. Capping
+ * at two hands per available leaf bites only where the pool cannot support
+ * the ratio: the next-thinnest is Lesson 3, six leaves against nine hands.
+ *
  * Lesson 1 has nothing behind it and gets none.
  */
 export function reviewHandCount(lesson: BidLesson): number {
-  if (reviewLeavesFor(lesson).length === 0) return 0;
-  return Math.ceil(lesson.quizCount * 1.5);
+  const pool = reviewLeavesFor(lesson).length;
+  if (pool === 0) return 0;
+  return Math.min(Math.ceil(lesson.quizCount * 1.5), pool * MAX_REVIEW_PER_LEAF);
 }
 
 /** Every hand in a run: the lesson's own quota plus its review hands. */
