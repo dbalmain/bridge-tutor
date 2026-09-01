@@ -3,7 +3,7 @@
     "title": "ABF Standard Five-Card Majors",
     "system": "Joan Butts / ABF teaching Standard 5CM, Stayman and Jacoby transfers",
     "source": "ABF Standard System Card (Joan Butts teaching dialect)",
-    "version": 9
+    "version": 10
   },
   "chapters": [
     {
@@ -276,28 +276,31 @@
       "chapterNumber": 2,
       "lessonNumber": 5,
       "title": "2NT and strong 2♣",
-      "tip": "20–21 balanced: 2NT. Game-forcing strength: 2♣.",
-      "newHere": "The two openings stronger than 1NT: 2NT for 20–21 balanced, and the artificial 2♣ for everything above that.",
+      "tip": "20–21 HCP balanced: 2NT — high cards only, and no five-card upgrade. Stronger than that: 2♣.",
+      "newHere": "The two openings stronger than 1NT: 2NT for 20–21 balanced, and the artificial 2♣ for everything above — and which count each of them uses.",
       "revisits": [
         {
           "lessonId": "bid-open-1nt",
-          "what": "balanced shape and the 15–17 range this is too strong for",
+          "what": "balanced shape, the 15–17 range this is too strong for, and the five-card upgrade that does NOT come up a range",
           "lessonNumber": 4
         },
         {
           "lessonId": "bid-pass",
-          "what": "opening points, which the 2♣ test uses",
+          "what": "length points, which 2♣ uses and 2NT does not",
           "lessonNumber": 1
         }
       ],
       "teaching": [
-        "Same balanced shapes as Lesson 4, one range up: 20–21 HCP balanced opens 2NT. Partner reads the range straight off the bid, so there is nothing to describe later.",
+        "Same balanced shapes as Lesson 4, one range up: 20–21 HCP balanced opens 2NT. Partner reads the range straight off the bid, so there is nothing left to describe later.",
         "22+ HCP, or 21+ opening points on an unbalanced hand, starts with 2♣. It is artificial and strong — it says nothing about clubs. Partner must respond, and the pair is in a game-forcing auction.",
-        "These hands are rare, and the test is nearly always the same one: is this balanced 20–21 (2NT) or is it stronger than that (2♣)?"
+        "Count high cards for the 2NT range, and this time there is no nudge. Lesson 4 let a balanced 14 with a five-card suit come up to 1NT; that upgrade does not come up a range with it. Nineteen balanced is not a 2NT opening, five-card suit or no — you open the suit and jump to 2NT on the next round, which shows exactly 18–19, so nothing is lost by not upgrading. The five-card suit does not push a 21 out of the range either. 2NT is 20–21 high-card points, full stop.",
+        "So notice where the length points went, because they are not gone from this lesson — they are in the other bid. The second door into 2♣ is 21+ opening points on an unbalanced hand, and that count does include length: 20 HCP with 5-4-2-2 is 21 opening points and opens 2♣, while the same 20 HCP balanced opens 2NT. This is the split worth carrying forward. High-card points say which strength band you are in, because every bid above 1NT is defined in high cards. Length points say how many tricks you can make. A notrump opening asks the first question; 2♣ asks the second.",
+        "These hands are rare, and the test is nearly always the same one: is this balanced 20–21 (2NT), or is it stronger than that (2♣)?"
       ],
       "rules": [
         "2NT = 20–21 HCP, balanced (Lesson 4's shapes).",
-        "2♣ = 22+ HCP, or 21+ opening points unbalanced. Artificial — not a club suit.",
+        "2NT counts HCP only — no length points, and no five-card upgrade. That upgrade is 1NT's alone.",
+        "2♣ = 22+ HCP, or 21+ opening points unbalanced — that door DOES count length. Artificial: not a club suit.",
         "15–17 balanced is still 1NT (Lesson 4)."
       ],
       "leaves": [
